@@ -17,22 +17,17 @@ const establishConnection = async error => {
     return;
   }
   try {
-    // const connection = await mongoose.connect(
-    //   'mongodb://127.0.0.1:27017/BioActiveCompounds',
-    //   {
-    //     user: 'readAny',
-    //     pass: 'mdbrany2015',
-    //     useNewUrlParser: true,
-    //   },
-    // );
-    const client = new mongodb.MongoClient(
-      `mongodb://${mongoConfig.server}:${mongoConfig.port}`,
+    const connection = await mongoose.connect(
+      `mongodb://${mongoConfig.server}:${mongoConfig.port}/admin`,
       {
+        ...mongoConfig.auth,
         useNewUrlParser: true,
-        auth: mongoConfig.auth,
       },
     );
-    await client.connect();
+
+    const schema = new mongoose.Schema({});
+    const model = mongoose.model('any', schema);
+    model.find({}, (...args) => console.log(...args));
   } catch (error) {
     console.error('mongodb connection error');
     console.error(error);
