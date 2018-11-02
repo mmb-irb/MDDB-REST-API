@@ -1,0 +1,35 @@
+{
+  "name": "model-cns_rest_api",
+  "version": "0.0.1",
+  "description": "MoDEL-CNS REST API",
+  "main": "index.js",
+  "scripts": {
+    "start": "NODE_ENV=local nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "[git@mmb.pcb.ub.es:22123]:aluciani/MoDEL-CNS_REST_API.git"
+  },
+  "keywords": [
+    "model",
+    "model-cns",
+    "central nervous system",
+    "membrane",
+    "structure",
+    "simulation",
+    "trajectory",
+    "hbp",
+    "Human Brain Project"
+  ],
+  "author": "Aurélien Luciani <aurelien.luciani@irbbarcelona.org>",
+  "license": "ISC",
+  "dependencies": {
+    "express": "4.16.4",
+    "mongoose": "5.3.8"
+  },
+  "devDependencies": {
+    "nodemon": "1.18.5",
+    "tunnel-ssh": "4.1.4"
+  }
+}
