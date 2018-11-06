@@ -4,7 +4,7 @@
   "description": "MoDEL-CNS REST API",
   "main": "index.js",
   "scripts": {
-    "start": "NODE_ENV=local nodemon index.js",
+    "start": "nodemon index.js",
     "serve": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -27,10 +27,10 @@
   "license": "ISC",
   "dependencies": {
     "express": "4.16.4",
-    "mongoose": "5.3.8"
+    "express-paginate": "^1.0.0",
+    "mongodb": "^3.1.9"
   },
   "devDependencies": {
-    "nodemon": "1.18.5",
-    "tunnel-ssh": "4.1.4"
+    "nodemon": "1.18.5"
   }
 }
