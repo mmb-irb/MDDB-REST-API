@@ -1,5 +1,6 @@
 const Router = require('express').Router;
 const dbConnection = require('../../models/index');
+const ObjectId = require('mongodb').ObjectId;
 
 const NO_CONTENT = 204;
 const NOT_FOUND = 404;
@@ -16,30 +17,38 @@ const projectRouter = Router();
     return;
   }
   const client = await dbConnection;
-  const model = client.db(mongoConfig.db).collection('projects');
+  const db = client.db(mongoConfig.db);
+  const model = db.collection('projects');
 
-  projectRouter.route('/').get(async (req, res) => {
-    const cursor = model.find({}, { projection: { id: true } });
+  projectRouter.route('/').get(async (request, response) => {
+    const cursor = model.find();
     const [projects, count] = await Promise.all([
       cursor
-        .skip(req.skip)
-        .limit(req.query.limit)
-        .map(({ id }) => id)
+        // pagination
+        .skip(request.skip)
+        .limit(request.query.limit)
+        .map(({ _id }) => _id)
         .toArray(),
       cursor.count(),
     ]);
-    if (!count) res.status(NO_CONTENT);
-    res.json({ projects, count });
+    if (!count) response.status(NO_CONTENT);
+    response.json({ projects, count });
   });
 
-  projectRouter.route('/:project').get(async (req, res) => {
-    const project = await model.findOne(
-      { id: req.params.project },
-      { projection: { _id: false } },
-    );
-    if (!project) res.sendStatus(NOT_FOUND);
-    res.json(project);
+  projectRouter.route('/:project').get(async (request, response) => {
+    const project = await model.findOne(ObjectId(request.params.project));
+    if (!project) return response.sendStatus(NOT_FOUND);
+    response.json(project);
   });
+
+  projectRouter.use(
+    '/:project/file',
+    (request, response, next) => {
+      response.locals.project = request.params.project;
+      next();
+    },
+    require('./file')(db, model),
+  );
 })();
 
 module.exports = projectRouter;

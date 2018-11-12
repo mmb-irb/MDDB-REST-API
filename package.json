@@ -1,5 +1,5 @@
 {
-  "name": "model-cns_rest_api",
+  "name": "MoDEL-CNS_REST_API",
   "version": "0.0.1",
   "description": "MoDEL-CNS REST API",
   "main": "index.js",
@@ -27,8 +27,8 @@
   "license": "ISC",
   "dependencies": {
     "express": "4.16.4",
-    "express-paginate": "^1.0.0",
-    "mongodb": "^3.1.9"
+    "express-paginate": "1.0.0",
+    "mongodb": "3.1.9"
   },
   "devDependencies": {
     "nodemon": "1.18.5"
