@@ -10,11 +10,11 @@ const NOT_FOUND = 404;
 module.exports = (db, model) => {
   fileRouter.route('/').get(async (request, response) => {
     const projectFiles = await model.findOne(
-      mongodb.ObjectId(response.locals.project),
+      { _id: response.locals.project },
       {
         projection: {
-          _id: 0,
-          files: 1,
+          _id: false,
+          files: true,
         },
       },
     );
@@ -26,14 +26,16 @@ module.exports = (db, model) => {
     const bucket = new mongodb.GridFSBucket(db);
     let objectId;
     try {
+      // if using the mongo ID in the URL
       objectId = mongodb.ObjectId(request.params.file);
     } catch (_) {
+      // if it wasn't a valid object id, assume it was a file name
       const projectFiles = await model.findOne(
-        mongodb.ObjectId(response.locals.project),
+        { _id: response.locals.project },
         {
           projection: {
-            _id: 0,
-            files: 1,
+            _id: false,
+            files: true,
           },
         },
       );

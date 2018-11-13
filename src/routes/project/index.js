@@ -1,6 +1,5 @@
 const Router = require('express').Router;
 const dbConnection = require('../../models/index');
-const ObjectId = require('mongodb').ObjectId;
 
 const NO_CONTENT = 204;
 const NOT_FOUND = 404;
@@ -27,7 +26,7 @@ const projectRouter = Router();
         // pagination
         .skip(request.skip)
         .limit(request.query.limit)
-        .map(({ _id }) => _id)
+        .map(({ _id: identifier, ...rest }) => ({ identifier, ...rest }))
         .toArray(),
       cursor.count(),
     ]);
@@ -36,9 +35,10 @@ const projectRouter = Router();
   });
 
   projectRouter.route('/:project').get(async (request, response) => {
-    const project = await model.findOne(ObjectId(request.params.project));
+    const project = await model.findOne({ _id: request.params.project });
     if (!project) return response.sendStatus(NOT_FOUND);
-    response.json(project);
+    const { _id: identifier, ...rest } = project;
+    response.json({ identifier, ...rest });
   });
 
   projectRouter.use(
