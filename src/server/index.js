@@ -1,4 +1,6 @@
 const paginate = require('express-paginate');
+const swaggerUI = require('swagger-ui-express');
+const yaml = require('yamljs');
 
 const routes = require('../routes');
 
@@ -15,6 +17,19 @@ app.get('/rest', (_, res) => res.json({ 'api versions': ['v1', 'current'] }));
 
 app.use('/rest/v1', routes);
 app.use('/rest/current', routes);
+
+app.use(
+  '/rest/docs',
+  swaggerUI.serve,
+  swaggerUI.setup(yaml.load(`${__dirname}/../docs/description.yml`), {
+    customCss: `
+      .swagger-ui .topbar {
+        display: none;
+      }
+    `,
+    customSiteTitle: 'MoDEL-CNS API - Swagger Documentation',
+  }),
+);
 
 module.exports = {
   app,
