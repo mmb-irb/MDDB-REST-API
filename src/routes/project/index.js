@@ -1,5 +1,7 @@
 const Router = require('express').Router;
+
 const dbConnection = require('../../models/index');
+const storeParameterMiddleware = require('../../utils/store-parameter-middleware');
 
 const NO_CONTENT = 204;
 const NOT_FOUND = 404;
@@ -42,13 +44,19 @@ const projectRouter = Router();
     response.json({ identifier, ...rest });
   });
 
+  // pass on to other handlers
+  const storeProjectMiddleware = storeParameterMiddleware('project');
+
   projectRouter.use(
     '/:project/file',
-    (request, response, next) => {
-      response.locals.project = request.params.project;
-      next();
-    },
+    storeProjectMiddleware,
     require('./file')(db, model),
+  );
+
+  projectRouter.use(
+    '/:project/analysis',
+    storeProjectMiddleware,
+    require('./analysis')(db, model),
   );
 })();
 

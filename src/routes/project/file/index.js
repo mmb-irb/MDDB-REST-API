@@ -1,5 +1,3 @@
-const fs = require('fs');
-
 const Router = require('express').Router;
 const mongodb = require('mongodb');
 
