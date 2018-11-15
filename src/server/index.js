@@ -10,10 +10,13 @@ const MAX_LIMIT = 100;
 
 const app = require('express')();
 
+// Pagination
 app.use(paginate.middleware(DEFAULT_LIMIT, MAX_LIMIT));
 
 app.get('/', (_, res) => res.json({ 'api types': ['rest'] }));
-app.get('/rest', (_, res) => res.json({ 'api versions': ['v1', 'current'] }));
+app.get('/rest', (_, res) =>
+  res.json({ 'api versions': ['v1', 'current'], 'current version': 'v1' }),
+);
 
 app.use('/rest/v1', routes);
 app.use('/rest/current', routes);
