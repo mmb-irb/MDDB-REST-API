@@ -8,7 +8,7 @@ const fileRouter = Router();
 const NOT_FOUND = 404;
 
 module.exports = (db, model) => {
-  fileRouter.route('/').get(async (request, response) => {
+  fileRouter.route('/').get(async (_, response) => {
     const projectFiles = await model.findOne(
       { _id: response.locals.project },
       {

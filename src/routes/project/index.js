@@ -26,6 +26,7 @@ const projectRouter = Router();
         // pagination
         .skip(request.skip)
         .limit(request.query.limit)
+        // transform document for public output
         .map(({ _id: identifier, ...rest }) => ({ identifier, ...rest }))
         .toArray(),
       cursor.count(),

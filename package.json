@@ -31,6 +31,7 @@
     "mongodb": "3.1.9"
   },
   "devDependencies": {
-    "nodemon": "1.18.5"
+    "nodemon": "1.18.5",
+    "pm2": "3.2.2"
   }
 }
