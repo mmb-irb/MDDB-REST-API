@@ -21,17 +21,54 @@ servers:
 paths:
   /project:
     get:
-      summary: Return a list of projects.
-      description: Return a list of MoDEL-CNS projects (simulations and related data and analyses).
+      summary: Get a list of projects.
+      description: Get a list of MoDEL-CNS projects (simulations and related data and analyses).
+      parameters:
+        - name: limit
+          in: query
+          description: pagination, maximum number of projects per query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
       responses:
         200:
           description: an array of projects, paginated
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Project'
+                type: object
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+                  count:
+                    type: integer
+  /project/{projectIdentifier}:
+    get:
+      summary: Get a project by its identifier.
+      description: Get a MoDEL-CNS project (simulations and related data and analyses) by its identifier.
+      parameters:
+        - name: projectIdentifier
+          in: path
+          description: project identifier
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: a project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
 
 components:
   schemas:
