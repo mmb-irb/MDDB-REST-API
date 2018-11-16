@@ -11,7 +11,10 @@ const MAX_LIMIT = 100;
 
 const app = require('express')();
 
-// CORS
+// Disable this header
+app.disable('x-powered-by');
+
+// Add CORS headers
 app.use(
   cors({
     methods: ['GET', 'HEAD'],
@@ -21,14 +24,17 @@ app.use(
 // Pagination
 app.use(paginate.middleware(DEFAULT_LIMIT, MAX_LIMIT));
 
+// Root routes
 app.get('/', (_, res) => res.json({ 'api types': ['rest'] }));
 app.get('/rest', (_, res) =>
   res.json({ 'api versions': ['v1', 'current'], 'current version': 'v1' }),
 );
 
+// Routes with more logic
 app.use('/rest/v1', routes);
 app.use('/rest/current', routes);
 
+// Swagger documentation
 app.use(
   '/rest/docs',
   swaggerUI.serve,
