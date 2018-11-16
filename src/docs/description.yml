@@ -19,7 +19,7 @@ servers:
         default: v1
 
 paths:
-  /project:
+  /projects:
     get:
       summary: Get a list of projects.
       description: Get a list of MoDEL-CNS projects (simulations and related data and analyses).
@@ -51,17 +51,12 @@ paths:
                       $ref: '#/components/schemas/Project'
                   count:
                     type: integer
-  /project/{projectIdentifier}:
+  /projects/{projectIdentifier}:
     get:
       summary: Get a project by its identifier.
       description: Get a MoDEL-CNS project (simulations and related data and analyses) by its identifier.
       parameters:
-        - name: projectIdentifier
-          in: path
-          description: project identifier
-          required: true
-          schema:
-            type: string
+        - $ref: '#/definitions/arguments/ProjectIdentifier'
       responses:
         200:
           description: a project
@@ -69,6 +64,77 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
+  /projects/{projectIdentifier}/files:
+    get:
+      summary: Get the files for a project.
+      description: Get the list of files for a specific MoDEL-CNS project.
+      parameters:
+        - $ref: '#/definitions/arguments/ProjectIdentifier'
+      responses:
+        200:
+          description: a list of files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+  /projects/{projectIdentifier}/files/{filename}:
+    get:
+      summary: Get a file for a project.
+      description: Get a specific file for a specific MoDEL-CNS project by its name.
+      parameters:
+        - $ref: '#/definitions/arguments/ProjectIdentifier'
+        - name: filename
+          in: path
+          description: filename
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: a file
+          content:
+            text/plain:
+              schema:
+                type: string
+                format: binary
+  /projects/{projectIdentifier}/analyses:
+    get:
+      summary: Get the analyses for a project.
+      description: Get the map of analyses for a specific MoDEL-CNS project.
+      parameters:
+        - $ref: '#/definitions/arguments/ProjectIdentifier'
+      responses:
+        200:
+          description: a map of analyses
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/Analysis'
+  /projects/{projectIdentifier}/analyses/{analysisName}:
+    get:
+      summary: Get an analysis for a project.
+      description: Get a specific analysis for a specific MoDEL-CNS project by its name.
+      parameters:
+        - $ref: '#/definitions/arguments/ProjectIdentifier'
+        - name: analysisName
+          in: path
+          description: analysis name
+          required: true
+          schema:
+            type: string
+          example: rgyr
+      responses:
+        200:
+          description: an analysis object
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: string
 
 components:
   schemas:
@@ -77,21 +143,20 @@ components:
     File:
       type: object
       properties:
-        _id:
-          type: string
-          pattern: '^[0-9a-f]{24}$'
         length:
           type: integer
         filename:
           type: string
         md5:
+          type: string
           pattern: '^[0-9a-f]{32}$'
     Project:
       type: object
       properties:
         identifier:
           type: string
-          pattern: '^MCNS[0-9]{5}$'
+          pattern:
+            $ref: '#/definitions/constants/ProjectIdentifierPattern'
         metadata:
           type: object
           additionalProperties:
@@ -102,10 +167,23 @@ components:
         pdbInfo:
           type: object
         analyses:
-          type: array
-          items:
-            $ref: '#/components/schemas/Analysis'
+          $ref: '#/components/schemas/Analysis'
         files:
           type: array
           items:
             $ref: '#/components/schemas/File'
+
+definitions:
+  constants:
+    ProjectIdentifierPattern: '^MCNS[0-9]{5}$'
+  arguments:
+    ProjectIdentifier:
+      name: projectIdentifier
+      in: path
+      description: project identifier
+      required: true
+      schema:
+        type: string
+        pattern:
+          $ref: '#/definitions/constants/ProjectIdentifierPattern'
+      example: MCNS00001
