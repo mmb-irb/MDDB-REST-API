@@ -26,6 +26,7 @@
   "author": "Aurélien Luciani <aurelien.luciani@irbbarcelona.org>",
   "license": "ISC",
   "dependencies": {
+    "cors": "2.8.5",
     "express": "4.16.4",
     "express-paginate": "1.0.0",
     "mongodb": "3.1.9",

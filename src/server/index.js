@@ -1,4 +1,5 @@
 const paginate = require('express-paginate');
+const cors = require('cors');
 const swaggerUI = require('swagger-ui-express');
 const yaml = require('yamljs');
 
@@ -9,6 +10,9 @@ const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
 
 const app = require('express')();
+
+// CORS
+app.use(cors());
 
 // Pagination
 app.use(paginate.middleware(DEFAULT_LIMIT, MAX_LIMIT));
