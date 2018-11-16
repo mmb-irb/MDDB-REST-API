@@ -12,7 +12,11 @@ const MAX_LIMIT = 100;
 const app = require('express')();
 
 // CORS
-app.use(cors());
+app.use(
+  cors({
+    methods: ['GET', 'HEAD'],
+  }),
+);
 
 // Pagination
 app.use(paginate.middleware(DEFAULT_LIMIT, MAX_LIMIT));
