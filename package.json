@@ -29,6 +29,7 @@
     "cors": "2.8.5",
     "express": "4.16.4",
     "express-paginate": "1.0.0",
+    "lodash": "4.17.11",
     "mongodb": "3.1.9",
     "swagger-ui-express": "4.0.1",
     "yamljs": "0.3.0"

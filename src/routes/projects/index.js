@@ -1,4 +1,5 @@
 const Router = require('express').Router;
+const omit = require('lodash').omit;
 
 const dbConnection = require('../../models/index');
 const storeParameterMiddleware = require('../../utils/store-parameter-middleware');
@@ -40,23 +41,35 @@ const projectRouter = Router();
   projectRouter.route('/:project').get(async (request, response) => {
     const project = await model.findOne({ _id: request.params.project });
     if (!project) return response.sendStatus(NOT_FOUND);
-    const { _id: identifier, ...rest } = project;
-    response.json({ identifier, ...rest });
+    response.json({
+      identifier: project._id,
+      metadata: project.metadata,
+      analyses: project.analyses || {},
+      pdbInfo: project.pdbInfo
+        ? {
+            identifier: project.pdbInfo._id,
+            ...omit(project.pdbInfo, ['_id']),
+          }
+        : {},
+      files: (project.files || []).map(file =>
+        omit(file, ['_id', 'chunkSize', 'uploadDate']),
+      ),
+    });
   });
 
   // pass on to other handlers
   const storeProjectMiddleware = storeParameterMiddleware('project');
 
   projectRouter.use(
-    '/:project/file',
+    '/:project/files',
     storeProjectMiddleware,
-    require('./file')(db, model),
+    require('./files')(db, model),
   );
 
   projectRouter.use(
-    '/:project/analysis',
+    '/:project/analyses',
     storeProjectMiddleware,
-    require('./analysis')(db, model),
+    require('./analyses')(db, model),
   );
 })();
 
