@@ -78,7 +78,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Project'
+                  $ref: '#/components/schemas/Filet'
   /projects/{projectIdentifier}/files/{filename}:
     get:
       summary: Get a file for a project.
