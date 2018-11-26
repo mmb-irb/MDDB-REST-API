@@ -23,6 +23,8 @@ paths:
     get:
       summary: Get a list of projects.
       description: Get a list of MoDEL-CNS projects (simulations and related data and analyses).
+      tags:
+        - projects
       parameters:
         - name: limit
           in: query
@@ -57,6 +59,8 @@ paths:
       description: Get a MoDEL-CNS project (simulations and related data and analyses) by its identifier.
       parameters:
         - $ref: '#/definitions/arguments/ProjectIdentifier'
+      tags:
+        - projects
       responses:
         200:
           description: a project
@@ -70,6 +74,8 @@ paths:
       description: Get the list of files for a specific MoDEL-CNS project.
       parameters:
         - $ref: '#/definitions/arguments/ProjectIdentifier'
+      tags:
+        - files
       responses:
         200:
           description: a list of files
@@ -91,6 +97,8 @@ paths:
           required: true
           schema:
             type: string
+      tags:
+        - files
       responses:
         200:
           description: a file
@@ -105,6 +113,8 @@ paths:
       description: Get the map of analyses for a specific MoDEL-CNS project.
       parameters:
         - $ref: '#/definitions/arguments/ProjectIdentifier'
+      tags:
+        - analyses
       responses:
         200:
           description: a map of analyses
@@ -127,6 +137,8 @@ paths:
           schema:
             type: string
           example: rgyr
+      tags:
+        - files
       responses:
         200:
           description: an analysis object
