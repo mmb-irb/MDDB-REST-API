@@ -3,6 +3,7 @@ const omit = require('lodash').omit;
 
 const dbConnection = require('../../models/index');
 const storeParameterMiddleware = require('../../utils/store-parameter-middleware');
+const handler = require('../../utils/generic-handler');
 
 const NO_CONTENT = 204;
 const NOT_FOUND = 404;
@@ -22,9 +23,10 @@ const projectRouter = Router();
   const db = client.db(mongoConfig.db);
   const model = db.collection('projects');
 
-  projectRouter.route('/').get(async (request, response) => {
+  // root
+  const rootRetriever = request => {
     const cursor = model.find();
-    const [projects, count] = await Promise.all([
+    return Promise.all([
       cursor
         // pagination
         .skip(request.skip)
@@ -34,12 +36,18 @@ const projectRouter = Router();
         .toArray(),
       cursor.count(),
     ]);
+  };
+
+  const rootSerializer = (response, [projects, count]) => {
     if (!count) response.status(NO_CONTENT);
     response.json({ projects, count });
-  });
+  };
 
-  projectRouter.route('/:project').get(async (request, response) => {
-    const project = await model.findOne({ _id: request.params.project });
+  // project
+  const projectRetriever = request =>
+    model.findOne({ _id: request.params.project });
+
+  const projectSerializer = (response, project) => {
     if (!project) return response.sendStatus(NOT_FOUND);
     response.json({
       identifier: project._id,
@@ -55,7 +63,14 @@ const projectRouter = Router();
         omit(file, ['_id', 'chunkSize', 'uploadDate']),
       ),
     });
-  });
+  };
+
+  // handlers
+  projectRouter.route('/').get(handler(rootRetriever, rootSerializer));
+
+  projectRouter
+    .route('/:project')
+    .get(handler(projectRetriever, projectSerializer));
 
   // pass on to other handlers
   const storeProjectMiddleware = storeParameterMiddleware('project');

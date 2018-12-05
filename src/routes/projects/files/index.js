@@ -1,14 +1,17 @@
 const Router = require('express').Router;
 const mongodb = require('mongodb');
 
+const handler = require('../../../utils/generic-handler');
+
 const fileRouter = Router();
 
 const NOT_FOUND = 404;
 
 module.exports = (db, model) => {
-  fileRouter.route('/').get(async (_, response) => {
-    const projectFiles = await model.findOne(
-      { _id: response.locals.project },
+  // root
+  const rootRetriever = (_, { project }) =>
+    model.findOne(
+      { _id: project },
       {
         projection: {
           _id: false,
@@ -16,11 +19,14 @@ module.exports = (db, model) => {
         },
       },
     );
-    if (!projectFiles) return response.sendStatus(NOT_FOUND);
-    response.json(projectFiles);
-  });
 
-  fileRouter.route('/:file').get(async (request, response) => {
+  const rootSerializer = (response, data) => {
+    if (!data) return response.sendStatus(NOT_FOUND);
+    response.json(data);
+  };
+
+  // file
+  const fileRetriever = async (request, { project }) => {
     const bucket = new mongodb.GridFSBucket(db);
     let objectId;
     try {
@@ -29,7 +35,7 @@ module.exports = (db, model) => {
     } catch (_) {
       // if it wasn't a valid object id, assume it was a file name
       const projectFiles = await model.findOne(
-        { _id: response.locals.project },
+        { _id: project },
         {
           projection: {
             _id: false,
@@ -37,19 +43,28 @@ module.exports = (db, model) => {
           },
         },
       );
-      if (!projectFiles) return response.sendStatus(NOT_FOUND);
+      if (!projectFiles) return;
       objectId = mongodb.ObjectId(
         projectFiles.files.find(file => file.filename === request.params.file)
           ._id,
       );
     }
-    const stream = bucket.openDownloadStream(objectId);
+    return bucket.openDownloadStream(objectId);
+  };
+
+  const fileSerializer = (response, stream) => {
+    if (!stream) return response.sendStatus(NOT_FOUND);
     response.set('content-type', 'text/plain');
     response.set('accept-ranges', 'bytes');
     stream.on('data', response.write.bind(response));
     stream.on('error', () => response.sendStatus(NOT_FOUND));
     stream.on('end', response.end.bind(response));
-  });
+  };
+
+  // handlers
+  fileRouter.route('/').get(handler(rootRetriever, rootSerializer));
+
+  fileRouter.route('/:file').get(handler(fileRetriever, fileSerializer));
 
   return fileRouter;
 };

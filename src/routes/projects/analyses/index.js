@@ -1,14 +1,17 @@
 const Router = require('express').Router;
 const mongodb = require('mongodb');
 
-const fileRouter = Router();
+const handler = require('../../../utils/generic-handler');
+
+const analysisRouter = Router();
 
 const NOT_FOUND = 404;
 
 module.exports = (db, model) => {
-  fileRouter.route('/').get(async (_, response) => {
-    const projectAnalyses = await model.findOne(
-      { _id: response.locals.project },
+  // root
+  const rootRetriever = (_, { project }) =>
+    model.findOne(
+      { _id: project },
       {
         projection: {
           _id: false,
@@ -16,18 +19,18 @@ module.exports = (db, model) => {
         },
       },
     );
-    if (!(projectAnalyses && projectAnalyses.analyses)) {
+
+  const rootSerializer = (response, data) => {
+    if (!(data && data.analyses)) {
       return response.sendStatus(NOT_FOUND);
     }
-    response.json(projectAnalyses.analyses);
-  });
+    response.json(data.analyses);
+  };
 
-  fileRouter.route('/:analysis').get(async (request, response) => {
-    const bucket = new mongodb.GridFSBucket(db);
-
-    // if it wasn't a valid object id, assume it was a file name
-    const projectAnalyses = await model.findOne(
-      { _id: response.locals.project },
+  // analysis
+  const analysisRetriever = (request, { project }) =>
+    model.findOne(
+      { _id: project },
       {
         projection: {
           _id: false,
@@ -35,17 +38,20 @@ module.exports = (db, model) => {
         },
       },
     );
-    if (
-      !(
-        projectAnalyses &&
-        projectAnalyses.analyses &&
-        projectAnalyses.analyses[request.params.analysis]
-      )
-    ) {
+
+  const analysisSerializer = (response, data, { analysis }) => {
+    if (!(data && data.analyses && data.analyses[analysis])) {
       return response.sendStatus(NOT_FOUND);
     }
-    response.json(projectAnalyses.analyses[request.params.analysis]);
-  });
+    response.json(data.analyses[analysis]);
+  };
 
-  return fileRouter;
+  // handlers
+  analysisRouter.route('/').get(handler(rootRetriever, rootSerializer));
+
+  analysisRouter
+    .route('/:analysis')
+    .get(handler(analysisRetriever, analysisSerializer));
+
+  return analysisRouter;
 };
