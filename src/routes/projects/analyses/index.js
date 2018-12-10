@@ -1,5 +1,4 @@
 const Router = require('express').Router;
-const mongodb = require('mongodb');
 
 const handler = require('../../../utils/generic-handler');
 
@@ -7,7 +6,7 @@ const analysisRouter = Router();
 
 const NOT_FOUND = 404;
 
-module.exports = (db, model) => {
+module.exports = (_, model) => {
   // root
   const rootRetriever = (_, { project }) =>
     model.findOne(

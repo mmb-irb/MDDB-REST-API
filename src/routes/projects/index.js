@@ -35,12 +35,13 @@ const projectRouter = Router();
         .map(({ _id: identifier, ...rest }) => ({ identifier, ...rest }))
         .toArray(),
       cursor.count(),
+      model.find().count(),
     ]);
   };
 
-  const rootSerializer = (response, [projects, count]) => {
-    if (!count) response.status(NO_CONTENT);
-    response.json({ projects, count });
+  const rootSerializer = (response, [projects, filteredCount, totalCount]) => {
+    if (!filteredCount) response.status(NO_CONTENT);
+    response.json({ projects, filteredCount, totalCount });
   };
 
   // project
