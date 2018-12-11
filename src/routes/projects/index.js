@@ -23,16 +23,30 @@ const projectRouter = Router();
   const db = client.db(mongoConfig.db);
   const model = db.collection('projects');
 
+  const filterAndSort = (model, search = '') => {
+    let $search = search.trim();
+    if (!$search) return model.find();
+    if (!isNaN(+$search)) $search += ` MCNS${$search.padStart(5, '0')}`;
+    const score = { score: { $meta: 'textScore' } };
+    return model
+      .find({ $text: { $search } }, score)
+      .project(score)
+      .sort(score);
+  };
+
   // root
   const rootRetriever = request => {
-    const cursor = model.find();
+    const cursor = filterAndSort(model, request.query.search);
     return Promise.all([
       cursor
         // pagination
         .skip(request.skip)
         .limit(request.query.limit)
         // transform document for public output
-        .map(({ _id: identifier, ...rest }) => ({ identifier, ...rest }))
+        .map(({ _id: identifier, score: _, ...rest }) => ({
+          identifier,
+          ...rest,
+        }))
         .toArray(),
       cursor.count(),
       model.find().count(),
