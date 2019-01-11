@@ -10,6 +10,21 @@ const NOT_FOUND = 404;
 
 const projectRouter = Router();
 
+const projectObjectCleaner = project => ({
+  identifier: project._id,
+  metadata: project.metadata,
+  analyses: Object.keys(project.analyses) || [],
+  pdbInfo: project.pdbInfo
+    ? {
+        identifier: project.pdbInfo._id,
+        ...omit(project.pdbInfo, ['_id']),
+      }
+    : {},
+  files: (project.files || []).map(file =>
+    omit(file, ['_id', 'chunkSize', 'uploadDate']),
+  ),
+});
+
 (async () => {
   let mongoConfig;
   try {
@@ -43,10 +58,7 @@ const projectRouter = Router();
         .skip(request.skip)
         .limit(request.query.limit)
         // transform document for public output
-        .map(({ _id: identifier, score: _, ...rest }) => ({
-          identifier,
-          ...rest,
-        }))
+        .map(projectObjectCleaner)
         .toArray(),
       cursor.count(),
       model.find().count(),
@@ -64,20 +76,7 @@ const projectRouter = Router();
 
   const projectSerializer = (response, project) => {
     if (!project) return response.sendStatus(NOT_FOUND);
-    response.json({
-      identifier: project._id,
-      metadata: project.metadata,
-      analyses: project.analyses || {},
-      pdbInfo: project.pdbInfo
-        ? {
-            identifier: project.pdbInfo._id,
-            ...omit(project.pdbInfo, ['_id']),
-          }
-        : {},
-      files: (project.files || []).map(file =>
-        omit(file, ['_id', 'chunkSize', 'uploadDate']),
-      ),
-    });
+    response.json(projectObjectCleaner(project));
   };
 
   // handlers
