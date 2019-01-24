@@ -97,6 +97,20 @@ paths:
           required: true
           schema:
             type: string
+        - name: range
+          in: header
+          schema:
+            type: string
+          description: >
+            Specify a byte range for the returned file. Especially useful for
+            'trajectory.bin' files, since that way one can ask for specific
+            frames instead of the whole file.
+          examples:
+            firstAtom:
+              summary: >
+                first coordinates (x, y, and z) for the first atom of the first
+                frame (first 12 bytes).
+              value: bytes=0-11
       tags:
         - files
       responses:
@@ -106,6 +120,9 @@ paths:
             text/plain:
               schema:
                 type: string
+                format: binary
+            application/octet-stream:
+              schema:
                 format: binary
   /projects/{projectIdentifier}/analyses:
     get:

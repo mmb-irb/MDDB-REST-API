@@ -85,7 +85,13 @@ module.exports = (db, model) => {
       response.set('content-range', range.responseHeader);
       response.status(PARTIAL_CONTENT);
     }
-    response.set('content-type', 'text/plain');
+    // TODO: define in that DB with load script
+    response.set(
+      'content-type',
+      metadata.filename.endsWith('.pdb')
+        ? 'text/plain'
+        : 'application/octet-stream',
+    );
     response.set('content-length', range ? range.size : metadata.length);
     response.set('accept-ranges', 'bytes');
     stream.on(
