@@ -77,7 +77,6 @@ module.exports = (db, model) => {
         parseRange(metadata.length, request.headers.range, { combine: true }),
         metadata.length,
       );
-    console.log(range);
     let options;
     if (range && typeof range === 'object') {
       options = { start: range.min, end: range.max + 1 };
