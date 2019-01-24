@@ -90,7 +90,7 @@ module.exports = (db, model) => {
     if (range) {
       if (range === -1) return response.sendStatus(BAD_REQUEST);
       if (range === -2) {
-        response.set('content-range', `*/${metadata.length}`);
+        response.set('content-range', `bytes=*/${metadata.length}`);
         return response.sendStatus(REQUEST_RANGE_NOT_SATISFIABLE);
       }
 
