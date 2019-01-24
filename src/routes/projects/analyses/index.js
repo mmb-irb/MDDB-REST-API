@@ -2,9 +2,9 @@ const Router = require('express').Router;
 
 const handler = require('../../../utils/generic-handler');
 
-const analysisRouter = Router();
+const { NOT_FOUND } = require('../../../utils/status-codes');
 
-const NOT_FOUND = 404;
+const analysisRouter = Router();
 
 module.exports = (_, model) => {
   // root

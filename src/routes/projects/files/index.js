@@ -1,11 +1,31 @@
 const Router = require('express').Router;
 const mongodb = require('mongodb');
+const parseRange = require('range-parser');
 
 const handler = require('../../../utils/generic-handler');
+const addMinMaxSize = require('../../../utils/add-min-max-size');
+
+const {
+  PARTIAL_CONTENT,
+  BAD_REQUEST,
+  NOT_FOUND,
+  REQUEST_RANGE_NOT_SATISFIABLE,
+} = require('../../../utils/status-codes');
 
 const fileRouter = Router();
 
-const NOT_FOUND = 404;
+// assume we already starting streaming at range.min
+const responseWriterForRange = (range, response) => {
+  // TODO: implement multiple range values
+  // currentRangeIndex = 0;
+  // currentFileIndex = range[currentRangeIndex].min;
+  return buffer => {
+    // let finalFileIndex = currentRangeIndex + buffer.length;
+    // if (finalFileIndex <= range[currentRangeIndex].end) {}
+    // console.log(buffer, buffer.length);
+    response.write(buffer);
+  };
+};
 
 module.exports = (db, model) => {
   // root
@@ -27,6 +47,7 @@ module.exports = (db, model) => {
 
   // file
   const fileRetriever = async (request, { project }) => {
+    const files = db.collection('fs.files');
     const bucket = new mongodb.GridFSBucket(db);
     let objectId;
     try {
@@ -49,14 +70,43 @@ module.exports = (db, model) => {
           ._id,
       );
     }
-    return bucket.openDownloadStream(objectId);
+    const metadata = await files.findOne({ _id: objectId });
+    const range =
+      request.headers.range &&
+      addMinMaxSize(
+        parseRange(metadata.length, request.headers.range, { combine: true }),
+        metadata.length,
+      );
+    console.log(range);
+    let options;
+    if (range && typeof range === 'object') {
+      options = { start: range.min, end: range.max + 1 };
+    }
+    const stream = bucket.openDownloadStream(objectId, options);
+    return { stream, metadata, range };
   };
 
-  const fileSerializer = (response, stream) => {
+  const fileSerializer = (response, { stream, metadata, range }) => {
     if (!stream) return response.sendStatus(NOT_FOUND);
+    if (range) {
+      if (range === -1) return response.sendStatus(BAD_REQUEST);
+      if (range === -2) {
+        response.set('content-range', `*/${metadata.length}`);
+        return response.sendStatus(REQUEST_RANGE_NOT_SATISFIABLE);
+      }
+
+      response.set('content-range', range.responseHeader);
+      response.status(PARTIAL_CONTENT);
+    }
     response.set('content-type', 'text/plain');
+    response.set('content-length', range ? range.size : metadata.length);
     response.set('accept-ranges', 'bytes');
-    stream.on('data', response.write.bind(response));
+    stream.on(
+      'data',
+      range
+        ? responseWriterForRange(range, response)
+        : response.write.bind(response),
+    );
     stream.on('error', () => response.sendStatus(NOT_FOUND));
     stream.on('end', response.end.bind(response));
   };

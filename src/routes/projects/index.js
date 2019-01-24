@@ -5,8 +5,7 @@ const dbConnection = require('../../models/index');
 const storeParameterMiddleware = require('../../utils/store-parameter-middleware');
 const handler = require('../../utils/generic-handler');
 
-const NO_CONTENT = 204;
-const NOT_FOUND = 404;
+const { NO_CONTENT, NOT_FOUND } = require('../../utils/status-codes');
 
 const projectRouter = Router();
 
