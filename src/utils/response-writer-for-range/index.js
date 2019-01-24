@@ -10,3 +10,5 @@ const responseWriterForRange = (range, response) => {
     response.write(buffer);
   };
 };
+
+module.exports = responseWriterForRange;
