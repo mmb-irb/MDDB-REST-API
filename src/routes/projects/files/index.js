@@ -3,6 +3,7 @@ const mongodb = require('mongodb');
 const parseRange = require('range-parser');
 
 const handler = require('../../../utils/generic-handler');
+const responseWriterForRange = require('../../../utils/response-writer-for-range');
 const addMinMaxSize = require('../../../utils/add-min-max-size');
 
 const {
@@ -13,19 +14,6 @@ const {
 } = require('../../../utils/status-codes');
 
 const fileRouter = Router();
-
-// assume we already starting streaming at range.min
-const responseWriterForRange = (range, response) => {
-  // TODO: implement multiple range values
-  // currentRangeIndex = 0;
-  // currentFileIndex = range[currentRangeIndex].min;
-  return buffer => {
-    // let finalFileIndex = currentRangeIndex + buffer.length;
-    // if (finalFileIndex <= range[currentRangeIndex].end) {}
-    // console.log(buffer, buffer.length);
-    response.write(buffer);
-  };
-};
 
 module.exports = (db, model) => {
   // root
