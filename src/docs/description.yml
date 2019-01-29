@@ -124,6 +124,16 @@ paths:
             application/octet-stream:
               schema:
                 format: binary
+        206:
+          description: a partial file
+          content:
+            text/plain:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                format: binary
   /projects/{projectIdentifier}/analyses:
     get:
       summary: Get the analyses for a project.
