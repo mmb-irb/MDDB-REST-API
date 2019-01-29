@@ -85,7 +85,7 @@ module.exports = (db, model) => {
       response.set('content-range', range.responseHeader);
       response.status(PARTIAL_CONTENT);
     }
-    // TODO: define in that DB with load script
+    // TODO: define that in DB with load script
     response.set(
       'content-type',
       metadata.filename.endsWith('.pdb')

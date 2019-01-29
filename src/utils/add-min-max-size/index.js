@@ -8,10 +8,10 @@ const reducerFunction = (accumulator, { start, end }) =>
 const mappingFunction = ({ start, end }) => `${start}-${end}`;
 
 const addMinMaxSize = (range, length) => {
-  // nothing
-  if (!range) return;
   // error codes
   if (Number.isFinite(range)) return range;
+  // nothing
+  if (!range || !range.length) return;
   // valid range, copy original
   const output = Array.from(range);
   output.type = range.type;
