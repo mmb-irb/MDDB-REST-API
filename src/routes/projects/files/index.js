@@ -97,7 +97,7 @@ module.exports = (db, model) => {
     stream.on(
       'data',
       range
-        ? responseWriterForRange(range, response)
+        ? responseWriterForRange(range, response, true)
         : response.write.bind(response),
     );
     stream.on('error', () => response.sendStatus(NOT_FOUND));
