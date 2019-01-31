@@ -1,5 +1,5 @@
 const server = require('./src/server');
-const dbConnectionPromise = require('./src/models');
+// const dbConnectionPromise = require('./src/models');
 
 const main = async () => {
   let serverInstance;
