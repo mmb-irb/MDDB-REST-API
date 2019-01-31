@@ -6,7 +6,8 @@
   "scripts": {
     "start": "nodemon index.js",
     "serve": "node index.js",
-    "test": "jest"
+    "test": "jest",
+    "coverage": "npm run test -- --coverage --collectCoverageFrom='**/*.js' --collectCoverageFrom='!coverage/**'"
   },
   "repository": {
     "type": "git",
