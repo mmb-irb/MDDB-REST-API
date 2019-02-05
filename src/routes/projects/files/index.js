@@ -3,7 +3,7 @@ const mongodb = require('mongodb');
 const parseRange = require('range-parser');
 
 const handler = require('../../../utils/generic-handler');
-const responseWriterForRange = require('../../../utils/response-writer-for-range');
+const combineDownloadStreams = require('../../../utils/combine-download-streams');
 const addMinMaxSize = require('../../../utils/add-min-max-size');
 
 const {
@@ -65,11 +65,10 @@ module.exports = (db, model) => {
         parseRange(metadata.length, request.headers.range, { combine: true }),
         metadata.length,
       );
-    let options;
-    if (range && typeof range === 'object') {
-      options = { start: range.min, end: range.max + 1 };
+    let stream;
+    if (!range || typeof range === 'object') {
+      stream = combineDownloadStreams(bucket, objectId, range);
     }
-    const stream = bucket.openDownloadStream(objectId, options);
     return { stream, metadata, range };
   };
 
@@ -95,12 +94,7 @@ module.exports = (db, model) => {
     );
     response.set('accept-ranges', 'bytes');
 
-    stream.on(
-      'data',
-      range
-        ? responseWriterForRange(range, response, true)
-        : response.write.bind(response),
-    );
+    stream.on('data', response.write.bind(response));
     stream.on('error', () => response.sendStatus(NOT_FOUND));
     stream.on('end', response.end.bind(response));
   };
