@@ -18,6 +18,7 @@ app.disable('x-powered-by');
 app.use(
   cors({
     methods: ['GET', 'HEAD'],
+    exposedHeaders: ['content-length'],
   }),
 );
 
