@@ -106,6 +106,7 @@ paths:
             Specify a byte, atom, or frame range for the returned file.
             Especially useful for 'trajectory.bin' files, since that way one can
             ask for specific frames or atoms instead of the whole file.
+            [See here for information on how to use range requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests#Requesting_a_specific_range_from_a_server)
           examples:
             firstAtom:
               summary: >
