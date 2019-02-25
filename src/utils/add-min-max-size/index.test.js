@@ -29,7 +29,6 @@ describe('Basic cases', () => {
     expected.min = 5;
     expected.max = 6;
     expected.size = 2;
-    expected.responseHeader = 'bytes=5-6/10';
     expect(output).toEqual(expected);
   });
 
@@ -42,7 +41,6 @@ describe('Basic cases', () => {
     expected.min = 1;
     expected.max = 6;
     expected.size = 3;
-    expected.responseHeader = 'bytes=1-1,5-6/10';
     expect(output).toEqual(expected);
   });
 
@@ -55,7 +53,6 @@ describe('Basic cases', () => {
     expected.min = 1;
     expected.max = 6;
     expected.size = 3;
-    expected.responseHeader = 'bytes=1-1,5-6/10';
     expect(output).toEqual(expected);
   });
 });
