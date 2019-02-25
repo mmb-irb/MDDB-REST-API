@@ -88,7 +88,8 @@ paths:
   /projects/{projectIdentifier}/files/{filename}:
     get:
       summary: Get a file for a project.
-      description: Get a specific file for a specific MoDEL-CNS project by its name.
+      description: >
+        Get a specific file for a specific MoDEL-CNS project by its name.
       parameters:
         - $ref: '#/definitions/arguments/ProjectIdentifier'
         - name: filename
@@ -102,15 +103,15 @@ paths:
           schema:
             type: string
           description: >
-            Specify a byte range for the returned file. Especially useful for
-            'trajectory.bin' files, since that way one can ask for specific
-            frames instead of the whole file.
+            Specify a byte, atom, or frame range for the returned file.
+            Especially useful for 'trajectory.bin' files, since that way one can
+            ask for specific frames or atoms instead of the whole file.
           examples:
             firstAtom:
               summary: >
-                first coordinates (x, y, and z) for the first atom of the first
-                frame (first 12 bytes).
-              value: bytes=0-11
+                first coordinates (x, y, and z) for the first 3 atoms of the
+                first 2 frames.
+              value: atoms=0-2, frames=0-1
       tags:
         - files
       responses:
