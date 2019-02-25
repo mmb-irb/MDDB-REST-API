@@ -58,40 +58,38 @@ module.exports = (db, model) => {
           ._id,
       );
     }
-    const metadata = await files.findOne({ _id: objectId });
+    const descriptor = await files.findOne({ _id: objectId });
     const range =
       request.headers.range &&
       addMinMaxSize(
-        parseRange(metadata.length, request.headers.range, { combine: true }),
-        metadata.length,
+        parseRange(descriptor.length, request.headers.range, { combine: true }),
+        descriptor.length,
       );
     let stream;
     if (!range || typeof range === 'object') {
+      console.log(request.headers.range, range);
       stream = combineDownloadStreams(bucket, objectId, range);
     }
-    return { stream, metadata, range };
+    return { stream, descriptor, range };
   };
 
-  const fileSerializer = (response, { stream, metadata, range }) => {
+  const fileSerializer = (response, { stream, descriptor, range }) => {
     if (!stream) return response.sendStatus(NOT_FOUND);
     if (range) {
       if (range === -1) return response.sendStatus(BAD_REQUEST);
       if (range === -2) {
-        response.set('content-range', `bytes=*/${metadata.length}`);
+        response.set('content-range', `bytes=*/${descriptor.length}`);
         return response.sendStatus(REQUEST_RANGE_NOT_SATISFIABLE);
       }
 
       response.set('content-range', range.responseHeader);
       response.status(PARTIAL_CONTENT);
     }
-    response.set('content-length', range ? range.size : metadata.length);
-    // TODO: define that in DB with load script
-    response.set(
-      'content-type',
-      metadata.filename.endsWith('.pdb')
-        ? 'text/plain'
-        : 'application/octet-stream',
-    );
+    response.set('content-length', range ? range.size : descriptor.length);
+    if (descriptor.contentType) {
+      response.set('content-type', descriptor.contentType);
+    }
+
     response.set('accept-ranges', 'bytes');
 
     stream.on('data', response.write.bind(response));
