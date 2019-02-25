@@ -1,8 +1,8 @@
 const Router = require('express').Router;
 const mongodb = require('mongodb');
-const parseRange = require('range-parser');
 
 const handler = require('../../../utils/generic-handler');
+const handleRange = require('../../../utils/handle-range');
 const combineDownloadStreams = require('../../../utils/combine-download-streams');
 const addMinMaxSize = require('../../../utils/add-min-max-size');
 
@@ -61,36 +61,40 @@ module.exports = (db, model) => {
     const descriptor = await files.findOne({ _id: objectId });
     const range =
       request.headers.range &&
-      addMinMaxSize(
-        parseRange(descriptor.length, request.headers.range, { combine: true }),
-        descriptor.length,
-      );
+      addMinMaxSize(handleRange(request.headers.range, descriptor));
     let stream;
     if (!range || typeof range === 'object') {
-      console.log(request.headers.range, range);
       stream = combineDownloadStreams(bucket, objectId, range);
     }
     return { stream, descriptor, range };
   };
 
   const fileSerializer = (response, { stream, descriptor, range }) => {
-    if (!stream) return response.sendStatus(NOT_FOUND);
     if (range) {
       if (range === -1) return response.sendStatus(BAD_REQUEST);
       if (range === -2) {
-        response.set('content-range', `bytes=*/${descriptor.length}`);
+        response.set('content-range', [
+          `bytes=*/${descriptor.length}`,
+          `atoms=*/${descriptor.metadata.atoms}`,
+          `frames=*/${descriptor.metadata.frames}`,
+        ]);
         return response.sendStatus(REQUEST_RANGE_NOT_SATISFIABLE);
       }
+      response.set('content-range', range.responseHeaders);
 
-      response.set('content-range', range.responseHeader);
+      if (!stream) return response.sendStatus(NOT_FOUND);
+
       response.status(PARTIAL_CONTENT);
     }
+
+    if (!stream) return response.sendStatus(NOT_FOUND);
+
     response.set('content-length', range ? range.size : descriptor.length);
     if (descriptor.contentType) {
       response.set('content-type', descriptor.contentType);
     }
 
-    response.set('accept-ranges', 'bytes');
+    response.set('accept-ranges', ['bytes', 'atoms', 'frames']);
 
     stream.on('data', response.write.bind(response));
     stream.on('error', () => response.sendStatus(NOT_FOUND));
