@@ -167,7 +167,7 @@ paths:
             type: string
           example: rgyr
       tags:
-        - files
+        - analyses
       responses:
         200:
           description: an analysis object
