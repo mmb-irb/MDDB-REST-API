@@ -12,7 +12,7 @@ const projectRouter = Router();
 const projectObjectCleaner = project => ({
   identifier: project._id,
   metadata: project.metadata,
-  analyses: Object.keys(project.analyses) || [],
+  analyses: project.analyses || [],
   pdbInfo: project.pdbInfo
     ? {
         identifier: project.pdbInfo._id,
@@ -35,14 +35,17 @@ const projectObjectCleaner = project => ({
   }
   const client = await dbConnection;
   const db = client.db(mongoConfig.db);
-  const model = db.collection('projects');
+  const model = {
+    projects: db.collection('projects'),
+    analyses: db.collection('analyses'),
+  };
 
-  const filterAndSort = (model, search = '') => {
+  const filterAndSort = ({ projects }, search = '') => {
     let $search = search.trim();
-    if (!$search) return model.find();
+    if (!$search) return projects.find();
     if (!isNaN(+$search)) $search += ` MCNS${$search.padStart(5, '0')}`;
     const score = { score: { $meta: 'textScore' } };
-    return model
+    return projects
       .find({ $text: { $search } }, score)
       .project(score)
       .sort(score);
@@ -60,7 +63,7 @@ const projectObjectCleaner = project => ({
         .map(projectObjectCleaner)
         .toArray(),
       cursor.count(),
-      model.find().count(),
+      model.projects.find().count(),
     ]);
   };
 
@@ -71,7 +74,7 @@ const projectObjectCleaner = project => ({
 
   // project
   const projectRetriever = request =>
-    model.findOne({ _id: request.params.project });
+    model.projects.findOne({ _id: request.params.project });
 
   const projectSerializer = (response, project) => {
     if (!project) return response.sendStatus(NOT_FOUND);

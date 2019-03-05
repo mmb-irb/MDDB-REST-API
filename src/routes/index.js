@@ -1,6 +1,6 @@
 const rootRouter = require('express').Router();
 
-rootRouter.route('/').get((req, res) => {
+rootRouter.route('/').get((_, res) => {
   res.json({ endpoints: ['projects'] });
 });
 

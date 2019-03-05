@@ -15,10 +15,10 @@ const {
 
 const fileRouter = Router();
 
-module.exports = (db, model) => {
+module.exports = (db, { projects }) => {
   // root
   const rootRetriever = (_, { project }) =>
-    model.findOne(
+    projects.findOne(
       { _id: project },
       {
         projection: {
@@ -43,7 +43,7 @@ module.exports = (db, model) => {
       objectId = mongodb.ObjectId(request.params.file);
     } catch (_) {
       // if it wasn't a valid object id, assume it was a file name
-      const projectFiles = await model.findOne(
+      const projectFiles = await projects.findOne(
         { _id: project },
         {
           projection: {

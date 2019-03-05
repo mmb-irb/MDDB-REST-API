@@ -6,10 +6,10 @@ const { NOT_FOUND } = require('../../../utils/status-codes');
 
 const analysisRouter = Router();
 
-module.exports = (_, model) => {
+module.exports = (_, { projects, analyses }) => {
   // root
   const rootRetriever = (_, { project }) =>
-    model.findOne(
+    projects.findOne(
       { _id: project },
       {
         projection: {
@@ -23,26 +23,26 @@ module.exports = (_, model) => {
     if (!(data && data.analyses)) {
       return response.sendStatus(NOT_FOUND);
     }
-    response.json(data.analyses);
+    response.json(data.analyses || []);
   };
 
   // analysis
   const analysisRetriever = (request, { project }) =>
-    model.findOne(
-      { _id: project },
+    analyses.findOne(
+      { project, name: request.params.analysis.toLowerCase() },
       {
         projection: {
           _id: false,
-          [`analyses.${request.params.analysis}`]: true,
         },
       },
     );
 
-  const analysisSerializer = (response, data, { analysis }) => {
-    if (!(data && data.analyses && data.analyses[analysis])) {
+  const analysisSerializer = (response, data) => {
+    if (!(data && data.value)) {
       return response.sendStatus(NOT_FOUND);
     }
-    response.json(data.analyses[analysis]);
+    const { value, ..._data } = data;
+    response.json({ ..._data, ...value });
   };
 
   // handlers
