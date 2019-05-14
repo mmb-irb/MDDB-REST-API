@@ -26,6 +26,11 @@ paths:
       tags:
         - projects
       parameters:
+        - name: search
+          in: query
+          description: text search inside project names and important fields
+          schema:
+            type: string
         - name: limit
           in: query
           description: pagination, maximum number of projects per query
