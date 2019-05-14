@@ -80,6 +80,13 @@ module.exports = (db, { projects }) => {
         ]);
         return response.sendStatus(REQUEST_RANGE_NOT_SATISFIABLE);
       }
+      // completely potentially missing range info
+      if (!range.responseHeaders.find(h => h.startsWith('atoms'))) {
+        range.responseHeaders.push(`atoms=*/${descriptor.metadata.atoms}`);
+      }
+      if (!range.responseHeaders.find(h => h.startsWith('frames'))) {
+        range.responseHeaders.push(`frames=*/${descriptor.metadata.frames}`);
+      }
       response.set('content-range', range.responseHeaders);
 
       if (!stream) return response.sendStatus(NOT_FOUND);
