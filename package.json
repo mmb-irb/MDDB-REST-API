@@ -30,23 +30,23 @@
   "license": "ISC",
   "dependencies": {
     "cors": "2.8.5",
-    "express": "4.16.4",
+    "express": "4.17.1",
     "express-paginate": "1.0.0",
     "lodash": "4.17.11",
-    "mongodb": "3.2.4",
+    "mongodb": "3.2.6",
     "range-parser": "1.2.1",
-    "swagger-ui-express": "4.0.3",
+    "swagger-ui-express": "4.0.5",
     "yamljs": "0.3.0"
   },
   "devDependencies": {
     "eslint": "5.16.0",
-    "eslint-config-prettier": "4.2.0",
+    "eslint-config-prettier": "4.3.0",
     "husky": "2.3.0",
     "jest": "24.8.0",
     "lint-staged": "8.1.7",
-    "mongodb-memory-server": "5.1.1",
-    "nodemon": "1.19.0",
-    "pm2": "3.5.0",
+    "mongodb-memory-server": "5.1.2",
+    "nodemon": "1.19.1",
+    "pm2": "3.5.1",
     "prettier": "1.17.1"
   },
   "lint-staged": {
