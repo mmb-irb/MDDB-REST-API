@@ -22,7 +22,9 @@ paths:
   /projects:
     get:
       summary: Get a list of projects.
-      description: Get a list of MoDEL-CNS projects (simulations and related data and analyses).
+      description: >
+        Get a list of MoDEL-CNS projects (simulations and related data and
+        analyses).
       tags:
         - projects
       parameters:
@@ -56,14 +58,20 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Project'
-                  count:
+                  filteredCount:
                     type: integer
-  /projects/{projectIdentifier}:
+                    example: 10
+                  totalCount:
+                    type: integer
+                    example: 250
+  /projects/{projectAccessionOrID}:
     get:
-      summary: Get a project by its identifier.
-      description: Get a MoDEL-CNS project (simulations and related data and analyses) by its identifier.
+      summary: Get a project by its accession or identifier.
+      description: >
+        Get a MoDEL-CNS project (simulations and related data and analyses) by
+        its accession or identifier.
       parameters:
-        - $ref: '#/definitions/arguments/ProjectIdentifier'
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
         - projects
       responses:
@@ -73,12 +81,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
-  /projects/{projectIdentifier}/files:
+
+  /projects/{projectAccessionOrID}/files:
     get:
       summary: Get the files for a project.
       description: Get the list of files for a specific MoDEL-CNS project.
       parameters:
-        - $ref: '#/definitions/arguments/ProjectIdentifier'
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
         - files
       responses:
@@ -89,14 +98,14 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Filet'
-  /projects/{projectIdentifier}/files/{filename}:
+                  $ref: '#/components/schemas/FileDescription'
+  /projects/{projectAccessionOrID}/files/{filename}:
     get:
       summary: Get a file for a project.
       description: >
         Get a specific file for a specific MoDEL-CNS project by its name.
       parameters:
-        - $ref: '#/definitions/arguments/ProjectIdentifier'
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: filename
           in: path
           description: filename
@@ -141,29 +150,29 @@ paths:
             application/octet-stream:
               schema:
                 format: binary
-  /projects/{projectIdentifier}/analyses:
+
+  /projects/{projectAccessionOrID}/analyses:
     get:
       summary: Get the analyses for a project.
-      description: Get the map of analyses for a specific MoDEL-CNS project.
+      description: Get the list of analyses for a specific MoDEL-CNS project.
       parameters:
-        - $ref: '#/definitions/arguments/ProjectIdentifier'
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
         - analyses
       responses:
         200:
-          description: a map of analyses
+          description: a list of analyses
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties:
-                  $ref: '#/components/schemas/Analysis'
-  /projects/{projectIdentifier}/analyses/{analysisName}:
+                $ref: '#/components/schemas/AnalysisList'
+  /projects/{projectAccessionOrID}/analyses/{analysisName}:
     get:
       summary: Get an analysis for a project.
-      description: Get a specific analysis for a specific MoDEL-CNS project by its name.
+      description: >
+        Get a specific analysis for a specific MoDEL-CNS project by its name.
       parameters:
-        - $ref: '#/definitions/arguments/ProjectIdentifier'
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: analysisName
           in: path
           description: analysis name
@@ -179,57 +188,186 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: string
+                $ref: '#/components/schemas/Analysis'
+
+  /projects/{projectAccessionOrID}/chains:
+    get:
+      summary: Get the sequence chains for a project.
+      description: >
+        Get the list of sequence chains for a specific MoDEL-CNS project.
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+      tags:
+        - chains
+      responses:
+        200:
+          description: a list of sequence chains
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChainList'
+  /projects/{projectAccessionOrID}/chains/{chainName}:
+    get:
+      summary: Get a sequence chain for a project.
+      description: >
+        Get a specific sequence chain for a specific MoDEL-CNS project by its
+        name (case-sensitive). It might include sequence analyses run on
+        external services (InterProScan and HMMer)
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+        - name: chainName
+          in: path
+          description: chain name (case-sensitive)
+          required: true
+          schema:
+            type: string
+          example: A
+      tags:
+        - chains
+      responses:
+        200:
+          description: an sequence chain object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chain'
 
 components:
   schemas:
-    Analysis:
-      type: object
-    File:
+    FileDescription:
       type: object
       properties:
         length:
           type: integer
+          description: length in bytes
+          example: 368194
         filename:
           type: string
+          example: md.structure.pdb
         md5:
           type: string
           pattern: '^[0-9a-f]{32}$'
+          example: 79ac468d3cc434ad777048b51e65afc3
+        contentType:
+          type: string
+          example: chemical/x-pdb
+        metadata:
+          type: object
+
     Project:
       type: object
+      required:
+        - identifier
+        - metadata
+        - pdbInfo
+        - analyses
+        - chains
+        - files
       properties:
         identifier:
           type: string
           pattern:
-            $ref: '#/definitions/constants/ProjectIdentifierPattern'
+            $ref: '#/definitions/constants/IDPattern'
+          example: 5d08b56e174bf85a17e00438
+        accession:
+          type: string
+          pattern:
+            $ref: '#/definitions/constants/AccessionPattern'
+          example: MCNS00001
         metadata:
           type: object
-          additionalProperties:
-            oneOf:
-              - type: string
-              - type: number
-              - type: integer
         pdbInfo:
           type: object
         analyses:
-          $ref: '#/components/schemas/Analysis'
+          $ref: '#/components/schemas/AnalysisList'
+        chains:
+          $ref: '#/components/schemas/ChainList'
         files:
           type: array
           items:
-            $ref: '#/components/schemas/File'
+            $ref: '#/components/schemas/FileDescription'
+
+    Analysis:
+      type: object
+      required:
+        - name
+        - step
+        - y
+      properties:
+        name:
+          type: string
+          example: pca
+        step:
+          type: integer
+          example: 10
+        y:
+          oneOf:
+            - type: object
+            - type: array
+
+    AnalysisList:
+      type: array
+      description: list of available analyses
+      items: string
+      example:
+        - pca
+        - rgyr
+
+    Chain:
+      type: object
+      required:
+        - name
+        - sequence
+      properties:
+        name:
+          type: string
+          description: case-sensitive chain name of a chain in the simulation
+          example: A
+        sequence:
+          type: string
+          description: amino-acid sequence of the chain in one-letter format
+          example: KEPCFREENANFNKIF
+        interproscan:
+          type: object
+          description: >
+            Unprocessed payload of this sequence submitted to the InterProScan
+            service. Might not exist if the sequence is too short. Refer to
+            InterProScan documentation for schema.
+        hmmer:
+          type: object
+          description: >
+            Unprocessed payload of this sequence submitted to the HMMer service.
+            Might not exist if the sequence is too short. Refer to HMMer
+            documentation for schema.
+
+    ChainList:
+      type: array
+      description: list of chains whose information is available
+      items: string
+      example:
+        - A
+        - B
 
 definitions:
   constants:
-    ProjectIdentifierPattern: '^MCNS[0-9]{5}$'
+    projectAccessionOrIDPattern: '^(MCNS[0-9]{5})|([a-fA-F\d]{24})$'
+    IDPattern: '^[a-fA-F\d]{24}$'
+    AccessionPattern: '^MCNS[0-9]{5}$'
   arguments:
-    ProjectIdentifier:
-      name: projectIdentifier
+    projectAccessionOrID:
+      name: projectAccessionOrID
       in: path
-      description: project identifier
+      description: >
+        Project accession or identifier. A project will always have a unique
+        identifier (even if unpublished and in the development version of the
+        API). When published, it will be assigned a never-changing unique
+        user-friendly accession starting with MCNS. You can use either to access
+        the corresponding data, even if the accession is recommended
       required: true
       schema:
         type: string
         pattern:
-          $ref: '#/definitions/constants/ProjectIdentifierPattern'
+          oneOf:
+            - $ref: '#/definitions/constants/IDPattern'
+            - $ref: '#/definitions/constants/AccessionPattern'
       example: MCNS00001
