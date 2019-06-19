@@ -1,11 +1,13 @@
 const Router = require('express').Router;
-const mongodb = require('mongodb');
+const { GridFSBucket, ObjectId } = require('mongodb');
+const omit = require('lodash').omit;
 
 const handler = require('../../../utils/generic-handler');
 const handleRange = require('../../../utils/handle-range');
 const combineDownloadStreams = require('../../../utils/combine-download-streams');
 const addMinMaxSize = require('../../../utils/add-min-max-size');
-
+const publishedFilter = require('../../../utils/published-filter');
+const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
 const {
   PARTIAL_CONTENT,
   BAD_REQUEST,
@@ -19,52 +21,52 @@ module.exports = (db, { projects }) => {
   // root
   const rootRetriever = (_, { project }) =>
     projects.findOne(
-      { _id: project },
-      {
-        projection: {
-          _id: false,
-          files: true,
-        },
-      },
+      // filter
+      augmentFilterWithIDOrAccession(publishedFilter, project),
+      // options
+      { projection: { _id: false, files: true } },
     );
 
   const rootSerializer = (response, data) => {
     if (!data) return response.sendStatus(NOT_FOUND);
-    response.json(data);
+    response.json(
+      data.files.map(file => omit(file, ['chunkSize', 'uploadDate'])),
+    );
   };
 
   // file
   const fileRetriever = async (request, { project }) => {
     const files = db.collection('fs.files');
-    const bucket = new mongodb.GridFSBucket(db);
-    let objectId;
-    try {
-      // if using the mongo ID in the URL
-      objectId = mongodb.ObjectId(request.params.file);
-    } catch (_) {
+    const bucket = new GridFSBucket(db);
+
+    let oid;
+    if (ObjectId.isValid(request.params.file)) {
+      // if using mongo ID in URL
+      oid = ObjectId(request.params.file);
+    } else {
       // if it wasn't a valid object id, assume it was a file name
-      const projectFiles = await projects.findOne(
-        { _id: project },
-        {
-          projection: {
-            _id: false,
-            files: true,
-          },
-        },
+      const projectDoc = await projects.findOne(
+        // filter
+        augmentFilterWithIDOrAccession(publishedFilter, project),
+        // options
+        { projection: { _id: true, files: true } },
       );
-      if (!projectFiles) return;
-      objectId = mongodb.ObjectId(
-        projectFiles.files.find(file => file.filename === request.params.file)
+      if (!projectDoc) return;
+      oid = ObjectId(
+        projectDoc.files.find(file => file.filename === request.params.file)
           ._id,
       );
     }
-    const descriptor = await files.findOne({ _id: objectId });
+
+    const descriptor = await files.findOne(oid);
+
     const range =
       request.headers.range &&
       addMinMaxSize(handleRange(request.headers.range, descriptor));
+
     let stream;
     if (!range || typeof range === 'object') {
-      stream = combineDownloadStreams(bucket, objectId, range);
+      stream = combineDownloadStreams(bucket, oid, range);
     }
     return { stream, descriptor, range };
   };

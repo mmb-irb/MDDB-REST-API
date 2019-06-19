@@ -4,15 +4,16 @@ const omit = require('lodash').omit;
 const dbConnection = require('../../models/index');
 const storeParameterMiddleware = require('../../utils/store-parameter-middleware');
 const handler = require('../../utils/generic-handler');
+const publishedFilter = require('../../utils/published-filter');
+const augmentFilterWithIDOrAccession = require('../../utils/augment-filter-with-id-or-accession');
 
 const { NO_CONTENT, NOT_FOUND } = require('../../utils/status-codes');
 
 const projectRouter = Router();
 
 const projectObjectCleaner = project => ({
+  ...omit(project, ['_id']),
   identifier: project._id,
-  metadata: project.metadata,
-  analyses: project.analyses || [],
   pdbInfo: project.pdbInfo
     ? {
         identifier: project.pdbInfo._id,
@@ -38,15 +39,16 @@ const projectObjectCleaner = project => ({
   const model = {
     projects: db.collection('projects'),
     analyses: db.collection('analyses'),
+    chains: db.collection('chains'),
   };
 
   const filterAndSort = ({ projects }, search = '') => {
     let $search = search.trim();
-    if (!$search) return projects.find();
+    if (!$search) return projects.find(publishedFilter);
     if (!isNaN(+$search)) $search += ` MCNS${$search.padStart(5, '0')}`;
     const score = { score: { $meta: 'textScore' } };
     return projects
-      .find({ $text: { $search } }, score)
+      .find({ ...publishedFilter, $text: { $search } }, score)
       .project(score)
       .sort(score);
   };
@@ -55,6 +57,7 @@ const projectObjectCleaner = project => ({
   const rootRetriever = request => {
     const cursor = filterAndSort(model, request.query.search);
     return Promise.all([
+      // filtered list
       cursor
         // pagination
         .skip(request.skip)
@@ -62,8 +65,10 @@ const projectObjectCleaner = project => ({
         // transform document for public output
         .map(projectObjectCleaner)
         .toArray(),
+      // filtered count
       cursor.count(),
-      model.projects.find().count(),
+      // total count
+      model.projects.find(publishedFilter).count(),
     ]);
   };
 
@@ -74,7 +79,9 @@ const projectObjectCleaner = project => ({
 
   // project
   const projectRetriever = request =>
-    model.projects.findOne({ _id: request.params.project });
+    model.projects.findOne(
+      augmentFilterWithIDOrAccession(publishedFilter, request.params.project),
+    );
 
   const projectSerializer = (response, project) => {
     if (!project) return response.sendStatus(NOT_FOUND);
@@ -95,6 +102,12 @@ const projectObjectCleaner = project => ({
     '/:project/files',
     storeProjectMiddleware,
     require('./files')(db, model),
+  );
+
+  projectRouter.use(
+    '/:project/chains',
+    storeProjectMiddleware,
+    require('./chains')(db, model),
   );
 
   projectRouter.use(

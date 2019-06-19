@@ -6,27 +6,27 @@ const { NOT_FOUND } = require('../../../utils/status-codes');
 const publishedFilter = require('../../../utils/published-filter');
 const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
 
-const analysisRouter = Router();
+const chainRouter = Router();
 
-module.exports = (_, { projects, analyses }) => {
+module.exports = (_, { projects, chains }) => {
   // root
   const rootRetriever = (_, { project }) =>
     projects.findOne(
       // filter
       augmentFilterWithIDOrAccession(publishedFilter, project),
       // options
-      { projection: { _id: false, analyses: true } },
+      { projection: { _id: false, chains: true } },
     );
 
   const rootSerializer = (response, data) => {
-    if (!(data && data.analyses)) {
+    if (!(data && data.chains)) {
       return response.sendStatus(NOT_FOUND);
     }
-    response.json(data.analyses);
+    response.json(data.chains);
   };
 
-  // analysis
-  const analysisRetriever = async (request, { project }) => {
+  // chain
+  const chainRetriever = async (request, { project }) => {
     const projectDoc = await projects.findOne(
       // filter
       augmentFilterWithIDOrAccession(publishedFilter, project),
@@ -34,16 +34,16 @@ module.exports = (_, { projects, analyses }) => {
       { projection: { _id: true } },
     );
     if (!projectDoc) return;
-    return analyses.findOne(
+    return chains.findOne(
       // filter
-      { project: projectDoc._id, name: request.params.analysis.toLowerCase() },
+      { project: projectDoc._id, name: request.params.chain },
       // options
       { projection: { _id: false, project: false } },
     );
   };
 
-  const analysisSerializer = (response, data) => {
-    if (!(data && data.value)) {
+  const chainSerializer = (response, data) => {
+    if (!(data && data.sequence)) {
       return response.sendStatus(NOT_FOUND);
     }
     const { value, ..._data } = data;
@@ -51,11 +51,9 @@ module.exports = (_, { projects, analyses }) => {
   };
 
   // handlers
-  analysisRouter.route('/').get(handler(rootRetriever, rootSerializer));
+  chainRouter.route('/').get(handler(rootRetriever, rootSerializer));
 
-  analysisRouter
-    .route('/:analysis')
-    .get(handler(analysisRetriever, analysisSerializer));
+  chainRouter.route('/:chain').get(handler(chainRetriever, chainSerializer));
 
-  return analysisRouter;
+  return chainRouter;
 };
