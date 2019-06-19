@@ -59,6 +59,8 @@ const projectObjectCleaner = project => ({
     return Promise.all([
       // filtered list
       cursor
+        // sort
+        .sort({ accession: 1 })
         // pagination
         .skip(request.skip)
         .limit(request.query.limit)
