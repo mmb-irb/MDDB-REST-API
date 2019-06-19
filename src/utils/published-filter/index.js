@@ -1,7 +1,9 @@
 const process = require('process');
 
+const env = (process.env.NODE_ENV || '').toLowerCase();
+
 const publishedFilter = Object.seal(
-  process.env.NODE_ENV === 'production' ? { published: true } : {},
+  env === 'production' || env === 'prod' ? { published: true } : {},
 );
 
 module.exports = publishedFilter;
