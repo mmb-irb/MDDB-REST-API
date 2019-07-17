@@ -91,9 +91,12 @@ const handleRange = (rangeString, descriptor) => {
   }
   bytes.push({ start: currentStartByte, end: currentByte });
   bytes.type = 'bytes';
-  bytes.responseHeaders.push(
-    getResponseHeader('bytes', bytes, descriptor.length),
-  );
+  // * If we send this it might get truncated when it gets to big
+  // * header size in Node HTTP Parser is limited to 80kb, see ref below
+  // * https://github.com/nodejs/node/blob/cdcb1b77379f780b7b187d711c44181dbd0a6e24/deps/http_parser/http_parser.h#L63
+  // bytes.responseHeaders.push(
+  //   getResponseHeader('bytes', bytes, descriptor.length),
+  // );
   return bytes;
 };
 

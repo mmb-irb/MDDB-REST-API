@@ -1,7 +1,5 @@
 const handleRange = require(__dirname);
 
-const ATOM_SIZE = Float32Array.BYTES_PER_ELEMENT * 3;
-
 const descriptor = {
   length: 108,
   metadata: {
