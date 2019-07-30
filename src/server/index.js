@@ -2,6 +2,8 @@ const paginate = require('express-paginate');
 const cors = require('cors');
 const swaggerUI = require('swagger-ui-express');
 const yaml = require('yamljs');
+const boxen = require('boxen');
+const chalk = require('chalk');
 
 const routes = require('../routes');
 
@@ -53,7 +55,23 @@ module.exports = {
   app,
   start() {
     return app.listen(PORT, () =>
-      console.log(`API running on localhost:${PORT}`),
+      console.log(
+        boxen(
+          [
+            `API running on ${chalk.bgCyan(`http://localhost:${PORT}`)}`,
+            chalk.dim(`Using '${process.env.DB_NAME}' collection`),
+            chalk.dim(
+              `Running in '${chalk.green.bold(process.env.NODE_ENV)}' mode`,
+            ),
+          ].join('\n'),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'cyan',
+          },
+        ),
+      ),
     );
   },
 };
