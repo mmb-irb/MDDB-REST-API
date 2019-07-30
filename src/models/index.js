@@ -1,20 +1,18 @@
 const mongodb = require('mongodb');
 
 const establishConnection = async () => {
-  let mongoConfig;
-  try {
-    // mongo config file, can be json or js code
-    mongoConfig = require('../../configs/mongo');
-  } catch (_) {
-    console.error("couldn't find mongo config file");
-    return;
-  }
   let client;
   try {
-    const { server, port, db: _db, ...config } = mongoConfig;
     client = await mongodb.MongoClient.connect(
-      `mongodb://${server}:${port}`,
-      config,
+      `mongodb://${process.env.DB_SERVER}:${process.env.DB_PORT}`,
+      {
+        auth: {
+          user: process.env.DB_AUTH_USER,
+          password: process.env.DB_AUTH_PASSWORD,
+        },
+        authSource: process.env.DB_AUTHSOURCE,
+        useNewUrlParser: true,
+      },
     );
     return client;
   } catch (error) {

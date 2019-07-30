@@ -1,4 +1,6 @@
-require('dotenv').config();
+const dotenvLoad = require('dotenv').config();
+
+if (dotenvLoad.error) throw dotenvLoad.error;
 
 const server = require('./src/server');
 // const dbConnectionPromise = require('./src/models');

@@ -26,16 +26,8 @@ const projectObjectCleaner = project => ({
 });
 
 (async () => {
-  let mongoConfig;
-  try {
-    // mongo config file, can be json or js code
-    mongoConfig = require('../../../configs/mongo');
-  } catch (_) {
-    console.error("couldn't find mongo config file");
-    return;
-  }
   const client = await dbConnection;
-  const db = client.db(mongoConfig.db);
+  const db = client.db(process.env.DB_NAME);
   const model = {
     projects: db.collection('projects'),
     analyses: db.collection('analyses'),
