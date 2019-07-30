@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "MoDEL-CNS REST API",
   "main": "index.js",
+  "private": true,
   "scripts": {
     "start": "nodemon index.js",
     "serve": "node index.js",
