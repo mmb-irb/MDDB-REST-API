@@ -50,15 +50,17 @@ const projectObjectCleaner = project => ({
     const cursor = filterAndSort(model, request.query.search);
     return Promise.all([
       // filtered list
-      cursor
-        // sort
-        .sort({ accession: 1 })
-        // pagination
-        .skip(request.skip)
-        .limit(request.query.limit)
-        // transform document for public output
-        .map(projectObjectCleaner)
-        .toArray(),
+      request.query.limit
+        ? cursor
+            // sort
+            .sort({ accession: 1 })
+            // pagination
+            .skip(request.skip)
+            .limit(request.query.limit)
+            // transform document for public output
+            .map(projectObjectCleaner)
+            .toArray()
+        : [],
       // filtered count
       cursor.count(),
       // total count
