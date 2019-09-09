@@ -5,7 +5,7 @@
   "main": "index.js",
   "private": true,
   "scripts": {
-    "start": "nodemon index.js",
+    "start": "nodemon --ext js,json,yml index.js",
     "serve": "node index.js",
     "lint": "eslint '**/*.js'",
     "test": "jest",
