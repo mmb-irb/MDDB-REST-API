@@ -350,7 +350,6 @@ components:
 
 definitions:
   constants:
-    projectAccessionOrIDPattern: '^(MCNS[0-9]{5})|([a-fA-F\d]{24})$'
     IDPattern: '^[a-fA-F\d]{24}$'
     AccessionPattern: '^MCNS[0-9]{5}$'
   arguments:
@@ -366,8 +365,5 @@ definitions:
       required: true
       schema:
         type: string
-        pattern:
-          oneOf:
-            - $ref: '#/definitions/constants/IDPattern'
-            - $ref: '#/definitions/constants/AccessionPattern'
+        pattern: '^([a-fA-F\d]{24})|(MCNS[0-9]{5})$'
       example: MCNS00001
