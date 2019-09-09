@@ -308,7 +308,8 @@ components:
     AnalysisList:
       type: array
       description: list of available analyses
-      items: string
+      items:
+        type: string
       example:
         - pca
         - rgyr
@@ -343,7 +344,8 @@ components:
     ChainList:
       type: array
       description: list of chains whose information is available
-      items: string
+      items:
+        type: string
       example:
         - A
         - B
