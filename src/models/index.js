@@ -12,6 +12,7 @@ const establishConnection = async () => {
         },
         authSource: process.env.DB_AUTHSOURCE,
         useNewUrlParser: true,
+        useUnifiedTopology: true,
       },
     );
     return client;
