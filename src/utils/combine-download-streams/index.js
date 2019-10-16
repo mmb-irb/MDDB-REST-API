@@ -29,7 +29,13 @@ const combine = async (outputStream, bucket, objectId, range) => {
         _data = data.slice(0, rangeLength - size);
       }
       size += _data.length;
-      outputStream.write(_data);
+
+      const shouldContinue = outputStream.write(_data);
+
+      if (!shouldContinue) {
+        rangedStream.pause();
+        outputStream.once('drain', rangedStream.resume.bind(rangedStream));
+      }
     });
     try {
       // wait for the end of the ranged stream
