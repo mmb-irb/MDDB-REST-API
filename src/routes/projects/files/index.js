@@ -71,7 +71,7 @@ module.exports = (db, { projects }) => {
     return { stream, descriptor, range };
   };
 
-  const fileSerializer = (response, { stream, descriptor, range }) => {
+  const fileSerializer = (response, { stream, descriptor, range }, request) => {
     if (range) {
       if (range === -1) return response.sendStatus(BAD_REQUEST);
       if (range === -2) {
@@ -108,6 +108,8 @@ module.exports = (db, { projects }) => {
     stream.on('data', response.write.bind(response));
     stream.on('error', () => response.sendStatus(NOT_FOUND));
     stream.on('end', response.end.bind(response));
+
+    request.on('close', stream.destroy.bind(stream));
   };
 
   // handlers
