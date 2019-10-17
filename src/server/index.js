@@ -1,3 +1,4 @@
+const express = require('express');
 const paginate = require('express-paginate');
 const cors = require('cors');
 const swaggerUI = require('swagger-ui-express');
@@ -6,15 +7,29 @@ const boxen = require('boxen');
 const chalk = require('chalk');
 
 const routes = require('../routes');
+const getCustomTimeout = require('../middlewares/custom-timeout');
 
 const PORT = 8000;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
 
-const app = require('express')();
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+
+const app = express();
 
 // Disable this header
 app.disable('x-powered-by');
+
+// custom timeout middleware
+app.use(
+  getCustomTimeout({
+    general: 5 * MINUTE,
+    stale: 1 * MINUTE,
+    extended: 1 * HOUR,
+  }),
+);
 
 // Add CORS headers
 app.use(
