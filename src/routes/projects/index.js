@@ -2,7 +2,6 @@ const Router = require('express').Router;
 const omit = require('lodash').omit;
 
 const dbConnection = require('../../models/index');
-const storeParameterMiddleware = require('../../utils/store-parameter-middleware');
 const handler = require('../../utils/generic-handler');
 const publishedFilter = require('../../utils/published-filter');
 const augmentFilterWithIDOrAccession = require('../../utils/augment-filter-with-id-or-accession');
@@ -25,6 +24,17 @@ const projectObjectCleaner = project => ({
   ),
 });
 
+const filterAndSort = ({ projects }, search = '') => {
+  let $search = search.trim();
+  if (!$search) return projects.find(publishedFilter);
+  if (!isNaN(+$search)) $search += ` MCNS${$search.padStart(5, '0')}`;
+  const score = { score: { $meta: 'textScore' } };
+  return projects
+    .find({ ...publishedFilter, $text: { $search } }, score)
+    .project(score)
+    .sort(score);
+};
+
 (async () => {
   const client = await dbConnection;
   const db = client.db(process.env.DB_NAME);
@@ -34,83 +44,67 @@ const projectObjectCleaner = project => ({
     chains: db.collection('chains'),
   };
 
-  const filterAndSort = ({ projects }, search = '') => {
-    let $search = search.trim();
-    if (!$search) return projects.find(publishedFilter);
-    if (!isNaN(+$search)) $search += ` MCNS${$search.padStart(5, '0')}`;
-    const score = { score: { $meta: 'textScore' } };
-    return projects
-      .find({ ...publishedFilter, $text: { $search } }, score)
-      .project(score)
-      .sort(score);
-  };
-
   // root
-  const rootRetriever = request => {
-    const cursor = filterAndSort(model, request.query.search);
-    return Promise.all([
-      // filtered list
-      request.query.limit
-        ? cursor
-            // sort
-            .sort({ accession: 1 })
-            // pagination
-            .skip(request.skip)
-            .limit(request.query.limit)
-            // transform document for public output
-            .map(projectObjectCleaner)
-            .toArray()
-        : [],
-      // filtered count
-      cursor.count(),
-      // total count
-      model.projects.find(publishedFilter).count(),
-    ]);
-  };
-
-  const rootSerializer = (response, [projects, filteredCount, totalCount]) => {
-    if (!filteredCount) response.status(NO_CONTENT);
-    response.json({ projects, filteredCount, totalCount });
-  };
+  projectRouter.route('/').get(
+    handler({
+      async retriever(request) {
+        const cursor = filterAndSort(model, request.query.search);
+        const [projects, filteredCount, totalCount] = await Promise.all([
+          // filtered list
+          request.query.limit
+            ? cursor
+                // sort
+                .sort({ accession: 1 })
+                // pagination
+                .skip(request.skip)
+                .limit(request.query.limit)
+                // transform document for public output
+                .map(projectObjectCleaner)
+                .toArray()
+            : [],
+          // filtered count
+          cursor.count(),
+          // total count
+          model.projects.find(publishedFilter).count(),
+        ]);
+        return { projects, filteredCount, totalCount };
+      },
+      headers(response, { filteredCount }) {
+        if (!filteredCount) response.status(NO_CONTENT);
+      },
+      body(response, retrieved) {
+        if (retrieved.filteredCount) response.json(retrieved);
+      },
+    }),
+  );
 
   // project
-  const projectRetriever = request =>
-    model.projects.findOne(
-      augmentFilterWithIDOrAccession(publishedFilter, request.params.project),
-    );
-
-  const projectSerializer = (response, project) => {
-    if (!project) return response.sendStatus(NOT_FOUND);
-    response.json(projectObjectCleaner(project));
-  };
-
-  // handlers
-  projectRouter.route('/').get(handler(rootRetriever, rootSerializer));
-
-  projectRouter
-    .route('/:project')
-    .get(handler(projectRetriever, projectSerializer));
-
-  // pass on to other handlers
-  const storeProjectMiddleware = storeParameterMiddleware('project');
-
-  projectRouter.use(
-    '/:project/files',
-    storeProjectMiddleware,
-    require('./files')(db, model),
+  projectRouter.route('/:project').get(
+    handler({
+      retriever(request) {
+        return model.projects.findOne(
+          augmentFilterWithIDOrAccession(
+            publishedFilter,
+            request.params.project,
+          ),
+        );
+      },
+      headers(response, retrieved) {
+        if (!retrieved) response.sendStatus(NOT_FOUND);
+      },
+      body(response, retrieved) {
+        if (retrieved) response.json(projectObjectCleaner(retrieved));
+      },
+    }),
   );
 
-  projectRouter.use(
-    '/:project/chains',
-    storeProjectMiddleware,
-    require('./chains')(db, model),
-  );
-
-  projectRouter.use(
-    '/:project/analyses',
-    storeProjectMiddleware,
-    require('./analyses')(db, model),
-  );
+  // children routes
+  // files
+  projectRouter.use('/:project/files', require('./files')(db, model));
+  // chains
+  projectRouter.use('/:project/chains', require('./chains')(db, model));
+  // analyses
+  projectRouter.use('/:project/analyses', require('./analyses')(db, model));
 })();
 
 module.exports = projectRouter;

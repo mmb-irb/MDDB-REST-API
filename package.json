@@ -64,10 +64,19 @@
       "git add"
     ]
   },
+  "jest": {
+    "coverageReporters": [
+      "text-summary",
+      "html"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.js"
+    ]
+  },
   "husky": {
     "hooks": {
       "pre-commit": "lint-staged",
-      "pre-push": "npm run test"
+      "pre-push": "CI=true npm test -- --coverage"
     }
   }
 }

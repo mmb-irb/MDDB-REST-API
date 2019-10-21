@@ -1,6 +1,6 @@
 const MongoMemoryServer = require('mongodb-memory-server');
 
-const establishConnection = require('../../models');
+const establishConnection = require('../../src/models');
 
 const getServer = async () => {
   const mongod = new MongoMemoryServer();
