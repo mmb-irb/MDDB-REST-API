@@ -12,7 +12,9 @@ module.exports = ({ retriever, headers, body }) => async (
     // if we have a HEAD request, stop here
     if (request.method === 'HEAD') {
       // close connection
-      return response.end();
+      response.end();
+      if (retrieved.stream) retrieved.stream.destroy();
+      return;
     }
     // send headers;
     // serialize and send the body
