@@ -16,11 +16,13 @@ const {
   REQUEST_RANGE_NOT_SATISFIABLE,
 } = require('../../../utils/status-codes');
 
+const TRJ_TYPE = 'chemical/x-trj';
+
 const acceptTransformFormat = (requested, filename) => {
   const _requested = (requested || '').toLowerCase();
   const _filename = filename.toLowerCase();
   if (_requested.includes('trj') || _requested.includes('traj')) {
-    if (_filename.endsWith('.bin')) return 'text/traj';
+    if (_filename.endsWith('.bin')) return TRJ_TYPE;
   }
   // Added (possible future) accepted transformation formats here
   //
@@ -91,23 +93,30 @@ module.exports = (db, { projects }) => {
 
         const descriptor = await files.findOne(oid);
 
-        const range =
-          request.headers.range &&
-          addMinMaxSize(handleRange(request.headers.range, descriptor));
-
         const transformFormat = acceptTransformFormat(
           request.headers.accept,
           descriptor.filename,
         );
 
+        const range =
+          request.headers.range &&
+          addMinMaxSize(handleRange(request.headers.range, descriptor));
+
         let stream;
+        let lengthMultiplier = x => x;
         if (!range || typeof range === 'object') {
           stream = combineDownloadStreams(bucket, oid, range);
-          if (transformFormat) stream = stream.pipe(BinToTrjStream());
+          if (transformFormat === TRJ_TYPE) {
+            stream = stream.pipe(BinToTrjStream());
+            lengthMultiplier = BinToTrjStream.MULTIPLIER;
+          }
         }
-        return { stream, descriptor, range };
+        return { stream, descriptor, range, transformFormat, lengthMultiplier };
       },
-      headers(response, { stream, descriptor, range }) {
+      headers(
+        response,
+        { stream, descriptor, range, transformFormat, lengthMultiplier },
+      ) {
         if (range) {
           if (range === -1) return response.sendStatus(BAD_REQUEST);
           if (range === -2) {
@@ -136,9 +145,15 @@ module.exports = (db, { projects }) => {
 
         if (!stream) return response.sendStatus(NOT_FOUND);
 
-        response.set('content-length', range ? range.size : descriptor.length);
+        response.set(
+          'content-length',
+          lengthMultiplier(range ? range.size : descriptor.length),
+        );
         if (descriptor.contentType) {
-          response.set('content-type', descriptor.contentType);
+          response.set(
+            'content-type',
+            transformFormat || descriptor.contentType,
+          );
         }
 
         response.set('accept-ranges', ['bytes', 'atoms', 'frames']);
@@ -146,11 +161,11 @@ module.exports = (db, { projects }) => {
       body(response, { stream }, request) {
         if (!stream) return;
 
-        stream.on('data', response.write.bind(response));
+        stream.on('data', data => response.write(data));
         stream.on('error', () => response.sendStatus(NOT_FOUND));
-        stream.on('end', response.end.bind(response));
+        stream.on('end', data => response.end(data));
 
-        request.on('close', stream.destroy.bind(stream));
+        request.on('close', () => stream.destroy());
       },
     }),
   );
