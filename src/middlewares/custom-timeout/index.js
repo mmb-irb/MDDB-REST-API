@@ -11,7 +11,10 @@ const getCustomTimeout = ({ general, stale, extended }) => (
   response,
   next,
 ) => {
-  const handler = () => response.destroy();
+  const handler = () => {
+    // console.log(response);
+    response.destroy();
+  };
 
   // set the different timeouts
   const mainTimeout = setTimeout(
@@ -32,7 +35,7 @@ const getCustomTimeout = ({ general, stale, extended }) => (
   response.write = (...args) => {
     // data is flowing, reset staleTimeout
     clearTimeout(staleTimeout);
-    setTimeout(handler, stale);
+    staleTimeout = setTimeout(handler, stale);
     write.apply(response, args);
   };
 
