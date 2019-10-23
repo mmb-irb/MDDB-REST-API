@@ -32,11 +32,9 @@ const handleRange = (rangeString, descriptor) => {
     const range = parseRange(descriptor.length, `bytes=${rangeStrings.bytes}`, {
       combine: true,
     });
-    range.responseHeaders = getResponseHeader(
-      'bytes',
-      range,
-      descriptor.length,
-    );
+    range.responseHeaders = [
+      getResponseHeader('bytes', range, descriptor.length),
+    ];
     return range;
   }
   // if none of the supported range is defined, bail
