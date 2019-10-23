@@ -1,16 +1,26 @@
 const { Transform } = require('stream');
 
 module.exports = function() {
-  let globalCount = 0;
+  // keep track of the number of coordinates processed in the line
+  let countInLine = 1;
   const transform = new Transform({
     transform(chunk, _encoding, next) {
-      let output = '';
+      let output = ''; // will be concatenated over and over in the loop
+      // loop over the size of the chunk, jumping every 4 bytes
       for (let index = 0; index < chunk.length; index += 4) {
-        const value = chunk.readFloatLE(index);
-        const [left, right] = value.toFixed(3).split('.');
-        const paddedLeft = left.padStart(4, ' ');
-        const end = ++globalCount % 10 ? '' : '\n';
-        output += `${paddedLeft}.${right}${end}`;
+        output += chunk
+          .readFloatLE(index) // read the float value and the given index
+          .toFixed(3) // round to 3 decimals, stringify, and pad end with 0
+          .padStart(8, ' '); // pad start with space to use up all 8 characters
+        // if countInLine !== 10
+        if (countInLine ^ 10) {
+          // every other time
+          countInLine++; // increment counter
+        } else {
+          // every 10 coordinates
+          output += '\n'; // add newline character
+          countInLine = 1; // reset counter
+        }
       }
       const canContinue = this.push(output, 'ascii');
       if (canContinue) {
