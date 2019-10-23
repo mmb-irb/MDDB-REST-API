@@ -104,6 +104,10 @@ paths:
       summary: Get a file for a project.
       description: >
         Get a specific file for a specific MoDEL-CNS project by its name.
+      produces:
+        - application/octet-stream
+        - chemical/x-pdb
+        - chemical/x-trj
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: filename
@@ -112,7 +116,15 @@ paths:
           required: true
           schema:
             type: string
-        - name: range
+        - name: Accept
+          in: header
+          schema:
+            type: string
+            enum: ['chemical/x-trj']
+          description: >
+            Specify a request format for the file. Only useful for
+            'trajectory.bin' files.
+        - name: Range
           in: header
           schema:
             type: string
@@ -133,7 +145,11 @@ paths:
         200:
           description: a file
           content:
-            text/plain:
+            chemical/x-pdb:
+              schema:
+                type: string
+                format: binary
+            chemical/x-trj:
               schema:
                 type: string
                 format: binary
@@ -143,7 +159,11 @@ paths:
         206:
           description: a partial file
           content:
-            text/plain:
+            chemical/x-pdb:
+              schema:
+                type: string
+                format: binary
+            chemical/x-trj:
               schema:
                 type: string
                 format: binary
