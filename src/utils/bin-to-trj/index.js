@@ -8,6 +8,8 @@ const importWA = require('../import-wasm');
 //   text_bytes = floor(binary_bytes * 2 + binary_bytes / 80)
 //   = floor(2.025 * binary_bytes)
 const MULTIPLIER = x => Math.floor(2.025 * x);
+
+// get number of new line characters that will be needed
 const getNNewLines = (currentCountInLine, nValues) =>
   Math.floor((currentCountInLine - 1 + nValues) / 10);
 
@@ -18,37 +20,43 @@ module.exports = function() {
 
   const transform = new Transform({
     transform(chunk, _encoding, next) {
-      // test block
+      // number of values to be processed in this chunk
       const nValues = chunk.length / Float32Array.BYTES_PER_ELEMENT;
+      // input offset and length
       const inputOffset = 0;
       const inputLength =
         nValues * Float32Array.BYTES_PER_ELEMENT - inputOffset;
+      // output offset and length
       const outputOffset =
         Math.ceil(
           (inputOffset + inputLength) / Float64Array.BYTES_PER_ELEMENT,
         ) * Float64Array.BYTES_PER_ELEMENT;
-      // +1 for extra new line at the end
       const outputLength =
         nValues * Float64Array.BYTES_PER_ELEMENT +
         getNNewLines(countInLine, nValues);
 
+      // set the wasm internal memory to store the necessary data
       wasmInstance.memorySize = outputOffset + outputLength;
 
+      // view on the bit of wasm memory dedicated to store the input
       const chunkInWA = new Uint8Array(
         wasmInstance.memory.buffer,
         inputOffset,
         inputLength / Uint8Array.BYTES_PER_ELEMENT,
       );
+      // view on the bit of wasm memory dedicated to store the output
       const outputBuffer = Buffer.from(
         wasmInstance.memory.buffer,
         outputOffset,
         outputLength / Buffer.BYTES_PER_ELEMENT,
       );
-      // console.time('WebAssembly');
+
+      // copy binary (chunk) inside wasm-reserved memory (chunkInWA)
       chunk.copy(chunkInWA);
+      // execute the transformation inside the wasm logic
       countInLine = wasmInstance.transform(nValues, outputOffset, countInLine);
-      // console.timeEnd('WebAssembly');
-      // console.log('received:\n', `'${outputBuffer.toString('ascii')}'`);
+
+      // push data out, and see if we can continue or not
       const canContinue = this.push(outputBuffer);
       if (canContinue) {
         next();
@@ -57,7 +65,6 @@ module.exports = function() {
       }
     },
   });
-  // transform.setEncoding('ascii');
   return transform;
 };
 
