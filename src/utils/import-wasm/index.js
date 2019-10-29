@@ -3,9 +3,7 @@ const { readFileSync } = require('fs');
 const loader = require('assemblyscript/lib/loader');
 
 const PAGE_SIZE = 0x10000; // fixed page size: 16KiB, or in hex 0x10000
-// the following function calculates how many pages are needed for a given
-// amount of bytes
-const getNPages = bytes => ((bytes + 0xffff) & ~0xffff) >>> 16;
+const getNPages = bytes => Math.ceil(bytes / PAGE_SIZE);
 
 const importWA = (path, memorySize = 1) => {
   let _m = { bytes: memorySize };
