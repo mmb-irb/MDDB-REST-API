@@ -4,6 +4,9 @@ module.exports = {
     node: true,
     jest: true,
   },
+  globals: {
+    WebAssembly: true,
+  },
   extends: ['eslint:recommended', 'prettier'],
   parserOptions: {
     ecmaVersion: 2018,
