@@ -50,9 +50,6 @@ const importWA = (path, memorySize = 1) => {
   return instance;
 };
 
-// NOTE: Handling and assigning memory by hand might result in memory leak here
-// -> if there is a memory-related issue, looking here might be a good start
-
 module.exports = importWA;
 module.exports._getNPages = getNPages;
 module.exports._PAGE_SIZE = PAGE_SIZE;
