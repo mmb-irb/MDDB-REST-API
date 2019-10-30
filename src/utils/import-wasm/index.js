@@ -6,13 +6,13 @@ const PAGE_SIZE = 0x10000; // fixed page size: 16KiB, or in hex 0x10000
 const getNPages = bytes => Math.ceil(bytes / PAGE_SIZE);
 
 const importWA = (path, memorySize = 1) => {
-  let _m = { bytes: memorySize };
+  let bytes = memorySize;
 
   const moduleContent = readFileSync(path);
   const compiled = new WebAssembly.Module(moduleContent);
 
   let instance;
-  const memory = new WebAssembly.Memory({ initial: _m.bytes });
+  const memory = new WebAssembly.Memory({ initial: bytes });
 
   const env = {
     abort(msg, file, line, column) {
@@ -35,12 +35,12 @@ const importWA = (path, memorySize = 1) => {
   // the page count if needed
   Object.defineProperty(instance, 'memorySize', {
     get() {
-      return _m.bytes;
+      return bytes;
     },
     // set internal memory size in bytes and grow WebAssembly internal memory
     set(value) {
-      const currentNPages = getNPages(_m.bytes);
-      _m.bytes = value;
+      const currentNPages = getNPages(bytes);
+      bytes = value;
       const wantedNPages = getNPages(value);
       const delta = Math.abs(wantedNPages - currentNPages);
       if (delta) memory.grow(delta);
