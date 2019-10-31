@@ -2,7 +2,7 @@ const { ObjectId } = require('mongodb');
 
 const augmentFilterWithIDOrAccession = require('.');
 
-describe('augmnentFilterWithIDOrAccession', () => {
+describe('augmentFilterWithIDOrAccession', () => {
   const accession = 'accession';
   const id = ObjectId('5dada465a1f486584ed0a94e');
   it('should detect an accession', () => {
