@@ -112,7 +112,8 @@ paths:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: filename
           in: path
-          description: filename
+          description: >
+            filename, as defined in the list of files included in a project
           required: true
           schema:
             type: string
@@ -122,23 +123,49 @@ paths:
             type: string
             enum: ['chemical/x-trj']
           description: >
-            Specify a request format for the file. Only useful for
-            'trajectory.bin' files.
-        - name: Range
-          in: header
+            Specify a request format for the file.<br>
+            **Only useful for 'trajectory.bin' files.**
+        - name: frames
+          in: query
           schema:
             type: string
           description: >
-            Specify a byte, atom, or frame range for the returned file.
-            Especially useful for 'trajectory.bin' files, since that way one can
-            ask for specific frames or atoms instead of the whole file.
-            [See here for information on how to use range requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests#Requesting_a_specific_range_from_a_server)
+            Specify a frame range for the returned file.<br>
+            **Only for 'trajectory.bin'** files, since that way one can ask for
+            specific frames instead of the whole file.<br>
+            Ranges are defined by dashes, and multiple ranges can be defined
+            separated by commas. It can also be defined as the start:end:step
+            format.<br>
+            1-based numbering.
           examples:
-            firstAtom:
-              summary: >
-                first coordinates (x, y, and z) for the first 3 atoms of the
-                first 2 frames.
-              value: atoms=0-2, frames=0-1
+            firstFrame:
+              summary: content of the first frame
+              value: 1
+            tenFrames:
+              summary: ten frames, from two different ranges
+              value: 1-5,11-15
+            everyTwoFrames:
+              summary: every two frames from frame 10 to frame 20
+              value: 10:20:2
+        - name: selection
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a NGL-formatted selection for the returned file.<br>
+            **Only for 'trajectory.bin' files**, since that way one can ask for
+            specific atoms instead of the whole file.<br>
+            [See here for the kind of selection that can be used](http://nglviewer.org/ngl/api/manual/usage/selection-language.html).
+          examples:
+            allCAtoms:
+              summary: All carbon atoms
+              value: _C
+            backbone:
+              summary: Backbone atoms
+              value: backbone
+            allCInBackbone:
+              summary: All carbon atoms in the backbone
+              value: backbone and _C
       tags:
         - files
       responses:
@@ -379,11 +406,13 @@ definitions:
       name: projectAccessionOrID
       in: path
       description: >
-        Project accession or identifier. A project will always have a unique
-        identifier (even if unpublished and in the development version of the
-        API). When published, it will be assigned a never-changing unique
-        user-friendly accession starting with MCNS. You can use either to access
-        the corresponding data, even if the accession is recommended
+        Project accession or identifier.<br>
+        A project will always have a unique identifier (even if unpublished and
+        in the development version of the API).<br>
+        When published, it will be assigned a never-changing unique
+        user-friendly accession starting with MCNS.<br>
+        You can use either to access the corresponding data, even if the
+        **accession is recommended**
       required: true
       schema:
         type: string

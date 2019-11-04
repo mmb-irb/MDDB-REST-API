@@ -41,8 +41,10 @@
     "dotenv": "8.2.0",
     "express": "4.17.1",
     "express-paginate": "1.0.0",
+    "jsdom": "15.2.0",
     "lodash": "4.17.15",
     "mongodb": "3.3.3",
+    "ngl": "0.10.4",
     "range-parser": "1.2.1",
     "swagger-ui-express": "4.1.2",
     "yamljs": "0.3.0"
