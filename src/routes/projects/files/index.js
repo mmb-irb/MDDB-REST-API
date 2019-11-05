@@ -213,7 +213,7 @@ module.exports = (db, { projects }) => {
         if (!stream) return;
 
         stream.on('data', data => response.write(data));
-        stream.on('error', () => response.sendStatus(NOT_FOUND));
+        stream.on('error', error => console.error(error));
         stream.on('end', data => response.end(data));
 
         request.on('close', () => stream.destroy());

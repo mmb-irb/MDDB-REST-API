@@ -22,6 +22,9 @@ const combine = async (outputStream, bucket, objectId, range) => {
     let size = 0;
     // transfer data from once stream to the other
     rangedStream.on('data', data => {
+      // if, for any reason, the stream was destroy, just bail
+      if (outputStream.destroyed) return;
+
       let _data = data;
       // if we're gonna send too much, slice to necessary size
       // that might happen because mongo usually sends a bit too much
