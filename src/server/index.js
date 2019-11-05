@@ -34,7 +34,8 @@ app.use(
 // Add CORS headers
 app.use(
   cors({
-    methods: ['GET', 'HEAD'],
+    origin: '*',
+    methods: ['GET', 'HEAD', 'OPTIONS'],
     exposedHeaders: ['content-length', 'content-range'],
   }),
 );
