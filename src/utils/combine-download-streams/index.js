@@ -38,7 +38,7 @@ const combine = async (outputStream, bucket, objectId, range) => {
 
       if (!shouldContinue) {
         rangedStream.pause();
-        outputStream.once('drain', rangedStream.resume.bind(rangedStream));
+        outputStream.once('drain', () => rangedStream.resume());
       }
     });
     try {
