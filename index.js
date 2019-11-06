@@ -7,15 +7,15 @@ const server = require('./src/server');
 
 const main = async () => {
   let serverInstance;
-  let dbConnection;
+  // let dbConnection;
   try {
-    dbConnection = await dbConnection;
+    // dbConnection = await dbConnectionPromise;
     serverInstance = server.start();
   } catch (error) {
     console.error(error);
     if (serverInstance) server.stop();
   } finally {
-    if (dbConnection && 'close' in dbConnection) dbConnection.close();
+    // if (dbConnection && 'close' in dbConnection) dbConnection.close();
   }
 };
 
