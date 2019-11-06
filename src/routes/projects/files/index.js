@@ -155,6 +155,7 @@ module.exports = (db, { projects }) => {
 
             rangedStream.pipe(transformStream);
             transformStream.on('close', () => rangedStream.destroy());
+            request.on('close', () => rangedStream.destroy());
 
             lengthMultiplier = BinToTrjStream.MULTIPLIER;
             stream = transformStream;
@@ -219,6 +220,11 @@ module.exports = (db, { projects }) => {
       },
       body(response, { stream }, request) {
         if (!stream) return;
+
+        if (request.aborted) {
+          stream.destroy();
+          return;
+        }
 
         stream.on('data', data => response.write(data));
         stream.on('error', error => console.error(error));
