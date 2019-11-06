@@ -148,10 +148,18 @@ module.exports = (db, { projects }) => {
         let stream;
         let lengthMultiplier = x => x;
         if (!range || typeof range === 'object') {
-          stream = combineDownloadStreams(bucket, oid, range);
+          const rangedStream = combineDownloadStreams(bucket, oid, range);
+
           if (transformFormat === TRJ_TYPE) {
-            stream = stream.pipe(BinToTrjStream());
+            const transformStream = BinToTrjStream();
+
+            rangedStream.pipe(transformStream);
+            transformStream.on('close', () => rangedStream.destroy());
+
             lengthMultiplier = BinToTrjStream.MULTIPLIER;
+            stream = transformStream;
+          } else {
+            stream = rangedStream;
           }
         }
         return { stream, descriptor, range, transformFormat, lengthMultiplier };

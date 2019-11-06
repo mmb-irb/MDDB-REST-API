@@ -5,6 +5,7 @@ const combine = async (outputStream, bucket, objectId, range) => {
   const _range = range && typeof range === 'object' ? range : [{}];
   // for each of the range parts
   for (const { start, end } of _range) {
+    if (outputStream.destroyed) break;
     // create a new stream bound to this specific range part
     const rangedStream = bucket.openDownloadStream(objectId);
     // ask mongo to only send necessary part
