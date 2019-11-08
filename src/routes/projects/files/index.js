@@ -11,6 +11,7 @@ const publishedFilter = require('../../../utils/published-filter');
 const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 const parseQuerystringFrameRange = require('../../../utils/parse-querystring-frame-range');
+const consumeStream = require('../../../utils/consume-stream');
 const {
   NO_CONTENT,
   PARTIAL_CONTENT,
@@ -119,13 +120,7 @@ module.exports = (db, { projects }) => {
             );
 
             // open a stream and read it completely into memory
-            const pdbFile = await new Promise((resolve, reject) => {
-              const stream = bucket.openDownloadStream(oid);
-              const buffers = [];
-              stream.on('data', chunk => buffers.push(chunk));
-              stream.on('error', reject);
-              stream.on('end', () => resolve(Buffer.concat(buffers)));
-            });
+            const pdbFile = await consumeStream(bucket.openDownloadStream(oid));
 
             const atoms = await getAtomIndices(
               pdbFile,
