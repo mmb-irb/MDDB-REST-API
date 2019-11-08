@@ -1,5 +1,7 @@
 const Router = require('express').Router;
+// GridFSBucket manages the saving of files bigger than 16 Mb, splitting them into 4 Mb fragments (chunks)
 const { GridFSBucket, ObjectId } = require('mongodb');
+// This function returns an object without the selected omitted attributes
 const omit = require('lodash').omit;
 
 const handler = require('../../../utils/generic-handler');
@@ -7,7 +9,9 @@ const BinToTrjStream = require('../../../utils/bin-to-trj');
 const handleRange = require('../../../utils/handle-range');
 const combineDownloadStreams = require('../../../utils/combine-download-streams');
 const addMinMaxSize = require('../../../utils/add-min-max-size');
+// Mongo DB filter that only returns published results when the environment is set as "production"
 const publishedFilter = require('../../../utils/published-filter');
+// Adds the project associated ID from mongo db to the provided object
 const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 const parseQuerystringFrameRange = require('../../../utils/parse-querystring-frame-range');
@@ -22,41 +26,47 @@ const {
 
 const TRJ_TYPE = 'chemical/x-trj';
 
+// Check if the requested files meet the accepted formats, which are provided by the request header
+// If so, send the format name. Else, send null
 const acceptTransformFormat = (requested, filename) => {
   const _requested = (requested || '').toLowerCase();
   const _filename = filename.toLowerCase();
+  // If "trj" or "traj" formats are accepted and the requestd file is a ".bin" return the "trj" type
   if (_requested.includes('trj') || _requested.includes('traj')) {
     if (_filename.endsWith('.bin')) return TRJ_TYPE;
   }
-  // Added (possible future) accepted transformation formats here
+  // added (possible future) accepted transformation formats here
   //
-  // Default case, not an accepted format, just transform
+  // default case, not an accepted format, just transform
   return null;
 };
 
 const fileRouter = Router({ mergeParams: true });
 
 module.exports = (db, { projects }) => {
-  // root
+  // Root
   fileRouter.route('/').get(
     handler({
       retriever(request) {
+        // Return the project which matches the request accession
         return projects.findOne(
-          // filter
           augmentFilterWithIDOrAccession(
             publishedFilter,
             request.params.project,
           ),
-          // options
+          // But return only the "files" attribute
           { projection: { _id: false, files: true } },
         );
       },
+      // If there is nothing retrieved or the retrieved has no files, send a NOT_FOUND status in the header
       headers(response, retrieved) {
         if (!(retrieved && retrieved.files)) response.sendStatus(NOT_FOUND);
       },
+      // If there is retrieved and the retrieved has files, send the files in the body
       body(response, retrieved) {
         if (retrieved && retrieved.files) {
           response.json(
+            // Remove the "chunkSize" and the "uploadDate" attributes from each file
             retrieved.files.map(file =>
               omit(file, ['chunkSize', 'uploadDate']),
             ),
@@ -65,39 +75,41 @@ module.exports = (db, { projects }) => {
       },
     }),
   );
-
+  // SE PUEDE PONER FUERA??
+  // This function saves the "_id" and the "files" attributes form the project which matches the request accession
   const getProject = project =>
-    projects.findOne(
-      // filter
-      augmentFilterWithIDOrAccession(publishedFilter, project),
-      // options
-      { projection: { _id: true, files: true } },
-    );
+    projects.findOne(augmentFilterWithIDOrAccession(publishedFilter, project), {
+      projection: { _id: true, files: true },
+    });
 
-  // file
+  // When there is a file parameter (e.g. .../files/5d08c0d8174bf85a17e00861)
   fileRouter.route('/:file').get(
     handler({
       async retriever(request) {
-        const files = db.collection('fs.files');
-        const bucket = new GridFSBucket(db);
+        const files = db.collection('fs.files'); // Save all files from mongo
+        const bucket = new GridFSBucket(db); // Process all files splitting them in 4 Mb fragments
 
         let oid;
         let projectDoc;
         if (ObjectId.isValid(request.params.file)) {
-          // if using mongo ID in URL
+          // If using mongo ID in the request (URL)
+          // Saves the mongo ID corresponding file
           oid = ObjectId(request.params.file);
         } else {
-          // if it wasn't a valid object id, assume it was a file name
-          projectDoc = await getProject(request.params.project);
-          if (!projectDoc) return;
+          // If it was not a valid mongo ID, assume it was a file name
+          // Find the project from the request and, inside this project, find the file named as the request
+          // Get the ID from the previously found file and save the file through the ID
+          projectDoc = await getProject(request.params.project); // Finds the project by the accession
+          if (!projectDoc) return; // If there is no projectDoc stop here
           oid = ObjectId(
             projectDoc.files.find(file => file.filename === request.params.file)
               ._id,
           );
         }
 
+        // Set the cursor over the corresponding file
         const descriptor = await files.findOne(oid);
-
+        // Set the format in which data will be sent
         const transformFormat = acceptTransformFormat(
           request.headers.accept,
           descriptor.filename,
@@ -106,13 +118,16 @@ module.exports = (db, { projects }) => {
         // range handling
         // range in querystring > range in headers
         // but we do transform the querystring format into the headers format
+
+        // When there is a selection or frame query (e.g. .../files?selection=x)
         let range;
         if (request.query.selection || request.query.frames) {
           let rangeString = '';
           if (request.query.selection) {
+            // Find the project from the request
             if (projectDoc)
               projectDoc = await getProject(request.params.project);
-            if (!projectDoc) return;
+            if (!projectDoc) return; // If there is no projectDoc stop here
             const oid = ObjectId(
               projectDoc.files.find(
                 file => file.filename === 'md.imaged.rot.dry.pdb',

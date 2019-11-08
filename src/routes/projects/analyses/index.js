@@ -3,66 +3,74 @@ const Router = require('express').Router;
 const handler = require('../../../utils/generic-handler');
 
 const { NOT_FOUND } = require('../../../utils/status-codes');
+// Mongo DB filter that only returns published results when the environment is set as "production"
 const publishedFilter = require('../../../utils/published-filter');
+// Adds the project associated ID from mongo db to the provided object
 const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
 
 const analysisRouter = Router({ mergeParams: true });
 
 module.exports = (_, { projects, analyses }) => {
-  // root
+  // Root
   analysisRouter.route('/').get(
     handler({
       retriever(request) {
+        // Return the project which matches the request accession
         return projects.findOne(
-          // filter
           augmentFilterWithIDOrAccession(
             publishedFilter,
             request.params.project,
           ),
-          // options
+          // But return only the "analyses" attribute
           { projection: { _id: false, analyses: true } },
         );
       },
+      // If there is nothing retrieved or the retrieved has no analyses, send a NOT_FOUND status in the header
       headers(response, retrieved) {
         if (!(retrieved && retrieved.analyses)) response.sendStatus(NOT_FOUND);
       },
+      // If there is retrieved and the retrieved has analyses, send the analyses in the body
       body(response, retrieved) {
         if (retrieved && retrieved.analyses) response.json(retrieved.analyses);
       },
     }),
   );
 
-  // analysis
+  // When there is an analysis parameter (e.g. .../analyses/rmsd)
   analysisRouter.route('/:analysis').get(
     handler({
       async retriever(request) {
+        // Find the project which matches the request accession
         const projectDoc = await projects.findOne(
-          // filter
           augmentFilterWithIDOrAccession(
             publishedFilter,
             request.params.project,
           ),
-          // options
+          // And get the "_id" attribute
           { projection: { _id: true } },
         );
+        // If there is no project we return here
         if (!projectDoc) return;
+        // Else, find the analysis with the provided name in the project
         return analyses.findOne(
-          // filter
           {
             project: projectDoc._id,
             name: request.params.analysis.toLowerCase(),
           },
-          // options
+          // But do not return the _id and project attributes
           { projection: { _id: false, project: false } },
         );
       },
+      // If there is nothing retrieved or the retrieved has no value, send a NOT_FOUND status in the header
       headers(response, retrieved) {
         if (!(retrieved && retrieved.value)) response.sendStatus(NOT_FOUND);
       },
+      // If there is retrieved and the retrieved has a value, send the analyses in the body
       body(response, retrieved) {
-        if (!(retrieved && retrieved.value)) return;
-        const { value, ...data } = retrieved;
-        response.json({ ...data, ...value });
+        if (retrieved && retrieved.value) {
+          const { value, ...data } = retrieved;
+          response.json({ ...data, ...value });
+        }
       },
     }),
   );
