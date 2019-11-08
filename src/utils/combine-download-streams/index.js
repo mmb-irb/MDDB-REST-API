@@ -1,10 +1,8 @@
 const PassThrough = require('stream').PassThrough;
 
 const combine = async (outputStream, bucket, objectId, range) => {
-  // If no range,
-  const _range = range && typeof range === 'object' ? range : [{}];
   // for each of the range parts
-  for (const { start, end } of _range) {
+  for (const { start, end } of range) {
     if (outputStream.destroyed) break;
     // create a new stream bound to this specific range part
     const rangedStream = bucket.openDownloadStream(objectId);
@@ -53,8 +51,16 @@ const combine = async (outputStream, bucket, objectId, range) => {
 };
 
 const combineDownloadStreams = (bucket, objectId, range) => {
+  // Just asking for the whole file, so no need to process more than necessary
+  if (!(range && typeof range === 'object')) {
+    return bucket.openDownloadStream(objectId);
+  }
+  // Else, asking for parts of the file
+
+  // Create a fake stream into which we'll push just the requested parts
   const outputStream = new PassThrough();
   combine(outputStream, bucket, objectId, range);
+  // Return the created stream
   return outputStream;
 };
 
