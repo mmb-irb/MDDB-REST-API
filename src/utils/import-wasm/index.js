@@ -42,8 +42,8 @@ const importWA = (path, memorySize = 1) => {
       const currentNPages = getNPages(bytes);
       bytes = value;
       const wantedNPages = getNPages(value);
-      const delta = Math.abs(wantedNPages - currentNPages);
-      if (delta) memory.grow(delta);
+      const delta = wantedNPages - currentNPages;
+      if (delta > 0) memory.grow(delta);
     },
   });
 
