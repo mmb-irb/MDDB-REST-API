@@ -13,6 +13,7 @@ const addMinMaxSize = require('../../../utils/add-min-max-size');
 const publishedFilter = require('../../../utils/published-filter');
 // Adds the project associated ID from mongo db to the provided object
 const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
+// Returns the selected atom indices as a string ("i1-i1,i2-i2,i3-i3..."")
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 const parseQuerystringFrameRange = require('../../../utils/parse-querystring-frame-range');
 const consumeStream = require('../../../utils/consume-stream');
@@ -82,32 +83,23 @@ module.exports = (db, { projects }) => {
       projection: { _id: true, files: true },
     });
 
-  // When there is a file parameter (e.g. .../files/5d08c0d8174bf85a17e00861)
-  fileRouter.route('/:file').get(
+  // When there is a trajectory parameter (i.e. .../files/trajectory)
+  fileRouter.route('/trajectory').get(
     handler({
       async retriever(request) {
         const files = db.collection('fs.files'); // Save all files from mongo
         const bucket = new GridFSBucket(db); // Process all files splitting them in 4 Mb fragments
 
-        let oid;
         let projectDoc;
-        if (ObjectId.isValid(request.params.file)) {
-          // If using mongo ID in the request (URL)
-          // Saves the mongo ID corresponding file
-          oid = ObjectId(request.params.file);
-        } else {
-          // If it was not a valid mongo ID, assume it was a file name
-          // Find the project from the request and, inside this project, find the file named as the request
-          // Get the ID from the previously found file and save the file through the ID
-          projectDoc = await getProject(request.params.project); // Finds the project by the accession
-          if (!projectDoc) return; // If there is no projectDoc stop here
-          oid = ObjectId(
-            projectDoc.files.find(file => file.filename === request.params.file)
-              ._id,
-          );
-        }
+        // Find the project from the request and, inside this project, find the file 'trajectory.bin'
+        // Get the ID from the previously found file and save the file through the ID
+        projectDoc = await getProject(request.params.project); // Finds the project by the accession
+        if (!projectDoc) return; // If there is no projectDoc stop here
+        const oid = ObjectId(
+          projectDoc.files.find(file => file.filename === 'trajectory.bin')._id,
+        );
 
-        // Set the cursor over the corresponding file
+        // Save the corresponding file
         const descriptor = await files.findOne(oid);
         // Set the format in which data will be sent
         const transformFormat = acceptTransformFormat(
@@ -119,24 +111,26 @@ module.exports = (db, { projects }) => {
         // range in querystring > range in headers
         // but we do transform the querystring format into the headers format
 
-        // When there is a selection or frame query (e.g. .../files?selection=x)
+        // When there is a selection or frame query (e.g. .../files/trajectory?selection=x)
         let range;
         if (request.query.selection || request.query.frames) {
           let rangeString = '';
           if (request.query.selection) {
-            // Find the project from the request
-            if (projectDoc)
+            // Save the project from the request if it is not saved yet
+            if (!projectDoc)
               projectDoc = await getProject(request.params.project);
-            if (!projectDoc) return; // If there is no projectDoc stop here
+            if (!projectDoc) return; // If there is no project stop here
+            // Get the ID from the file 'md.imaged.rot.dry.pdb' and save it through the ID
             const oid = ObjectId(
               projectDoc.files.find(
                 file => file.filename === 'md.imaged.rot.dry.pdb',
               )._id,
             );
 
-            // open a stream and read it completely into memory
+            // Open a stream and save it completely into memory
             const pdbFile = await consumeStream(bucket.openDownloadStream(oid));
 
+            //
             const atoms = await getAtomIndices(
               pdbFile,
               request.query.selection,
@@ -241,6 +235,75 @@ module.exports = (db, { projects }) => {
         stream.on('end', data => response.end(data));
 
         request.on('close', () => stream.destroy());
+      },
+    }),
+  );
+
+  // When there is a file parameter (e.g. .../files/5d08c0d8174bf85a17e00861)
+  fileRouter.route('/:file').get(
+    handler({
+      async retriever(request) {
+        const files = db.collection('fs.files');
+        const bucket = new GridFSBucket(db);
+
+        let oid;
+        if (ObjectId.isValid(request.params.file)) {
+          // If using mongo ID in the request (URL)
+          // Saves the mongo ID corresponding file
+          oid = ObjectId(request.params.file);
+        } else {
+          // If it was not a valid mongo ID, assume it was a file name
+          // Find the project from the request and, inside this project, find the file named as the request
+          // Get the ID from the previously found file and save the file through the ID
+          const projectDoc = await getProject(request.params.project); // Finds the project by the accession
+          if (!projectDoc) return; // If there is no projectDoc stop here
+          oid = ObjectId(
+            projectDoc.files.find(file => file.filename === request.params.file)
+              ._id,
+          );
+        }
+        // If arrived to that point we still have no oid, assume file doesn't exist
+        if (!oid) return;
+
+        // Save the corresponding file
+        const descriptor = await files.findOne(oid);
+        // If the object ID is not found in the data bsae, return here
+        if (!descriptor) return;
+
+        // Open a stream with the corresponding ID
+        const stream = bucket.openDownloadStream(oid);
+
+        return { descriptor, stream };
+      },
+      // If there is an active stream, send range and length content
+      headers(response, retrieved) {
+        if (!retrieved || !retrieved.descriptor)
+          return response.sendStatus(NOT_FOUND);
+        response.set('content-range', `bytes=*/${retrieved.descriptor.length}`);
+        response.set('content-length', retrieved.descriptor.length);
+        // Send content type also if known
+        if (retrieved.descriptor.contentType) {
+          response.set('content-type', retrieved.descriptor.contentType);
+        }
+      },
+      // If there is a retrieved stream, start sending data through the stream
+      body(response, retrieved, request) {
+        // If there is not retreieved stream, return here
+        if (!retrieved || !retrieved.stream) return;
+        // If the client has aborted the request before the streams starts, destroy the stream
+        if (request.aborted) {
+          retrieved.stream.destroy();
+          return;
+        }
+        // Manage the stream
+        retrieved.stream.pipe(response);
+        // If there is an error, send the error to the console and end the data transfer
+        retrieved.stream.on('error', error => {
+          console.error(error);
+          response.end();
+        });
+        // Close the stream on request
+        request.on('close', () => retrieved.stream.destroy());
       },
     }),
   );

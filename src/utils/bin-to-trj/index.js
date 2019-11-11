@@ -16,6 +16,8 @@ const getNNewLines = (currentCountInLine, nValues) =>
 module.exports = function() {
   // keep track of the number of coordinates processed in the line
   let countInLine = 1;
+  // Set an instance of non JavaScript code which is runned in a deeper (closer to the CPU) module
+  // This assembly allows a faster calculation
   const wasmInstance = importWA('./build/optimized.wasm');
 
   const transform = new Transform({

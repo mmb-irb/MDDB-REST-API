@@ -1,11 +1,14 @@
+// This script contains the logic to start and manage a "worker"
+// The worker contains the logic to get atom indices
+
 const { Worker } = require('worker_threads');
 
 const getAtomIndices = (pdbFile, selection) =>
   new Promise((resolve, reject) => {
     const worker = new Worker(`${__dirname}/worker.js`);
-
+    // Starts the worker
     worker.postMessage({ type: 'init', file: pdbFile, selection });
-
+    // Recibes the worker output and terminates the worker
     worker.addListener('message', message => {
       worker.unref();
       worker.terminate();

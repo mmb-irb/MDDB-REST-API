@@ -1,7 +1,7 @@
 // Running in a worker
 const { isMainThread, parentPort } = require('worker_threads');
 
-// this should never be true as this is expected to run on a worker thread
+// This should never be true as this is expected to run on a worker thread
 if (isMainThread) throw new Error("This shouldn't run in the main thread!");
 
 /**
@@ -30,24 +30,29 @@ const ngl = require('ngl');
  * @returns {string} Atom ranges, not collapsed, in a HTTP Range header format
  */
 const main = async (pdbFile, selection) => {
+  // Save the pdbFile as a Blob (Binary large object), which is a format for storing data
   const structure = await ngl.autoLoad(new global.Blob([pdbFile]), {
     ext: 'pdb',
   });
+  // Save the selection in ngl format (structureComponent)
   const sel = new ngl.Selection(selection);
+  // Save the data from structure which corresponds to the selection atoms
   const view = structure.getView(sel);
-
+  // Get an array with all the atoms indexes as strings
+  // Indexes are saveds as "i-i", since this is the form to select a single atom as a range of atoms
+  // Many indexes could be grouped in wide ranges, but this process is performed later
   const indices = [];
   view.eachAtom(({ index }) => indices.push(`${index}-${index}`));
-
+  // Joins all indexes form the array into a single string separated by comas
   return indices.join(',');
 };
 
-// main thread <=> worker thread communication
+// Main thread <=> worker thread communication
 parentPort.addListener('message', async message => {
-  if (message.type !== 'init') throw new Error('not a supported message');
   // The first message we receive should be of type 'init'
+  if (message.type !== 'init') throw new Error('not a supported message');
   try {
-    // process the associated data
+    // Try to send data
     const output = await main(message.file, message.selection);
     parentPort.postMessage({ type: 'success', data: output });
   } catch (error) {
