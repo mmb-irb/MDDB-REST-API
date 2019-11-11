@@ -41,7 +41,7 @@ const handleRange = (rangeString, descriptor) => {
   if (!(rangeStrings.frames || rangeStrings.atoms)) return;
 
   // output object
-  const bytes = [];
+  const bytes = {};
   bytes.responseHeaders = [];
 
   // now, try to combine ranges
@@ -66,28 +66,34 @@ const handleRange = (rangeString, descriptor) => {
 
   const atomSize = Float32Array.BYTES_PER_ELEMENT * 3;
   const frameSize = atomSize * descriptor.metadata.atoms;
-  let currentStartByte = null;
-  let currentByte = null;
-  for (const frameRange of frames) {
-    for (
-      let frameIndex = frameRange.start;
-      frameIndex <= frameRange.end;
-      frameIndex++
-    ) {
-      for (const atomRange of atoms) {
-        const start = atomRange.start * atomSize + frameIndex * frameSize;
-        if (start !== currentByte) {
-          if (currentStartByte !== null) {
-            bytes.push({ start: currentStartByte, end: currentByte });
+  // Here we're about to generate an array with all the combinations of frames
+  // and atoms, which might be A LOT!
+  // Instead, let's create an iterator
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/iterator
+  bytes[Symbol.iterator] = function*() {
+    let currentStartByte = null;
+    let currentByte = null;
+    for (const frameRange of frames) {
+      for (
+        let frameIndex = frameRange.start;
+        frameIndex <= frameRange.end;
+        frameIndex++
+      ) {
+        for (const atomRange of atoms) {
+          const start = atomRange.start * atomSize + frameIndex * frameSize;
+          if (start !== currentByte) {
+            if (currentStartByte !== null) {
+              yield { start: currentStartByte, end: currentByte };
+            }
+            currentStartByte = start;
           }
-          currentStartByte = start;
+          currentByte =
+            atomRange.end * atomSize + frameIndex * frameSize + atomSize - 1;
         }
-        currentByte =
-          atomRange.end * atomSize + frameIndex * frameSize + atomSize - 1;
       }
     }
-  }
-  bytes.push({ start: currentStartByte, end: currentByte });
+    yield { start: currentStartByte, end: currentByte };
+  };
   bytes.type = 'bytes';
   // * If we send this it might get truncated when it gets to big
   // * header size in Node HTTP Parser is limited to 80kb, see ref below
