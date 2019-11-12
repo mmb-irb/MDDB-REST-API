@@ -1,5 +1,8 @@
-const { Transform } = require('stream');
+// This script converts the stored file (.bin) into web friendly format (chemical/x-trj)
+// This is complex since the request is quite customizable and the transform process highly optimized
 
+const { Transform } = require('stream');
+// Allows the use of non JavaScript code and faster calculation
 const importWA = require('../import-wasm');
 
 // 1 coordinate: 4 bytes in binary, 8 in plain text -> ratio 2
@@ -7,62 +10,65 @@ const importWA = require('../import-wasm');
 // equation:
 //   text_bytes = floor(binary_bytes * 2 + binary_bytes / 80)
 //   = floor(2.025 * binary_bytes)
-const MULTIPLIER = x => Math.floor(2.025 * x);
 
-// get number of new line characters that will be needed
-const getNNewLines = (currentCountInLine, nValues) =>
-  Math.floor((currentCountInLine - 1 + nValues) / 10);
+const MULTIPLIER = x => Math.floor(2.025 * x); // Math.floor returns the smaller closest int to the input
 
 module.exports = function() {
-  // keep track of the number of coordinates processed in the line
+  // Keep track of the current chunk number
   let countInLine = 1;
   // Set an instance of non JavaScript code which is runned in a deeper (closer to the CPU) module
   // This assembly allows a faster calculation
   const wasmInstance = importWA('./build/optimized.wasm');
-
+  // Set a transform, which is a kind of stream
   const transform = new Transform({
     transform(chunk, _encoding, next) {
       // number of values to be processed in this chunk
-      const nValues = chunk.length / Float32Array.BYTES_PER_ELEMENT;
+      const nValues = chunk.length / Float32Array.BYTES_PER_ELEMENT; // 4 bytes per element
       // input offset and length
-      const inputOffset = 0;
+      const inputOffset = 0; // This is always 0 at this moment
       const inputLength =
+        // Nothe that nValues * Float32Array.BYTES_PER_ELEMENT equals to the chunk.length
         nValues * Float32Array.BYTES_PER_ELEMENT - inputOffset;
       // output offset and length
       const outputOffset =
+        // Finds the immediately bigger than the chunk length number which is multiple of 8 (Float64Array.BYTES_PER_ELEMENT)
         Math.ceil(
-          (inputOffset + inputLength) / Float64Array.BYTES_PER_ELEMENT,
+          // Math.ceil returns the bigger closest int to the input
+          // Note that (inputOffset + inputLength) equals to the chunk.length
+          (inputOffset + inputLength) / Float64Array.BYTES_PER_ELEMENT, // 8 bytes per element
         ) * Float64Array.BYTES_PER_ELEMENT;
       const outputLength =
-        nValues * Float64Array.BYTES_PER_ELEMENT +
-        getNNewLines(countInLine, nValues);
+        nValues * Float64Array.BYTES_PER_ELEMENT + // This equals the chunk.length * 2
+        // Add extra space for the line breaks
+        Math.floor((countInLine - 1 + nValues) / 10); // Math.floor returns the smaller closest int to the input
 
-      // set the wasm internal memory to store the necessary data
+      // Set the wasm internal memory to store the necessary data
       wasmInstance.memorySize = outputOffset + outputLength;
 
-      // view on the bit of wasm memory dedicated to store the input
+      // Standard format for the transform input
       const chunkInWA = new Uint8Array(
         wasmInstance.memory.buffer,
         inputOffset,
         inputLength / Uint8Array.BYTES_PER_ELEMENT,
       );
-      // view on the bit of wasm memory dedicated to store the output
+      // Standard format for the transform output
       const outputBuffer = Buffer.from(
         wasmInstance.memory.buffer,
         outputOffset,
         outputLength / Buffer.BYTES_PER_ELEMENT,
       );
 
-      // copy binary (chunk) inside wasm-reserved memory (chunkInWA)
+      // Copy the current chunk inside wasm-reserved memory (chunkInWA)
       chunk.copy(chunkInWA);
-      // execute the transformation inside the wasm logic
+      // Execute the transformation inside the wasm logic
       countInLine = wasmInstance.transform(nValues, outputOffset, countInLine);
 
-      // push data out, and see if we can continue or not
+      // Push data out, and see if we can continue or not
       const canContinue = this.push(outputBuffer);
       if (canContinue) {
         next();
       } else {
+        // If not, execute the stream drain once
         this._readableState.pipes.once('drain', next);
       }
     },

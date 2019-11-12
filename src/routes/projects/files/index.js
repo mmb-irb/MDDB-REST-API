@@ -5,6 +5,7 @@ const { GridFSBucket, ObjectId } = require('mongodb');
 const omit = require('lodash').omit;
 
 const handler = require('../../../utils/generic-handler');
+// Converts the stored file (.bin) into web friendly format (chemical/x-trj)
 const BinToTrjStream = require('../../../utils/bin-to-trj');
 const handleRange = require('../../../utils/handle-range');
 const combineDownloadStreams = require('../../../utils/combine-download-streams');
@@ -15,6 +16,7 @@ const publishedFilter = require('../../../utils/published-filter');
 const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
 // Returns the selected atom indices as a string ("i1-i1,i2-i2,i3-i3..."")
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
+// Translates the frames query string format into a explicit frame selection in string format
 const parseQuerystringFrameRange = require('../../../utils/parse-querystring-frame-range');
 const consumeStream = require('../../../utils/consume-stream');
 const {
@@ -76,7 +78,6 @@ module.exports = (db, { projects }) => {
       },
     }),
   );
-  // SE PUEDE PONER FUERA??
   // This function saves the "_id" and the "files" attributes form the project which matches the request accession
   const getProject = project =>
     projects.findOne(augmentFilterWithIDOrAccession(publishedFilter, project), {
@@ -115,6 +116,7 @@ module.exports = (db, { projects }) => {
         let range;
         if (request.query.selection || request.query.frames) {
           let rangeString = '';
+          // In case of selection query
           if (request.query.selection) {
             // Save the project from the request if it is not saved yet
             if (!projectDoc)
@@ -130,16 +132,21 @@ module.exports = (db, { projects }) => {
             // Open a stream and save it completely into memory
             const pdbFile = await consumeStream(bucket.openDownloadStream(oid));
 
-            //
+            // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
             const atoms = await getAtomIndices(
               pdbFile,
               request.query.selection,
             );
+            // If no atoms where found, then return here and set the header to NOT_FOUND
             if (!atoms) return { noContent: true };
+            // Else, save the atoms indices with the "atoms=" head
             rangeString = `atoms=${atoms}`;
           }
+          // In case of frame query
           if (request.query.frames) {
-            if (rangeString) rangeString += ', ';
+            // If data is already saved in the rangeString variable because there was a selection query
+            if (rangeString) rangeString += ', '; // Add coma and space to separate the new incoming data
+            // Translates the frames query string format into a explicit frame selection in string format
             const parsed = parseQuerystringFrameRange(request.query.frames);
             if (!parsed) return { range: -1 }; // bad request
             rangeString += `frames=${parsed}`;

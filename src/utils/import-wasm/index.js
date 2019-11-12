@@ -36,12 +36,14 @@ const importWA = (path, memorySize = 1) => {
   instance.memory = memory;
 
   // Establish memory size getter/setter on the instance
+  // get() - instance.memorySize
+  // set() - instance.memorySize = value
   Object.defineProperty(instance, 'memorySize', {
     get() {
       // Returns the memory size
       return bytes;
     },
-    // set internal memory size in bytes and grow WebAssembly internal memory
+    // Sets the desired memory value and then check if more memory pages are needed
     set(value) {
       const currentNPages = getNPages(bytes);
       bytes = value;
