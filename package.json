@@ -34,7 +34,7 @@
   "author": "Aurélien Luciani <aurelien.luciani@irbbarcelona.org>",
   "license": "ISC",
   "dependencies": {
-    "assemblyscript": "github:AssemblyScript/assemblyscript",
+    "assemblyscript": "0.8.0",
     "boxen": "4.1.0",
     "chalk": "2.4.2",
     "cors": "2.8.5",
