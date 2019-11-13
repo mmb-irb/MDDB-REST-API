@@ -9,7 +9,6 @@ const handler = require('../../../utils/generic-handler');
 const BinToTrjStream = require('../../../utils/bin-to-trj');
 const handleRange = require('../../../utils/handle-range');
 const combineDownloadStreams = require('../../../utils/combine-download-streams');
-const addMinMaxSize = require('../../../utils/add-min-max-size');
 // Mongo DB filter that only returns published results when the environment is set as "production"
 const publishedFilter = require('../../../utils/published-filter');
 // Adds the project associated ID from mongo db to the provided object
@@ -151,9 +150,9 @@ module.exports = (db, { projects }) => {
             if (!parsed) return { range: -1 }; // bad request
             rangeString += `frames=${parsed}`;
           }
-          range = addMinMaxSize(handleRange(rangeString, descriptor));
+          range = handleRange(rangeString, descriptor);
         } else if (request.headers.range) {
-          range = addMinMaxSize(handleRange(request.headers.range, descriptor));
+          range = handleRange(request.headers.range, descriptor);
         }
 
         let stream;
