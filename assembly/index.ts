@@ -5,12 +5,9 @@ const SPACE = u8(32);
 const DOT = u8(46);
 const MINUS = u8(45);
 const NEWLINE = u8(10);
+let countInLine = u8(1);
 
-export function transform(
-  nValues: usize,
-  outputOffset: usize,
-  countInLine: u8,
-): u8 {
+export function transform(nValues: usize, outputOffset: usize): u8 {
   let outputIndex = outputOffset;
   for (let i = usize(0); i < nValues; i++) {
     // read data from input part of the memory

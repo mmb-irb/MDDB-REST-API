@@ -61,7 +61,7 @@ module.exports = function() {
       // Copy the current chunk inside wasm-reserved memory (chunkInWA)
       chunk.copy(chunkInWA);
       // Execute the transformation inside the wasm logic
-      countInLine = wasmInstance.transform(nValues, outputOffset, countInLine);
+      countInLine = wasmInstance.transform(nValues, outputOffset);
 
       // Push data out, and see if we can continue or not
       const canContinue = this.push(outputBuffer);
