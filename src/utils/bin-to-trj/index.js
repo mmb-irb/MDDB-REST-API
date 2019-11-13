@@ -14,6 +14,7 @@ const importWA = require('../import-wasm');
 const MULTIPLIER = x => Math.floor(2.025 * x); // Math.floor returns the smaller closest int to the input
 
 module.exports = function() {
+  // Files are stored in 10 XXX bytes
   // Keep track of the current chunk number
   let countInLine = 1;
   // Set an instance of non JavaScript code which is runned in a deeper (closer to the CPU) module
@@ -27,7 +28,7 @@ module.exports = function() {
       // input offset and length
       const inputOffset = 0; // This is always 0 at this moment
       const inputLength =
-        // Nothe that nValues * Float32Array.BYTES_PER_ELEMENT equals to the chunk.length
+        // Note that nValues * Float32Array.BYTES_PER_ELEMENT equals to the chunk.length
         nValues * Float32Array.BYTES_PER_ELEMENT - inputOffset;
       // output offset and length
       const outputOffset =

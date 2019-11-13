@@ -1,3 +1,4 @@
+// readFileSync reads files and save the data in binary
 const { readFileSync } = require('fs');
 
 const loader = require('assemblyscript/lib/loader');

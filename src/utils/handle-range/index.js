@@ -16,12 +16,13 @@ const getRangeForPartOrAll = (type, rangeStrings, descriptor) => {
   return [{ start: 0, end: descriptor.metadata[type] - 1 }];
 };
 
+// Regexp expression used to split the range
 const rangeTypeSeparator = /, *(?=[a-z])/i;
 
 const handleRange = (rangeString, descriptor) => {
   const rangeStrings = (rangeString || '')
-    .split(rangeTypeSeparator)
-    .map(string => string.trim().split('='))
+    .split(rangeTypeSeparator) // Split ranges
+    .map(string => string.trim().split('=')) // Remove spaces and split by '='
     .reduce((rangeStrings, [type = '', values = '']) => {
       rangeStrings[type.trim()] = values.trim();
       return rangeStrings;
