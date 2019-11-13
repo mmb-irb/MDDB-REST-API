@@ -2,22 +2,42 @@ const parseRange = require('range-parser');
 
 const mappingFunction = ({ start, end }) => `${start}-${end}`;
 
-const getResponseHeader = (type, range, length) =>
-  `${type}=${range.map(mappingFunction).join(',')}/${length}`;
+// Function which is passed to a sort() command
+// Elements are sorted numerically (e.g. 1,2,11) but not in an alphabetic way (e.g. 1,11,2) by the "start" value number
+const sortingFunction = (a, b) => a.start - b.start;
 
 const getRangeForPartOrAll = (type, rangeStrings, descriptor) => {
   if (rangeStrings[type]) {
-    return parseRange(
+    const range = parseRange(
       descriptor.metadata[type],
       `${type}=${rangeStrings[type]}`,
-      { combine: true },
+      {
+        combine: true,
+      },
     );
+    // Sort ranges numerically by the start number
+    // WARNING: MUTATING!
+    if (Array.isArray(range)) range.sort(sortingFunction);
+    return range;
   }
   return [{ start: 0, end: descriptor.metadata[type] - 1 }];
 };
 
+const getResponseHeader = (type, range, length) =>
+  `${type}=${range.map(mappingFunction).join(',')}/${length}`;
+
 // Regexp expression used to split the range
 const rangeTypeSeparator = /, *(?=[a-z])/i;
+
+// Calculate the total output size by adding all the "end - start + 1" range values
+// Warning, mutates passed array!
+const addSize = array => {
+  if (!Array.isArray(array)) return;
+  array.size = array.reduce(
+    (size, { start, end }) => size + end - start + 1,
+    0,
+  );
+};
 
 const handleRange = (rangeString, descriptor) => {
   const rangeStrings = (rangeString || '')
@@ -36,6 +56,7 @@ const handleRange = (rangeString, descriptor) => {
     range.responseHeaders = [
       getResponseHeader('bytes', range, descriptor.length),
     ];
+    addSize(range);
     return range;
   }
   // if none of the supported range is defined, bail
@@ -55,6 +76,7 @@ const handleRange = (rangeString, descriptor) => {
       getResponseHeader('frames', frames, descriptor.metadata.frames),
     );
   }
+  addSize(frames);
   // then, atoms
   const atoms = getRangeForPartOrAll('atoms', rangeStrings, descriptor);
   // in case there's a problem with the range, return error code
@@ -64,9 +86,11 @@ const handleRange = (rangeString, descriptor) => {
       getResponseHeader('atoms', atoms, descriptor.metadata.atoms),
     );
   }
+  addSize(atoms);
 
   const atomSize = Float32Array.BYTES_PER_ELEMENT * 3;
   const frameSize = atomSize * descriptor.metadata.atoms;
+
   // Here we're about to generate an array with all the combinations of frames
   // and atoms, which might be A LOT!
   // Instead, let's create an iterator
@@ -95,6 +119,7 @@ const handleRange = (rangeString, descriptor) => {
     }
     yield { start: currentStartByte, end: currentByte };
   };
+  bytes.size = atoms.size * atomSize * frames.size;
   bytes.type = 'bytes';
   // * If we send this it might get truncated when it gets to big
   // * header size in Node HTTP Parser is limited to 80kb, see ref below
