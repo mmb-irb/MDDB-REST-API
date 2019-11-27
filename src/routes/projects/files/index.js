@@ -264,8 +264,11 @@ module.exports = (db, { projects }) => {
           const projectDoc = await getProject(request.params.project); // Finds the project by the accession
           if (!projectDoc) return; // If there is no projectDoc stop here
           oid = ObjectId(
-            projectDoc.files.find(file => file.filename === request.params.file)
-              ._id,
+            (
+              projectDoc.files.find(
+                file => file.filename === request.params.file,
+              ) || {}
+            )._id,
           );
         }
         // If arrived to that point we still have no oid, assume file doesn't exist
