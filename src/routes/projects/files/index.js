@@ -70,7 +70,7 @@ module.exports = (db, { projects }) => {
           response.json(
             // Remove the "chunkSize" and the "uploadDate" attributes from each file
             retrieved.files.map(file =>
-              omit(file, ['chunkSize', 'uploadDate']),
+              omit(file, ['chunkSize', 'uploadDate', '_id']),
             ),
           );
         }
