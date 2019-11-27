@@ -23,8 +23,9 @@ const getRangeForPartOrAll = (type, rangeStrings, descriptor) => {
   return [{ start: 0, end: descriptor.metadata[type] - 1 }];
 };
 
-const getResponseHeader = (type, range, length) =>
-  `${type}=${range.map(mappingFunction).join(',')}/${length}`;
+const getResponseHeader = (type, range, length) => {
+  return `${type}=${range.map(mappingFunction).join(',')}/${length}`;
+};
 
 // Regexp expression used to split the range
 const rangeTypeSeparator = /, *(?=[a-z])/i;

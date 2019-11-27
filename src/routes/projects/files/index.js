@@ -286,8 +286,9 @@ module.exports = (db, { projects }) => {
       },
       // If there is an active stream, send range and length content
       headers(response, retrieved) {
-        if (!retrieved || !retrieved.descriptor)
+        if (!retrieved || !retrieved.descriptor) {
           return response.sendStatus(NOT_FOUND);
+        }
         response.set('content-range', `bytes=*/${retrieved.descriptor.length}`);
         response.set('content-length', retrieved.descriptor.length);
         // Send content type also if known
