@@ -23,8 +23,9 @@ const getRangeForPartOrAll = (type, rangeStrings, descriptor) => {
   return [{ start: 0, end: descriptor.metadata[type] - 1 }];
 };
 
-const getResponseHeader = (type, range, length) =>
-  `${type}=${range.map(mappingFunction).join(',')}/${length}`;
+const getResponseHeader = (type, range, length) => {
+  return `${type}=${range.map(mappingFunction).join(',')}/${length}`;
+};
 
 // Regexp expression used to split the range
 const rangeTypeSeparator = /, *(?=[a-z])/i;
@@ -100,7 +101,7 @@ const handleRange = (rangeString, descriptor) => {
   // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/iterator
   bytes[Symbol.iterator] = function*() {
     let currentStartByte = null;
-    let currentByte = null;
+    let currentEndByte = null;
     for (const frameRange of frames) {
       for (
         let frameIndex = frameRange.start;
@@ -109,18 +110,18 @@ const handleRange = (rangeString, descriptor) => {
       ) {
         for (const atomRange of atoms) {
           const start = atomRange.start * atomSize + frameIndex * frameSize;
-          if (start !== currentByte) {
+          if (start !== currentEndByte) {
             if (currentStartByte !== null) {
-              yield { start: currentStartByte, end: currentByte };
+              yield { start: currentStartByte, end: currentEndByte };
             }
             currentStartByte = start;
           }
-          currentByte =
+          currentEndByte =
             atomRange.end * atomSize + frameIndex * frameSize + atomSize - 1;
         }
       }
     }
-    yield { start: currentStartByte, end: currentByte };
+    yield { start: currentStartByte, end: currentEndByte };
   };
   bytes.size = atoms.size * atomSize * frames.size;
   bytes.type = 'bytes';

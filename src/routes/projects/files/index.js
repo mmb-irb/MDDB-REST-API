@@ -72,7 +72,7 @@ module.exports = (db, { projects }) => {
           response.json(
             // Remove the "chunkSize" and the "uploadDate" attributes from each file
             retrieved.files.map(file =>
-              omit(file, ['chunkSize', 'uploadDate']),
+              omit(file, ['chunkSize', 'uploadDate', '_id']),
             ),
           );
         }
@@ -266,8 +266,11 @@ module.exports = (db, { projects }) => {
           const projectDoc = await getProject(request.params.project); // Finds the project by the accession
           if (!projectDoc) return; // If there is no projectDoc stop here
           oid = ObjectId(
-            projectDoc.files.find(file => file.filename === request.params.file)
-              ._id,
+            (
+              projectDoc.files.find(
+                file => file.filename === request.params.file,
+              ) || {}
+            )._id,
           );
         }
         // If arrived to that point we still have no oid, assume file doesn't exist
@@ -285,8 +288,9 @@ module.exports = (db, { projects }) => {
       },
       // If there is an active stream, send range and length content
       headers(response, retrieved) {
-        if (!retrieved || !retrieved.descriptor)
+        if (!retrieved || !retrieved.descriptor) {
           return response.sendStatus(NOT_FOUND);
+        }
         response.set('content-range', `bytes=*/${retrieved.descriptor.length}`);
         response.set('content-length', retrieved.descriptor.length);
         // Send content type also if known
