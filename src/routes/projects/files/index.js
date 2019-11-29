@@ -151,12 +151,10 @@ module.exports = (db, { projects }) => {
             if (!parsed) return { range: -1 }; // bad request
             rangeString += `frames=${parsed}`;
           }
-          handleRange(request.headers.range, descriptor);
-          range = addMinMaxSize(handleRange(rangeString, descriptor));
+          range = handleRange(rangeString, descriptor);
         } else if (request.headers.range) {
           range = handleRange(request.headers.range, descriptor);
         }
-
         let stream;
         let lengthMultiplier = x => x;
         if (!range || typeof range === 'object') {
