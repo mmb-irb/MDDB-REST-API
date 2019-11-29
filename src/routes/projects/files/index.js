@@ -45,6 +45,8 @@ const acceptTransformFormat = (requested, filename) => {
 
 const fileRouter = Router({ mergeParams: true });
 
+// The reference to the mongo data base here is passed through the properties (db)
+// The connection to the data base is made and comes from the projects index.js script
 module.exports = (db, { projects }) => {
   // Root
   fileRouter.route('/').get(

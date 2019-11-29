@@ -4,7 +4,7 @@ const omit = require('lodash').omit;
 // Connect to the mongo database and return this connexion
 const dbConnection = require('../../models/index');
 const handler = require('../../utils/generic-handler');
-// Mongo DB filter that only returns published results when the environment is set as "production" 
+// Mongo DB filter that only returns published results when the environment is set as "production"
 const publishedFilter = require('../../utils/published-filter');
 // Adds the project associated ID from mongo db to the provided object
 const augmentFilterWithIDOrAccession = require('../../utils/augment-filter-with-id-or-accession');
@@ -24,8 +24,8 @@ const projectObjectCleaner = project => {
   // If the project has a pdbInfo attribute then add all its attributes to the new pdbInfo
   // Again, the "_id" attribute is first omited and then added as a new attribute called "identifier"
   output.pdbInfo = {};
-  if(project.pdbInfo){
-    output.pdbInfo = {...omit(project.pdbInfo, ['_id'])};
+  if (project.pdbInfo) {
+    output.pdbInfo = { ...omit(project.pdbInfo, ['_id']) };
     output.pdbInfo.identifier = project.pdbInfo._id;
   }
   // If the project has files then, in each file, remove the "_id", the "chunkSize" and the "uploadDate" attributes
@@ -33,7 +33,7 @@ const projectObjectCleaner = project => {
   if (project.files) {
     output.files = project.files.map(file =>
       omit(file, ['_id', 'chunkSize', 'uploadDate']),
-    )
+    );
   }
 
   return output;
@@ -62,7 +62,8 @@ const filterAndSort = ({ projects }, search = '') => {
 (async () => {
   const client = await dbConnection; // Save the mongo database connection
   const db = client.db(process.env.DB_NAME); // Access the database
-  const model = { // Get the desried collections from the database
+  const model = {
+    // Get the desried collections from the database
     projects: db.collection('projects'),
     analyses: db.collection('analyses'),
     chains: db.collection('chains'),

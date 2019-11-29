@@ -1,5 +1,8 @@
 // This script converts the stored file (.bin) into web friendly format (chemical/x-trj)
 // This is complex since the request is quite customizable and the transform process highly optimized
+// Files are originally stored in lines (separated by break lines) of 10 characters (a.k.a. elements)
+// Each character is definde by 32 bits (or 4 bytes)
+// Output files characters are difned by 64 bits (8 bytes)
 
 const { Transform } = require('stream');
 // Allows the use of non JavaScript code and faster calculation
@@ -14,8 +17,8 @@ const importWA = require('../import-wasm');
 const MULTIPLIER = x => Math.floor(2.025 * x); // Math.floor returns the smaller closest int to the input
 
 module.exports = function() {
-  // Files are stored in 10 XXX bytes
-  // Keep track of the current chunk number
+  // Keep track of the current chunk number where we start and end
+  // It is used to calculate when the number of break lines needed for each chunk
   let countInLine = 1;
   // Set an instance of non JavaScript code which is runned in a deeper (closer to the CPU) module
   // This assembly allows a faster calculation
@@ -41,6 +44,7 @@ module.exports = function() {
       const outputLength =
         nValues * Float64Array.BYTES_PER_ELEMENT + // This equals the chunk.length * 2
         // Add extra space for the line breaks
+        // countInLine is taken in count, since the chunk may not start at countInLine = 1, but in the middle of the line
         Math.floor((countInLine - 1 + nValues) / 10); // Math.floor returns the smaller closest int to the input
 
       // Set the wasm internal memory to store the necessary data

@@ -1,3 +1,10 @@
+// Tests
+const fakeMongo = require('./test-helpers/mongo');
+//fakeMongo.status();
+console.log(fakeMongo());
+//console.log(typeof fakeMongo);
+//console.log(status());
+
 const dotenvLoad = require('dotenv').config();
 
 if (dotenvLoad.error) throw dotenvLoad.error;

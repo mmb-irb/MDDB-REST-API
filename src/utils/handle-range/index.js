@@ -35,7 +35,7 @@ const addSize = array => {
   if (!Array.isArray(array)) return;
   array.size = array.reduce(
     (size, { start, end }) => size + end - start + 1,
-    0,
+    0, // The initial value used by the reduce function is 0 (not the initial value of the array)
   );
 };
 
@@ -56,6 +56,7 @@ const handleRange = (rangeString, descriptor) => {
     range.responseHeaders = [
       getResponseHeader('bytes', range, descriptor.length),
     ];
+    // Calculates and set the range size
     addSize(range);
     return range;
   }
@@ -76,6 +77,7 @@ const handleRange = (rangeString, descriptor) => {
       getResponseHeader('frames', frames, descriptor.metadata.frames),
     );
   }
+  // Calculates and set the frames size
   addSize(frames);
   // then, atoms
   const atoms = getRangeForPartOrAll('atoms', rangeStrings, descriptor);
@@ -86,6 +88,7 @@ const handleRange = (rangeString, descriptor) => {
       getResponseHeader('atoms', atoms, descriptor.metadata.atoms),
     );
   }
+  // Calculates and set the atoms size
   addSize(atoms);
 
   const atomSize = Float32Array.BYTES_PER_ELEMENT * 3;
