@@ -72,7 +72,7 @@ module.exports = (db, { projects }) => {
           response.json(
             // Remove the "chunkSize" and the "uploadDate" attributes from each file
             retrieved.files.map(file =>
-              omit(file, ['chunkSize', 'uploadDate', '_id']),
+              omit(file, ['chunkSize', 'uploadDate', 'dbConnection_id']),
             ),
           );
         }
@@ -108,7 +108,6 @@ module.exports = (db, { projects }) => {
           request.headers.accept,
           descriptor.filename,
         );
-
         // range handling
         // range in querystring > range in headers
         // but we do transform the querystring format into the headers format
@@ -152,7 +151,8 @@ module.exports = (db, { projects }) => {
             if (!parsed) return { range: -1 }; // bad request
             rangeString += `frames=${parsed}`;
           }
-          range = handleRange(rangeString, descriptor);
+          handleRange(request.headers.range, descriptor);
+          range = addMinMaxSize(handleRange(rangeString, descriptor));
         } else if (request.headers.range) {
           range = handleRange(request.headers.range, descriptor);
         }
