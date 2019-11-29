@@ -289,7 +289,16 @@ module.exports = (db, { projects }) => {
         if (!retrieved || !retrieved.descriptor) {
           return response.sendStatus(NOT_FOUND);
         }
-        response.set('content-range', `bytes=*/${retrieved.descriptor.length}`);
+        const contentRanges = [`bytes=*/${retrieved.descriptor.length}`];
+        if (retrieved.descriptor.metadata.frames) {
+          contentRanges.push(
+            `frames=*/${retrieved.descriptor.metadata.frames}`,
+          );
+        }
+        if (retrieved.descriptor.metadata.atoms) {
+          contentRanges.push(`atoms=*/${retrieved.descriptor.metadata.atoms}`);
+        }
+        response.set('content-range', contentRanges);
         response.set('content-length', retrieved.descriptor.length);
         // Send content type also if known
         if (retrieved.descriptor.contentType) {
