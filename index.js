@@ -1,5 +1,4 @@
 // Tests
-console.log('Ima wistleblower!! :D');
 //const fakeMongo = require('./test-helpers/mongo');
 //fakeMongo.status();
 // CUIDADO: llamar a fakeMongo crea errores
