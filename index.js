@@ -1,7 +1,8 @@
 // Tests
-const fakeMongo = require('./test-helpers/mongo');
+//const fakeMongo = require('./test-helpers/mongo');
 //fakeMongo.status();
-console.log(fakeMongo());
+// CUIDADO: llamar a fakeMongo crea errores
+//console.log(fakeMongo());
 //console.log(typeof fakeMongo);
 //console.log(status());
 

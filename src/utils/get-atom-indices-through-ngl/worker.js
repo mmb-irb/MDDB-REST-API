@@ -1,4 +1,6 @@
 // Running in a worker
+// POSSIBLE ERROR: Cannot find module 'worker_threads'
+// Node must be version 11 or higher.
 const { isMainThread, parentPort } = require('worker_threads');
 
 // This should never be true as this is expected to run on a worker thread
@@ -11,7 +13,7 @@ if (isMainThread) throw new Error("This shouldn't run in the main thread!");
 // if we hadn't done so before...
 if (!global.window) {
   // get a fake DOM from jsdom
-  const dom = new (require('jsdom')).JSDOM();
+  const dom = new (require('jsdom').JSDOM)();
   // put on the global object all the things NGL expects
   global.window = dom.window;
   global.Blob = dom.window.Blob;
