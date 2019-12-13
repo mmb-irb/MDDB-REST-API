@@ -14,7 +14,8 @@ const importWA = require('../import-wasm');
 //   text_bytes = floor(binary_bytes * 2 + binary_bytes / 80)
 //   = floor(2.025 * binary_bytes)
 
-const MULTIPLIER = x => Math.floor(2.025 * x); // Math.floor returns the smaller closest int to the input
+// Math.floor returns the smaller closest int to the input
+const MULTIPLIER = x => Math.floor(2.025 * x);
 
 module.exports = function() {
   // Keep track of the current chunk number where we start and end

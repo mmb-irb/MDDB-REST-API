@@ -33,7 +33,6 @@ const combine = async (outputStream, bucket, objectId, range) => {
       size += _data.length;
 
       const shouldContinue = outputStream.write(_data);
-
       if (!shouldContinue) {
         rangedStream.pause();
         outputStream.once('drain', () => rangedStream.resume());
@@ -51,12 +50,12 @@ const combine = async (outputStream, bucket, objectId, range) => {
 };
 
 const combineDownloadStreams = (bucket, objectId, range) => {
-  // Just asking for the whole file, so no need to process more than necessary
+  // When asking for the whole file
   if (!(range && typeof range === 'object')) {
+    // Return a readable stream of the whole file
     return bucket.openDownloadStream(objectId);
   }
   // Else, asking for parts of the file
-
   // Create a fake stream into which we'll push just the requested parts
   const outputStream = new PassThrough();
   combine(outputStream, bucket, objectId, range);
