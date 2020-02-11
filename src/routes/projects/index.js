@@ -1,4 +1,5 @@
 const Router = require('express').Router;
+const { ObjectId } = require('mongodb');
 // This function returns an object without the selected omitted attributes
 const omit = require('lodash').omit;
 // Connect to the mongo database and return this connexion
@@ -39,26 +40,6 @@ const projectObjectCleaner = project => {
   return output;
 };
 
-// Returns "projects", which is a "Cursor" type variable (from mongo)
-// Filters by "published" projects when we are in production environment
-// Filters by user search when provided
-const filterAndSort = ({ projects }, search = '') => {
-  let $search = search.trim(); // trim() removes surrounding white spaces
-  // If there is no search we just performe the first filter and return the cursor
-  if (!$search) return projects.find(publishedFilter);
-  // Else, $search is transformed into a mongo DB accepted format
-  // padStart() adds 0s by the left side to $search until until it is 5 characters long
-  if (!isNaN(+$search)) $search += ` MCNS${$search.padStart(5, '0')}`;
-  // Returns the cursor filtering by "published" projects and the $search sorted by score
-  // The "score" refers to how similar is the result to the provided search terms (the string)
-  // This is a standarized protocol in mongo to sort ".find" results according to their score
-  const score = { score: { $meta: 'textScore' } };
-  return projects
-    .find({ ...publishedFilter, $text: { $search } }, score)
-    .project(score)
-    .sort(score);
-};
-
 (async () => {
   const client = await dbConnection; // Save the mongo database connection
   const db = client.db(process.env.DB_NAME); // Access the database
@@ -73,7 +54,39 @@ const filterAndSort = ({ projects }, search = '') => {
   projectRouter.route('/').get(
     handler({
       async retriever(request) {
-        const cursor = filterAndSort(model, request.query.search);
+        // Set an object with all the parameters to performe the mongo query
+        // Start filtering by published projects only if we are in production environment
+        const finder = { ...publishedFilter };
+        // Then, filter by search parameters
+        // Look for the search text inside the accession, protein number and description
+        const search = request.query.search;
+        if (search) {
+          // $regex is a mongo command to search for regular expressions inside fields
+          // trim() removes surrounding white spaces
+          // $options: 'i' stands for the search to be case insensitive
+          finder.$or = [
+            { accession: { $regex: search.trim(), $options: 'i' } },
+            { 'pdbInfo._id': { $regex: search.trim(), $options: 'i' } },
+            { 'pdbInfo.compound': { $regex: search.trim(), $options: 'i' } },
+          ];
+        }
+        // The "score" refers to how similar is the result to the provided search terms (the string)
+        // This is a standarized protocol in mongo to sort ".find" results according to their score
+        const score = { score: { $meta: 'textScore' } };
+        // Finally, perform the mongo query
+        let cursor = await model.projects
+          .find(finder, score)
+          .project(score)
+          .sort(score);
+        // If there are no results, we try it with the mongo internal ids
+        // This only works with the full object id, not partial ids
+        if ((await cursor.count()) === 0 && /[a-z0-9]{24}/.test(search)) {
+          const id = ObjectId(search.match(/[a-z0-9]{24}/)[0]);
+          cursor = await model.projects.find({ _id: id });
+        }
+        // If we still having no results, return here
+        if (cursor.count() === 0) return;
+
         // 3 variables are declared at the same time
         const [projects, filteredCount, totalCount] = await Promise.all([
           // If the request (URL) contains a limit query (i.e. ...?limit=x)
@@ -98,7 +111,9 @@ const filterAndSort = ({ projects }, search = '') => {
       },
       // Else, the projects list and the two counts are sent in the body
       body(response, retrieved) {
+        // 'response.json' sends data in json format and ends the response
         if (retrieved.filteredCount) response.json(retrieved);
+        else response.end();
       },
     }),
   );
@@ -123,6 +138,7 @@ const filterAndSort = ({ projects }, search = '') => {
       // Else, the project object is cleaned (some attributes are renamed or removed) and sent in the body
       body(response, retrieved) {
         if (retrieved) response.json(projectObjectCleaner(retrieved));
+        else response.end();
       },
     }),
   );

@@ -80,7 +80,7 @@ module.exports = (db, { projects }) => {
               omit(file, ['chunkSize', 'uploadDate', 'dbConnection_id']),
             ),
           );
-        }
+        } else response.end();
       },
     }),
   );
@@ -105,9 +105,11 @@ module.exports = (db, { projects }) => {
         // Get the ID from the previously found file and save the file through the ID
         projectDoc = await getProject(request.params.project); // Finds the project by the accession
         if (!projectDoc) return; // If there is no projectDoc stop here
-        const oid = ObjectId(
-          projectDoc.files.find(file => file.filename === 'trajectory.bin')._id,
+        const cursor = projectDoc.files.find(
+          file => file.filename === 'trajectory.bin',
         );
+        if (!cursor) return { noContent: true }; // If the project has no trajectory, stop here
+        const oid = ObjectId(cursor._id);
 
         // Save the corresponding file, which is found by object id
         const descriptor = await db.collection('fs.files').findOne(oid);
@@ -266,7 +268,7 @@ module.exports = (db, { projects }) => {
         // This is possible since the response is a writable stream itself
         stream.on('data', data => {
           stream.pause();
-          // Check that local buffer is sendind data out before continue to prevent memory leaks
+          // Check that local buffer is sending data out before continue to prevent memory leaks
           response.write(data, () => {
             stream.resume();
           });
@@ -285,8 +287,8 @@ module.exports = (db, { projects }) => {
           console.error(error);
           response.end();
         });
+        // Close the response when the read stream has finished
         stream.on('end', data => response.end(data));
-
         // Close the stream when request is over
         request.on('close', () => stream.destroy());
       },
@@ -373,6 +375,8 @@ module.exports = (db, { projects }) => {
           console.error(error);
           response.end();
         });
+        // Close the response when the read stream has finished
+        retrieved.stream.on('end', data => response.end(data));
         // Close the stream when the request is closed
         request.on('close', () => retrieved.stream.destroy());
       },

@@ -32,6 +32,7 @@ module.exports = (_, { projects, chains }) => {
       // If there is retrieved and the retrieved has chains, send the chains in the body
       body(response, retrieved) {
         if (retrieved && retrieved.chains) response.json(retrieved);
+        else response.end();
       },
     }),
   );
@@ -66,7 +67,7 @@ module.exports = (_, { projects, chains }) => {
       body(response, retrieved) {
         if (retrieved && retrieved.sequence) {
           response.json(retrieved);
-        }
+        } else response.end();
       },
     }),
   );

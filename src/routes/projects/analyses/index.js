@@ -32,6 +32,7 @@ module.exports = (_, { projects, analyses }) => {
       // If there is retrieved and the retrieved has analyses, send the analyses in the body
       body(response, retrieved) {
         if (retrieved && retrieved.analyses) response.json(retrieved.analyses);
+        else response.end();
       },
     }),
   );
@@ -69,8 +70,9 @@ module.exports = (_, { projects, analyses }) => {
       body(response, retrieved) {
         if (retrieved && retrieved.value) {
           const { value, ...data } = retrieved;
+          // Send the response in json format
           response.json({ ...data, ...value });
-        }
+        } else response.end();
       },
     }),
   );
