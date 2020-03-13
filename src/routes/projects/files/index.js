@@ -119,6 +119,7 @@ module.exports = (db, { projects }) => {
           request.headers.accept,
           descriptor.filename,
         );
+
         // range handling
         // range in querystring > range in headers
         // but we do transform the querystring format into the headers format
@@ -157,7 +158,7 @@ module.exports = (db, { projects }) => {
             if (rangeString) rangeString += ', '; // Add coma and space to separate the new incoming data
             // Translates the frames query string format into a explicit frame selection in string format
             const parsed = parseQuerystringFrameRange(request.query.frames);
-            if (!parsed) return { range: -1 }; // bad request
+            if (!parsed) return { range: -1 }; // This results in a 'BAD_REQUEST' error
             rangeString += `frames=${parsed}`;
           }
           // Get the bytes ranges
@@ -210,6 +211,8 @@ module.exports = (db, { projects }) => {
       ) {
         if (noContent) return response.sendStatus(NO_CONTENT);
         if (range) {
+          // When something wrong happend while getting the atoms range
+          // If you have a bad request error check that 'request.query.frames' is correct
           if (range === -1) return response.sendStatus(BAD_REQUEST);
           if (range === -2) {
             response.set('content-range', [
