@@ -66,6 +66,10 @@ const projectObjectCleaner = project => {
           // $options: 'i' stands for the search to be case insensitive
           finder.$or = [
             { accession: { $regex: search.trim(), $options: 'i' } },
+            { 'metadata.NAME': { $regex: search.trim(), $options: 'i' } },
+            {
+              'metadata.DESCRIPTION': { $regex: search.trim(), $options: 'i' },
+            },
             { 'pdbInfo._id': { $regex: search.trim(), $options: 'i' } },
             { 'pdbInfo.compound': { $regex: search.trim(), $options: 'i' } },
           ];
