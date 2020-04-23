@@ -53,17 +53,38 @@ app.get('/rest', (_, res) =>
 app.use('/rest/v1', routes);
 app.use('/rest/current', routes);
 
-// Swagger documentation
+// Swagger documentation parsed to an object
+const swaggerDoc = yaml.load(`${__dirname}/../docs/description.yml`);
+
+// Adapt the documentation to the current database name and url
+swaggerDoc.info.title = swaggerDoc.info.title.replace(
+  'DATABASE',
+  process.env.DOCS_DB_NAME,
+);
+swaggerDoc.info.description = swaggerDoc.info.description.replace(
+  'DATABASE',
+  process.env.DOCS_DB_NAME,
+);
+swaggerDoc.servers[0].url = swaggerDoc.servers[0].url.replace(
+  'URL',
+  process.env.DOCS_API_URL,
+);
+for (const path in swaggerDoc.paths) {
+  swaggerDoc.paths[path].get.description = swaggerDoc.paths[
+    path
+  ].get.description.replace('DATABASE', process.env.DOCS_DB_NAME);
+}
+
 app.use(
   '/rest/docs',
   swaggerUI.serve,
-  swaggerUI.setup(yaml.load(`${__dirname}/../docs/description.yml`), {
+  swaggerUI.setup(swaggerDoc, {
     customCss: `
       .swagger-ui .topbar {
         display: none;
       }
     `,
-    customSiteTitle: 'MoDEL-CNS API - Swagger Documentation',
+    customSiteTitle: `${process.env.DB_NAME} API - Swagger Documentation`,
   }),
 );
 

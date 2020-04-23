@@ -1,11 +1,11 @@
 openapi: 3.0.2
 info:
-  title: Model-CNS API
-  description: API to access MoDEL-CNS data and files.
+  title: DATABASE API
+  description: API to access DATABASE data and files.
   version: 1.0.0
 
 servers:
-  - url: '{protocol}://mmb.irbbarcelona.org/webdev2/MoDEL-CNS/api/rest/{version}'
+  - url: '{protocol}:URL'
     variables:
       protocol:
         enum:
@@ -23,7 +23,7 @@ paths:
     get:
       summary: Get a list of projects.
       description: >
-        Get a list of MoDEL-CNS projects (simulations and related data and
+        Get a list of DATABASE projects (simulations and related data and
         analyses).
       tags:
         - projects
@@ -68,7 +68,7 @@ paths:
     get:
       summary: Get a project by its accession or identifier.
       description: >
-        Get a MoDEL-CNS project (simulations and related data and analyses) by
+        Get a DATABASE project (simulations and related data and analyses) by
         its accession or identifier.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
@@ -85,7 +85,7 @@ paths:
   /projects/{projectAccessionOrID}/files:
     get:
       summary: Get the files for a project.
-      description: Get the list of files for a specific MoDEL-CNS project.
+      description: Get the list of files for a specific DATABASE project.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
@@ -194,7 +194,7 @@ paths:
     get:
       summary: Get a file for a project.
       description: >
-        Get a specific file for a specific MoDEL-CNS project by its name.
+        Get a specific file for a specific DATABASE project by its name.
       produces:
         - application/octet-stream
         - chemical/x-pdb
@@ -229,7 +229,7 @@ paths:
   /projects/{projectAccessionOrID}/analyses:
     get:
       summary: Get the analyses for a project.
-      description: Get the list of analyses for a specific MoDEL-CNS project.
+      description: Get the list of analyses for a specific DATABASE project.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
@@ -245,7 +245,7 @@ paths:
     get:
       summary: Get an analysis for a project.
       description: >
-        Get a specific analysis for a specific MoDEL-CNS project by its name.
+        Get a specific analysis for a specific DATABASE project by its name.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: analysisName
@@ -269,7 +269,7 @@ paths:
     get:
       summary: Get the sequence chains for a project.
       description: >
-        Get the list of sequence chains for a specific MoDEL-CNS project.
+        Get the list of sequence chains for a specific DATABASE project.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
@@ -285,7 +285,7 @@ paths:
     get:
       summary: Get a sequence chain for a project.
       description: >
-        Get a specific sequence chain for a specific MoDEL-CNS project by its
+        Get a specific sequence chain for a specific DATABASE project by its
         name (case-sensitive). It might include sequence analyses run on
         external services (InterProScan and HMMer)
       parameters:
