@@ -84,7 +84,7 @@ app.use(
         display: none;
       }
     `,
-    customSiteTitle: `${process.env.DB_NAME} API - Swagger Documentation`,
+    customSiteTitle: `${process.env.DOCS_DB_NAME} API - Swagger Documentation`,
   }),
 );
 
