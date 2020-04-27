@@ -1,12 +1,4 @@
-// Tests
-//const fakeMongo = require('./test-helpers/mongo');
-//fakeMongo.status();
-// CUIDADO: llamar a fakeMongo crea errores
-//console.log(fakeMongo());
-//console.log(typeof fakeMongo);
-//console.log(status());
 // Allows playing with the console output
-
 const readline = require('readline');
 
 // Show in console all log messages in an ordered manner

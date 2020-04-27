@@ -2,8 +2,10 @@ const Router = require('express').Router;
 const { ObjectId } = require('mongodb');
 // This function returns an object without the selected omitted attributes
 const omit = require('lodash').omit;
-// Connect to the mongo database and return this connexion
+// Connect to the mongo database and return the connection
 const dbConnection = require('../../models/index');
+// Alternatively, connect to a local fake mongo database and return the connection
+//const dbConnection = require('../../../test-helpers/mongo/index');
 const handler = require('../../utils/generic-handler');
 // Mongo DB filter that only returns published results when the environment is set as "production"
 const publishedFilter = require('../../utils/published-filter');
