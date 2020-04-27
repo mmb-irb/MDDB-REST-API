@@ -10,6 +10,7 @@ const project1 = {
   metadata: {
     NAME: 'prueba 1',
     UNIT: 'A',
+    ATOMS: 123,
   },
 };
 const project2 = {
@@ -18,6 +19,7 @@ const project2 = {
   metadata: {
     NAME: 'prueba 2',
     UNIT: 'A',
+    ATOMS: 456,
   },
 };
 const project3 = {
@@ -26,6 +28,7 @@ const project3 = {
   metadata: {
     NAME: 'prueba 3',
     UNIT: 'B',
+    ATOMS: 123,
   },
 };
 

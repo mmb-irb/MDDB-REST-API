@@ -42,6 +42,18 @@ const projectObjectCleaner = project => {
   return output;
 };
 
+// Convert a string input into int, float or boolean type if possible
+const parseType = input => {
+  let output;
+  output = parseInt(input);
+  if (output) return output;
+  output = parseFloat(input);
+  if (output) return output;
+  if (input === 'false') return false;
+  if (input === 'true') return true;
+  return input;
+};
+
 (async () => {
   const client = await dbConnection; // Save the mongo database connection
   const db = client.db(process.env.DB_NAME); // Access the database
@@ -59,8 +71,8 @@ const projectObjectCleaner = project => {
         // Set an object with all the parameters to performe the mongo query
         // Start filtering by published projects only if we are in production environment
         const finder = { ...publishedFilter };
-        // Then, filter by search parameters
-        // Look for the search text inside the accession, protein number and description
+        // Then, search by 'search' parameters
+        // Look for the search text in the accession and some metadata/pdbInfo fields
         const search = request.query.search;
         if (search) {
           // $regex is a mongo command to search for regular expressions inside fields
@@ -75,6 +87,36 @@ const projectObjectCleaner = project => {
             { 'pdbInfo._id': { $regex: search.trim(), $options: 'i' } },
             { 'pdbInfo.compound': { $regex: search.trim(), $options: 'i' } },
           ];
+        }
+        // Then, filter by 'filter' parameters
+        // Look for a specified value in any database field
+        let filter = request.query.filter;
+        console.log(filter);
+        if (filter) {
+          const regexpFormat = /([^--]+)--([^--]+)/;
+          // In case there is a single filter it would be a string, not an array, so transform it
+          if (typeof filter === 'string') filter = [filter];
+          filter.forEach(f => {
+            // Parse the filter array string
+            // The astersik (*) stands for 'mandatory', so it is included as 'AND' instead of 'OR'
+            if (f.charAt(0) === '*') {
+              // Remove the first character (the asterisk)
+              f = f.substr(1);
+              // Extract the field name and the value by splitting the text by '--'
+              const extract = regexpFormat.exec(f);
+              // Push it to the proper finder array
+              // First, check that the array to push exists and, if not, create it
+              if (!finder.$and) finder.$and = [];
+              finder.$and.push({ [extract[1]]: parseType(extract[2]) });
+            } else {
+              // Extract the field name and the value by splitting the text by '--'
+              const extract = regexpFormat.exec(f);
+              // Push it to the proper finder array
+              // First, check that the array to push exists and, if not, create it
+              if (!finder.$or) finder.$or = [];
+              finder.$or.push({ [extract[1]]: parseType(extract[2]) });
+            }
+          });
         }
         // The "score" refers to how similar is the result to the provided search terms (the string)
         // This is a standarized protocol in mongo to sort ".find" results according to their score
