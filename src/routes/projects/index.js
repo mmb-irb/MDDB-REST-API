@@ -91,7 +91,6 @@ const parseType = input => {
         // Then, filter by 'filter' parameters
         // Look for a specified value in any database field
         let filter = request.query.filter;
-        console.log(filter);
         if (filter) {
           const regexpFormat = /([^--]+)--([^--]+)/;
           // In case there is a single filter it would be a string, not an array, so transform it
