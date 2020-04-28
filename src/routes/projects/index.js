@@ -78,42 +78,71 @@ const parseType = input => {
           // $regex is a mongo command to search for regular expressions inside fields
           // trim() removes surrounding white spaces
           // $options: 'i' stands for the search to be case insensitive
-          finder.$or = [
-            { accession: { $regex: search.trim(), $options: 'i' } },
-            { 'metadata.NAME': { $regex: search.trim(), $options: 'i' } },
+          finder.$and = [
             {
-              'metadata.DESCRIPTION': { $regex: search.trim(), $options: 'i' },
+              $or: [
+                { accession: { $regex: search.trim(), $options: 'i' } },
+                { 'metadata.NAME': { $regex: search.trim(), $options: 'i' } },
+                {
+                  'metadata.DESCRIPTION': {
+                    $regex: search.trim(),
+                    $options: 'i',
+                  },
+                },
+                { 'pdbInfo._id': { $regex: search.trim(), $options: 'i' } },
+                {
+                  'pdbInfo.compound': { $regex: search.trim(), $options: 'i' },
+                },
+              ],
             },
-            { 'pdbInfo._id': { $regex: search.trim(), $options: 'i' } },
-            { 'pdbInfo.compound': { $regex: search.trim(), $options: 'i' } },
           ];
         }
         // Then, filter by 'filter' parameters
         // Look for a specified value in any database field
         let filter = request.query.filter;
         if (filter) {
-          const regexpFormat = /([^--]+)--([^--]+)/;
           // In case there is a single filter it would be a string, not an array, so transform it
           if (typeof filter === 'string') filter = [filter];
           filter.forEach(f => {
-            // Parse the filter array string
-            // The astersik (*) stands for 'mandatory', so it is included as 'AND' instead of 'OR'
-            if (f.charAt(0) === '*') {
-              // Remove the first character (the asterisk)
-              f = f.substr(1);
-              // Extract the field name and the value by splitting the text by '--'
-              const extract = regexpFormat.exec(f);
-              // Push it to the proper finder array
-              // First, check that the array to push exists and, if not, create it
-              if (!finder.$and) finder.$and = [];
-              finder.$and.push({ [extract[1]]: parseType(extract[2]) });
-            } else {
-              // Extract the field name and the value by splitting the text by '--'
-              const extract = regexpFormat.exec(f);
+            // The filters with '++' stand for 'OR'
+            if (/\+\+/.test(f)) {
+              // Extract the field name and the value by splitting the text by '++'
+              const extract = f.split('++');
               // Push it to the proper finder array
               // First, check that the array to push exists and, if not, create it
               if (!finder.$or) finder.$or = [];
-              finder.$or.push({ [extract[1]]: parseType(extract[2]) });
+              finder.$or.push({ [extract[0]]: parseType(extract[1]) });
+            }
+            // The filters with '+*' stand for 'AND'
+            else if (/\+\*/.test(f)) {
+              // Extract the field name and the value by splitting the text by '+*'
+              const extract = f.split('+*');
+              // Push it to the proper finder array
+              // First, check that the array to push exists and, if not, create it
+              if (!finder.$and) finder.$and = [];
+              finder.$and.push({ [extract[0]]: parseType(extract[1]) });
+            }
+            // The filters with '--' stand for 'OR NOT'
+            else if (/--/.test(f)) {
+              // Extract the field name and the value by splitting the text by '+*'
+              const extract = f.split('--');
+              // Push it to the proper finder array
+              // First, check that the array to push exists and, if not, create it
+              if (!finder.$or) finder.$or = [];
+              finder.$or.push({
+                [extract[0]]: { $not: { $eq: parseType(extract[1]) } },
+              });
+            }
+            // // The filters with '-*' stand for 'AND NOT' (same as NOR)
+            else if (/-\*/.test(f)) {
+              // Extract the field name and the value by splitting the text by '+*'
+              const extract = f.split('-*');
+              // Push it to the proper finder array
+              // First, check that the array to push exists and, if not, create it
+              if (!finder.$and) finder.$and = [];
+              finder.$and.push({
+                [extract[0]]: { $not: { $eq: parseType(extract[1]) } },
+              });
             }
           });
         }
