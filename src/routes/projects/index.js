@@ -44,13 +44,12 @@ const projectObjectCleaner = project => {
 
 // Convert a string input into int, float or boolean type if possible
 const parseType = input => {
-  let output;
-  output = parseInt(input);
-  if (output) return output;
-  output = parseFloat(input);
-  if (output) return output;
+  // Booleans
   if (input === 'false') return false;
   if (input === 'true') return true;
+  // Numbers
+  if (+input) return +input;
+  // Other strings
   return input;
 };
 

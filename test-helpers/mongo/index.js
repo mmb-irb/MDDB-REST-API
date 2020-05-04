@@ -32,6 +32,14 @@ const project3 = {
   },
 };
 
+const project4 = {
+  published: false,
+  metadata: {
+    NAME: 'prueba 3',
+    UNIT: 'C',
+  },
+};
+
 // Set up the fake server and return an available connection to this server
 const establishFakeConnection = async () => {
   let client;
@@ -48,6 +56,7 @@ const establishFakeConnection = async () => {
     await projects.insertOne(project1);
     await projects.insertOne(project2);
     await projects.insertOne(project3);
+    await projects.insertOne(project4);
     return client;
   } catch (error) {
     console.error('fake mongodb connection error');
