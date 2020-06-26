@@ -348,7 +348,7 @@ components:
           type: string
           pattern:
             $ref: '#/definitions/constants/AccessionPattern'
-          example: MCNS00001
+          example: PREFIX00001
         metadata:
           type: object
         pdbInfo:
@@ -428,7 +428,7 @@ components:
 definitions:
   constants:
     IDPattern: '^[a-fA-F\d]{24}$'
-    AccessionPattern: '^MCNS[0-9]{5}$'
+    AccessionPattern: '^PREFIX[0-9]{5}$'
   arguments:
     projectAccessionOrID:
       name: projectAccessionOrID
@@ -438,11 +438,11 @@ definitions:
         A project will always have a unique identifier (even if unpublished and
         in the development version of the API).<br>
         When published, it will be assigned a never-changing unique
-        user-friendly accession starting with MCNS.<br>
+        user-friendly accession starting with PREFIX.<br>
         You can use either to access the corresponding data, even if the
         **accession is recommended**
       required: true
       schema:
         type: string
-        pattern: '^([a-fA-F\d]{24})|(MCNS[0-9]{5})$'
-      example: MCNS00001
+        pattern: '^([a-fA-F\d]{24})|(PREFIX[0-9]{5})$'
+      example: PREFIX00001
