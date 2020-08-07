@@ -1,0 +1,203 @@
+{
+  "accession": null,
+  "published": false,
+  "pdbInfo": {
+    "errorId": 6,
+    "httpCode": 404,
+    "msg": "Requested id was not found in the selected Data Store (1093)"
+  },
+  "metadata": {
+    "NAME": "DESRES-ANTON-10930851 2 µs simulation 1 of 50 FDA approved or investigational drug molecules binding to a construct of the SARS-CoV-2 trimeric spike protein, no water or ions (zileuton)",
+    "UNIT": "Spike",
+    "DESCRIPTION": "1 of 50 2 µs trajectories of FDA approved or investigational drug molecules that in simulation remained bound to a construct of the SARS-CoV-2 trimeric spike protein at positions that might conceivably allosterically disrupt the interaction between these proteins. The small molecule drugs and their initial binding poses were chosen from a combination of molecular dynamics simulation and docking performed using an FDA-investigational drug library. The 50 putative spike protein binding small molecules located at three regions on the spike trimer, a pocket in the RBD whose formation may possibly enhance RBD-RBD interactions in the closed conformation (8 molecules), a pocket between the two RBDs in the closed conformation (29 molecules), and a pocket that involves three RBDs in the closed conformation (13 molecules). The simulations used the Amber ff99SB-ILDN force field for proteins, the CHARMM TIP3P model for water, and the generalized Amber force field for small molecules. The C- and N-peptide termini were capped with amide and acetyl groups respectively. The spike trimer construct was modeled from PDB entries 6VXX and 6VW1, only retaining the RBD and a short region from S1 fusion protein as a minimal system for maintaining a trimer assembly. The system was neutralized and salted with NaCl, with a final concentration of 0.15 M. The interval between frames is 1.2 ns. The simulations were conducted at 310 K in the NPT ensemble.",
+    "AUTHORS": "D. E. Shaw Research",
+    "PROGRAM": "Anton supercomputer specific tools",
+    "VERSION": null,
+    "LICENSE": "This trajectory dataset is released under a Creative Commons Attribution 4.0 International Public License",
+    "LINKCENSE": "https://creativecommons.org/licenses/by/4.0/",
+    "CITATION": "D. E. Shaw Research,(br)Molecular Dynamics Simulations Related to SARS-CoV-2,(br)D. E. Shaw Research Technical Data, 2020.(br)http://www.deshawresearch.com/resources_sarscov2.html/",
+    "LENGTH": 2000000,
+    "TIMESTEP": null,
+    "SNAPSHOTS": 1668,
+    "FREQUENCY": 1200,
+    "FF": "Amber ff99SB-ILDN",
+    "TEMP": 310,
+    "WAT": "CHARMM TIP3P",
+    "BOXTYPE": "Triclinic",
+    "BOXSIZEX": 11.9252,
+    "BOXSIZEY": 11.9252,
+    "BOXSIZEZ": 11.9252,
+    "ENSEMBLE": "NPT",
+    "PCOUPLING": null,
+    "MEMBRANE": "No",
+    "SYSTATS": 14482,
+    "PROTATS": 13833,
+    "PROT": 885,
+    "DPPC": 0,
+    "SOL": 0,
+    "NA": 0,
+    "CL": 0,
+    "INTERFACES": [
+      "D:404, D:405, D:408, D:504, E:376, E:377, E:378, E:380, E:404, E:405, E:407, E:408, E:433, E:434, E:435, E:503, E:504, E:508, L:0"
+    ],
+    "LIGANDS": [
+      {
+        "name": "zileuton",
+        "accession": "DB00744",
+        "selection": ":L"
+      }
+    ],
+    "CHAINNAMES": [
+      "spike",
+      "spike",
+      "spike",
+      "spike",
+      "spike",
+      "spike",
+      "zileuton"
+    ],
+    "atomCount": 14482,
+    "frameCount": 1668
+  },
+  "files": [
+    {
+      "length": 289871712,
+      "chunkSize": 4194304,
+      "filename": "trajectory.bin",
+      "md5": "4b5c24675f437624e62f4fdc09dc37f9",
+      "contentType": "application/octet-stream",
+      "metadata": {
+        "frames": 1668,
+        "atoms": 14482
+      }
+    },
+    {
+      "length": 660960,
+      "chunkSize": 4194304,
+      "filename": "trajectory.pca-1.bin",
+      "md5": "11d000fea25e7cc52660c5b606a230b5",
+      "contentType": "application/octet-stream",
+      "metadata": {
+        "frames": 20,
+        "atoms": 2754
+      }
+    },
+    {
+      "length": 660960,
+      "chunkSize": 4194304,
+      "filename": "trajectory.pca-2.bin",
+      "md5": "ec4719c94b05a64727e027c9df216a1c",
+      "contentType": "application/octet-stream",
+      "metadata": {
+        "frames": 20,
+        "atoms": 2754
+      }
+    },
+    {
+      "length": 660960,
+      "chunkSize": 4194304,
+      "filename": "trajectory.pca-3.bin",
+      "md5": "62a8094b423f6364082dde2be7c31e78",
+      "contentType": "application/octet-stream",
+      "metadata": {
+        "frames": 20,
+        "atoms": 2754
+      }
+    },
+    {
+      "length": 217620,
+      "chunkSize": 4194304,
+      "filename": "average.pdb",
+      "md5": "e2d72a6309895f80f689ec81d13c2b17",
+      "contentType": "chemical/x-pdb"
+    },
+    {
+      "length": 217596,
+      "chunkSize": 4194304,
+      "filename": "backbone.pdb",
+      "md5": "0b26c664c3ca9f3cbd506725a460a220",
+      "contentType": "chemical/x-pdb"
+    },
+    {
+      "length": 217781,
+      "chunkSize": 4194304,
+      "filename": "backboneBase.pdb",
+      "md5": "2a53cc527f67a9a757dfcaadc12fe730",
+      "contentType": "chemical/x-pdb"
+    },
+    {
+      "length": 1144293,
+      "chunkSize": 4194304,
+      "filename": "firstFrame.pdb",
+      "md5": "56da3f8bd036e1252113f454211cd78c",
+      "contentType": "chemical/x-pdb"
+    },
+    {
+      "length": 1173400,
+      "chunkSize": 4194304,
+      "filename": "md.average.pdb",
+      "md5": "0061dca70125fba6060c671c89c1b2fb",
+      "contentType": "chemical/x-pdb"
+    },
+    {
+      "length": 217596,
+      "chunkSize": 4194304,
+      "filename": "md.backbone.pdb",
+      "md5": "0b26c664c3ca9f3cbd506725a460a220",
+      "contentType": "chemical/x-pdb"
+    },
+    {
+      "length": 967420,
+      "chunkSize": 4194304,
+      "filename": "md.imaged.rot.100.xtc",
+      "md5": "b4d81bc7d97f3a8d367b832d204155ec",
+      "contentType": "application/octet-stream"
+    },
+    {
+      "length": 1144153,
+      "chunkSize": 4194304,
+      "filename": "md.imaged.rot.dry.pdb",
+      "md5": "f52b607593a28ebef7bf8c191d3617a8",
+      "contentType": "chemical/x-pdb"
+    },
+    {
+      "length": 94957788,
+      "chunkSize": 4194304,
+      "filename": "md.imaged.rot.xtc",
+      "md5": "6f548fddd7ca5960ddaa9c43c55e1beb",
+      "contentType": "application/octet-stream"
+    },
+    {
+      "length": 276904,
+      "chunkSize": 4194304,
+      "filename": "md.pca-1.xtc",
+      "md5": "6468e7d318a48d0216b5664b3cb4d7c9",
+      "contentType": "application/octet-stream"
+    },
+    {
+      "length": 275340,
+      "chunkSize": 4194304,
+      "filename": "md.pca-2.xtc",
+      "md5": "5b4250a981808bd12202bc752f4c48d1",
+      "contentType": "application/octet-stream"
+    },
+    {
+      "length": 276440,
+      "chunkSize": 4194304,
+      "filename": "md.pca-3.xtc",
+      "md5": "6f87ab14e2636ed784aa6b832c4ea06c",
+      "contentType": "application/octet-stream"
+    }
+  ],
+  "analyses": [
+    "pca",
+    "dist-perres",
+    "hbonds",
+    "rgyr",
+    "rmsd-pairwise",
+    "rmsd-perres",
+    "rmsd",
+    "fluctuation"
+  ],
+  "chains": ["D", "E", "F", "B", "C", "A"]
+}
