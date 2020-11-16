@@ -104,7 +104,7 @@ module.exports = (db, { projects }) => {
         // Find the project from the request and, inside this project, find the file 'trajectory.bin'
         // Get the ID from the previously found file and save the file through the ID
         projectDoc = await getProject(request.params.project); // Finds the project by the accession
-        if (!projectDoc) return; // If there is no projectDoc stop here
+        if (!projectDoc) return NOT_FOUND; // If there is no projectDoc stop here
         const cursor = projectDoc.files.find(
           file => file.filename === 'trajectory.bin',
         );
@@ -131,6 +131,7 @@ module.exports = (db, { projects }) => {
           // In case of selection query
           if (request.query.selection) {
             // Save the project from the request if it is not saved yet
+            // DANI: Esto no tiene sentido ¿no? ya deberíamos tener el proyecto de arriba
             if (!projectDoc)
               projectDoc = await getProject(request.params.project);
             if (!projectDoc) return; // If there is no project stop here
