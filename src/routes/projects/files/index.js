@@ -232,6 +232,7 @@ module.exports = (db, { projects }) => {
               `frames=*/${descriptor.metadata.frames}`,
             );
           }
+          console.log(range.responseHeaders);
           response.set('content-range', range.responseHeaders);
 
           if (!stream) return response.sendStatus(NOT_FOUND);

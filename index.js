@@ -24,6 +24,7 @@ const updateLogs = (id, message) => {
 
 // Display in console all sockets (connections) and their current status
 // Display in console all requests and their current status
+// DANI: Esto habría que ponerlo en otro script y que se pudiese reclamar desde el .env
 let currentId = 0;
 const tracker = instance => {
   instance.on('request', request => {
