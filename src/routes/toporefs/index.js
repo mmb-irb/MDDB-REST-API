@@ -1,4 +1,5 @@
 const Router = require('express').Router;
+const { ObjectId } = require('mongodb');
 // This function returns an object without the selected omitted attributes
 const omit = require('lodash').omit;
 // Connect to the mongo database and return the connection
@@ -43,7 +44,8 @@ const toporefObjectCleaner = project => {
     handler({
       retriever(request) {
         // Return the project which matches the request porject ID (accession)
-        const query = Object.seal({ _id: request.params.id });
+        const id = ObjectId(request.params.id);
+        const query = Object.seal({ _id: id });
         return model.toporefs.findOne(query);
       },
       // If no project is found, a NOT_FOUND status is sent in the header
