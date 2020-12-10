@@ -59,7 +59,7 @@ module.exports = (_, { projects, analyses }) => {
             name: request.params.analysis.toLowerCase(),
           },
           // But do not return the _id and project attributes
-          { projection: { _id: false, project: false } },
+          { projection: { _id: false, name: false, project: false } },
         );
       },
       // If there is nothing retrieved or the retrieved has no value, send a NOT_FOUND status in the header
@@ -69,9 +69,8 @@ module.exports = (_, { projects, analyses }) => {
       // If there is retrieved and the retrieved has a value, send the analyses in the body
       body(response, retrieved) {
         if (retrieved && retrieved.value) {
-          const { value, ...data } = retrieved;
           // Send the response in json format
-          response.json({ ...data, ...value });
+          response.json(retrieved);
         } else response.end();
       },
     }),
