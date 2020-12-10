@@ -232,7 +232,9 @@ module.exports = (db, { projects }) => {
               `frames=*/${descriptor.metadata.frames}`,
             );
           }
-          console.log(range.responseHeaders);
+          // DANI: Aquí esta el gran problema
+          // Headers muy largos hacen que los proxys no dejen pasar la respuesta
+          //console.log(range.responseHeaders);
           response.set('content-range', range.responseHeaders);
 
           if (!stream) return response.sendStatus(NOT_FOUND);
