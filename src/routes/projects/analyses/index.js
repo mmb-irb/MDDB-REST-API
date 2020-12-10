@@ -70,7 +70,8 @@ module.exports = (_, { projects, analyses }) => {
       body(response, retrieved) {
         if (retrieved && retrieved.value) {
           // Send the response in json format
-          response.json(retrieved);
+          // The 'value' must be an object
+          response.json(retrieved.value);
         } else response.end();
       },
     }),
