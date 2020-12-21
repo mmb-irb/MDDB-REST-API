@@ -228,6 +228,8 @@ const parseType = input => {
   projectRouter.use('/:project/chains', require('./chains')(db, model));
   // Analyses
   projectRouter.use('/:project/analyses', require('./analyses')(db, model));
+  // Inputs
+  projectRouter.use('/:project/inputs', require('./inputs')(db, model));
 })();
 
 module.exports = projectRouter;
