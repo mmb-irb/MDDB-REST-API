@@ -49,7 +49,7 @@ module.exports = (_, { projects }) => {
               name: metadata.NAME,
               description: metadata.DESCRIPTION,
               authors: metadata.AUTHORS,
-              program: metadata.PROGRAMS,
+              program: metadata.PROGRAM,
               version: metadata.VERSION,
               license: metadata.LICENSE,
               linkcense: metadata.LINKCENSE,
