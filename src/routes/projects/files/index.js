@@ -216,11 +216,13 @@ module.exports = (db, { projects }) => {
           // If you have a bad request error check that 'request.query.frames' is correct
           if (range === -1) return response.sendStatus(BAD_REQUEST);
           if (range === -2) {
-            response.set('content-range', [
-              `bytes=*/${descriptor.length}`,
-              `atoms=*/${descriptor.metadata.atoms}`,
-              `frames=*/${descriptor.metadata.frames}`,
-            ]);
+            // NEVER FORGET: 'content-range' where disabled and now this data is got from project files
+            // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
+            //response.set('content-range', [
+            //  `bytes=*/${descriptor.length}`,
+            //  `atoms=*/${descriptor.metadata.atoms}`,
+            //  `frames=*/${descriptor.metadata.frames}`,
+            //]);
             return response.sendStatus(REQUEST_RANGE_NOT_SATISFIABLE);
           }
           // complete potentially missing range info
@@ -232,10 +234,9 @@ module.exports = (db, { projects }) => {
               `frames=*/${descriptor.metadata.frames}`,
             );
           }
-          // DANI: Aquí esta el gran problema
-          // Headers muy largos hacen que los proxys no dejen pasar la respuesta
-          //console.log(range.responseHeaders);
-          response.set('content-range', range.responseHeaders);
+          // NEVER FORGET: 'content-range' where disabled and now this data is got from project files
+          // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
+          //response.set('content-range', range.responseHeaders);
 
           if (!stream) return response.sendStatus(NOT_FOUND);
 
@@ -354,7 +355,9 @@ module.exports = (db, { projects }) => {
         if (retrieved.descriptor.metadata.atoms) {
           contentRanges.push(`atoms=*/${retrieved.descriptor.metadata.atoms}`);
         }
-        response.set('content-range', contentRanges);
+        // NEVER FORGET: 'content-range' where disabled and now this data is got from project files
+        // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
+        //response.set('content-range', contentRanges);
         response.set('content-length', retrieved.descriptor.length);
         // Send content type also if known
         if (retrieved.descriptor.contentType) {
