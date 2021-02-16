@@ -32,6 +32,11 @@ const {
 
 const TRJ_TYPE = 'chemical/x-trj';
 
+// Set a function to ckeck if a string is a mongo id
+// WARNING: Do not use the builtin 'ObjectId.isValid'
+// WARNING: It returns true with whatever string 12 characters long
+const isObjectId = string => /[a-z0-9]{24}/.test(string);
+
 // Check if the requested files meet the accepted formats, which are provided by the request header
 // If so, send the format name. Else, send null
 const acceptTransformFormat = (requested, filename) => {
@@ -310,7 +315,7 @@ module.exports = (db, { projects }) => {
         const bucket = new GridFSBucket(db);
 
         let oid;
-        if (ObjectId.isValid(request.params.file)) {
+        if (isObjectId(request.params.file)) {
           // If using mongo ID in the request (URL)
           // Saves the mongo ID corresponding file
           oid = ObjectId(request.params.file);
