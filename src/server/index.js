@@ -57,11 +57,12 @@ app.use('/rest/current', routes);
 const swaggerDoc = yaml.load(`${__dirname}/../docs/description.yml`);
 
 // Adapt the documentation to the current database name, prefix and url
-swaggerDoc.info.title = swaggerDoc.info.title.replace(
+const swaggerInfo = swaggerDoc.info;
+swaggerInfo.title = swaggerInfo.title.replace(
   'DATABASE',
   process.env.DOCS_DB_NAME,
 );
-swaggerDoc.info.description = swaggerDoc.info.description.replace(
+swaggerInfo.description = swaggerInfo.description.replace(
   'DATABASE',
   process.env.DOCS_DB_NAME,
 );

@@ -120,8 +120,8 @@ module.exports = (db, { projects }) => {
         const descriptor = await db.collection('fs.files').findOne(oid);
         // Set the format in which data will be sent
         const transformFormat = acceptTransformFormat(
-          // Format is requested through the header, usually missing
-          request.headers.accept,
+          // Format is requested through query
+          request.query.format,
           descriptor.filename,
         );
 
@@ -186,6 +186,7 @@ module.exports = (db, { projects }) => {
           // Return an internally managed stream when asking for specific ranges
           const rangedStream = combineDownloadStreams(bucket, oid, range);
           // When user accepts "trj" or "traj" files
+          // DANI: Esto realmente devuelve un ascii, que no un trj
           if (transformFormat === TRJ_TYPE) {
             // Start a process to convert the original .bin file to .trj format
             const transformStream = BinToTrjStream();

@@ -112,13 +112,14 @@ paths:
         - chemical/x-trj
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
-        - name: Accept
-          in: header
+        - name: format
+          in: query
           schema:
             type: string
-            enum: ['chemical/x-trj']
+            enum: ['trj']
           description: >
-            Specify a request format for the trajectory file.<br>
+            Specify a request format for the trajectory file. The default format is an internal
+            binary format used by the client.<br>
         - name: frames
           in: query
           schema:
