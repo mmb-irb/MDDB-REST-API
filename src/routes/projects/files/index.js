@@ -251,6 +251,9 @@ module.exports = (db, { projects }) => {
 
         if (!stream) return response.sendStatus(NOT_FOUND);
 
+        // Send the expected bytes length of the file
+        // WARNING: If sent bytes are less than specified the download will fail with error signal
+        // WARNING: If sent bytes are more than specified the download will succed but it will be cutted
         response.set(
           'content-length',
           lengthMultiplier(range ? range.size : descriptor.length),
