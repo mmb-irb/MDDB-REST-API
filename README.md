@@ -9,6 +9,7 @@ Have Node.js and npm installed and working
 1. Install the dependencies with `npm install`
 2. Create and fill and `.env` file in the root of the project (see [reference below](#.env-file-fields) for the keys)
 3. Start development server with `npm run start`
+4. (Optional) run 'sudo npm run build' for the .bin to .trj functionality to work
 
 ### production
 
