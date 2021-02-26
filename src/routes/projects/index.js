@@ -90,6 +90,10 @@ const parseType = input => {
                     $options: 'i',
                   },
                 },
+                {
+                  'metadata.AUTHORS': { $regex: search.trim(), $options: 'i' },
+                },
+                { 'metadata.GROUPS': { $regex: search.trim(), $options: 'i' } },
                 { 'pdbInfo._id': { $regex: search.trim(), $options: 'i' } },
                 {
                   'pdbInfo.compound': { $regex: search.trim(), $options: 'i' },
