@@ -76,27 +76,28 @@ const parseType = input => {
         // Look for the search text in the accession and some metadata/pdbInfo fields
         const search = request.query.search;
         if (search) {
-          // $regex is a mongo command to search for regular expressions inside fields
           // trim() removes surrounding white spaces
+          const tsearch = search.trim();
+          // $regex is a mongo command to search for regular expressions inside fields
           // $options: 'i' stands for the search to be case insensitive
           finder.$and = [
             {
               $or: [
-                { accession: { $regex: search.trim(), $options: 'i' } },
-                { 'metadata.NAME': { $regex: search.trim(), $options: 'i' } },
+                { accession: { $regex: tsearch, $options: 'i' } },
+                { 'metadata.NAME': { $regex: tsearch, $options: 'i' } },
                 {
                   'metadata.DESCRIPTION': {
-                    $regex: search.trim(),
+                    $regex: tsearch,
                     $options: 'i',
                   },
                 },
                 {
-                  'metadata.AUTHORS': { $regex: search.trim(), $options: 'i' },
+                  'metadata.AUTHORS': { $regex: tsearch, $options: 'i' },
                 },
-                { 'metadata.GROUPS': { $regex: search.trim(), $options: 'i' } },
-                { 'pdbInfo._id': { $regex: search.trim(), $options: 'i' } },
+                { 'metadata.GROUPS': { $regex: tsearch, $options: 'i' } },
+                { 'pdbInfo._id': { $regex: tsearch, $options: 'i' } },
                 {
-                  'pdbInfo.compound': { $regex: search.trim(), $options: 'i' },
+                  'pdbInfo.compound': { $regex: tsearch, $options: 'i' },
                 },
               ],
             },
@@ -153,8 +154,14 @@ const parseType = input => {
         }
         // The "score" refers to how similar is the result to the provided search terms (the string)
         // This is a standarized protocol in mongo to sort ".find" results according to their score
-        const score = { score: { $meta: 'textScore' } };
+        // WARNING: It must be only used when a '$text' query command is passed
+        // WARNING: Otherwise it will make the query fail for mongo version >= 4.4
+        // DANI: Actualmente no se usa '$text' sino '$regex', de manera que esto no hace nada
+        // DANI: Algun día podríamos necesitar usar '$text' así que mejor que esto se quede así
+        const score = finder.$text ? { score: { $meta: 'textScore' } } : {};
         // Finally, perform the mongo query
+        // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
+        // e.g. cursor.toArray()
         let cursor = await model.projects
           .find(finder, score)
           .project(score)
