@@ -11,10 +11,21 @@ const project1 = {
     NAME: 'prueba 1',
     UNIT: 'A',
     ATOMS: 123,
+    TOPOREFS: [{ name: 'Spike' }, { name: 'ACE2' }],
   },
 };
 
 const project2 = require('./project.json');
+
+const toporef1 = {
+  name: 'Spike',
+  sequence: 'ABCDEFG',
+};
+
+const toporef2 = {
+  name: 'ACE2',
+  sequence: 'WTFRUTA',
+};
 
 // Set up the fake server and return an available connection to this server
 const establishFakeConnection = async () => {
@@ -32,9 +43,11 @@ const establishFakeConnection = async () => {
     // Add data to the server to simulate the MoDEL structure
     const db = client.db(process.env.DB_NAME);
     const projects = await db.createCollection('projects');
-    //console.log(projects);
     await projects.insertOne(project1);
     await projects.insertOne(project2);
+    const toporefs = await db.createCollection('toporefs');
+    await toporefs.insertOne(toporef1);
+    await toporefs.insertOne(toporef2);
     return client;
   } catch (error) {
     console.error('fake mongodb connection error');

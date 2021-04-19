@@ -63,6 +63,7 @@ const parseType = input => {
     projects: db.collection('projects'),
     analyses: db.collection('analyses'),
     chains: db.collection('chains'),
+    toporefs: db.collection('toporefs'),
   };
 
   // Root
@@ -239,6 +240,8 @@ const parseType = input => {
   projectRouter.use('/:project/chains', require('./chains')(db, model));
   // Analyses
   projectRouter.use('/:project/analyses', require('./analyses')(db, model));
+  // Toporefs
+  projectRouter.use('/:project/toporefs', require('./toporefs')(db, model));
   // Inputs
   projectRouter.use('/:project/inputs', require('./inputs')(db, model));
 })();
