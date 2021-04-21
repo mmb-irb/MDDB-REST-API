@@ -189,13 +189,12 @@ module.exports = (db, { projects }) => {
           // DANI: Esto realmente devuelve un ascii, que no un trj
           if (transformFormat === TRJ_TYPE) {
             // Set a title for the trj file (i.e. the first line)
-            const title =
-              'BioExcel-CV19 - ' +
-              request.params.project +
-              ' - ' +
-              request.query.frames +
-              ' - ' +
-              request.query.selection;
+            let title = 'BioExcel-CV19 - ' + request.params.project;
+            if (request.query.frames)
+              title += ' - frames: ' + request.query.frames;
+            if (request.query.selection)
+              title += ' - selection: ' + request.query.selection;
+            ' - ' + request.query.selection;
             // Start a process to convert the original .bin file to .trj format
             const transformStream = BinToTrjStream(title);
             // Set a new stream which is ready to be destroyed
