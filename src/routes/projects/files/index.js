@@ -1,6 +1,7 @@
 const Router = require('express').Router;
 // GridFSBucket manages the saving of files bigger than 16 Mb, splitting them into 4 Mb fragments (chunks)
 const { GridFSBucket, ObjectId } = require('mongodb');
+const { Readable, PassThrough } = require('stream');
 // This function returns an object without the selected omitted attributes
 const omit = require('lodash').omit;
 
@@ -194,9 +195,19 @@ module.exports = (db, { projects }) => {
               title += ' - frames: ' + request.query.frames;
             if (request.query.selection)
               title += ' - selection: ' + request.query.selection;
-            ' - ' + request.query.selection;
+            title += '\n';
+            // Add an extra chunk with the title
+            // WARNING: This is important for the correct parsing of this format
+            // e.g. VMD skips the first line when reading this format
+            // WARNING: The size of the title must be included in the range (and then content-length)
+            // DANI: Llevo dos días perdidos investigando esto y no entiendo que está pasando
+            // DANI: El tamaño en bytes de tanto el título como el resto de datos no cuadra
+            // DANI: Buffer.byteLength devuelve casi el doble de tamaño que el real
+            // DANI: Esta fórmula de aquí abajo aparentemente funciona, pero ni idea de por que
+            range.size += Buffer.byteLength(title) / 2 - 0.5;
+            const titleStream = Readable.from([title]);
             // Start a process to convert the original .bin file to .trj format
-            const transformStream = BinToTrjStream(title);
+            const transformStream = BinToTrjStream();
             // Set a new stream which is ready to be destroyed
             // It is destroyed when the .bin to .trj process or the client request are over
             rangedStream.pipe(transformStream);
@@ -204,8 +215,13 @@ module.exports = (db, { projects }) => {
             request.on('close', () => rangedStream.destroy());
             //
             lengthMultiplier = BinToTrjStream.MULTIPLIER;
+            // Combine both the title and the main data streams
+            let combined = new PassThrough();
+            combined = titleStream.pipe(combined, { end: false });
+            combined = transformStream.pipe(combined, { end: false });
+            transformStream.once('end', () => combined.emit('end'));
             // Return the .bin to .trj process stream
-            stream = transformStream;
+            stream = combined;
           } else {
             stream = rangedStream;
           }

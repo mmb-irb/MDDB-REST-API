@@ -17,7 +17,7 @@ const importWA = require('../import-wasm');
 // Math.floor returns the smaller closest int to the input
 const MULTIPLIER = x => Math.floor(2.025 * x);
 
-module.exports = function(title = '') {
+module.exports = function() {
   // Keep track of the current chunk number where we start and end
   // It is used to calculate when the number of break lines needed for each chunk
   let countInLine = 1;
@@ -79,11 +79,7 @@ module.exports = function(title = '') {
       }
     },
   });
-  // Add an extra chunk with the title
-  // WARNING: This is important for the correct parsing of this format
-  // e.g. VMD skips the first line when reading this format
-  const titleBuffer = Buffer.from(title + '\n', 'utf8');
-  transform.push(titleBuffer);
+
   return transform;
 };
 
