@@ -349,7 +349,7 @@ components:
           type: string
           pattern:
             $ref: '#/definitions/constants/AccessionPattern'
-          example: PREFIX00001
+          example: PREFIX00002
         metadata:
           type: object
         pdbInfo:
@@ -446,4 +446,4 @@ definitions:
       schema:
         type: string
         pattern: '^([a-fA-F\d]{24})|(PREFIX[0-9]{5})$'
-      example: PREFIX00001
+      example: PREFIX00002
