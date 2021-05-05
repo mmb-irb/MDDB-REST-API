@@ -46,7 +46,11 @@ app.use(paginate.middleware(DEFAULT_LIMIT, MAX_LIMIT));
 // Root routes
 app.get('/', (_, res) => res.json({ 'api types': ['rest'] }));
 app.get('/rest', (_, res) =>
-  res.json({ 'api versions': ['v1', 'current'], 'current version': 'v1' }),
+  res.json({
+    'api versions': ['v1', 'current'],
+    'current version': 'v1',
+    documentation: 'docs',
+  }),
 );
 
 // Routes with more logic
