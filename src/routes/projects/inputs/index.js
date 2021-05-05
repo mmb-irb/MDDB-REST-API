@@ -48,6 +48,7 @@ module.exports = (_, { projects }) => {
               description: metadata.DESCRIPTION,
               contact: metadata.CONTACT,
               authors: metadata.AUTHORS,
+              groups: metadata.GROUPS,
               program: metadata.PROGRAM,
               version: metadata.VERSION,
               license: metadata.LICENSE,
