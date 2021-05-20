@@ -34,15 +34,22 @@ module.exports = (_, { projects }) => {
       body(response, retrieved) {
         if (retrieved) {
           const metadata = retrieved.metadata;
+          // Prepare the input interactions as only interaction names and selections
+          const interactions = metadata.INTERACTIONS;
+          for (const interaction of interactions) {
+            delete interaction.residues_1;
+            delete interaction.residues_2;
+            delete interaction.interface_1;
+            delete interaction.interface_2;
+          }
           if (metadata) {
             const inputs = {
               chainnames: metadata.CHAINNAMES,
               ligands: metadata.LIGANDS,
               domains: metadata.DOMAINS,
-              interactions: metadata.INTERACTIONS,
+              interactions: interactions,
               toporefs: metadata.TOPOREFS,
               unit: metadata.UNIT,
-              //membrane: metadata.MEMBRANE,
               pdbId: metadata.PDBID,
               name: metadata.NAME,
               description: metadata.DESCRIPTION,
@@ -60,10 +67,11 @@ module.exports = (_, { projects }) => {
               temp: metadata.TEMP,
               ensemble: metadata.ENSEMBLE,
               timestep: metadata.TIMESTEP,
-              //pcoupling: metadata.PCOUPLING,
               ff: metadata.FF,
               wat: metadata.WAT,
               boxtype: metadata.BOXTYPE,
+              exceptions: metadata.EXCEPTIONS,
+              membranes: metadata.MEMBRANES,
             };
             response.json(inputs);
           } else response.json({ error: 'There is no metadata' });
