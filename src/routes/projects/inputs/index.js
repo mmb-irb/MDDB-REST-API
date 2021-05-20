@@ -45,10 +45,7 @@ module.exports = (_, { projects }) => {
           // Prepare the input toporefs as only toporefs names
           const toporefs = metadata.TOPOREFS;
           for (const toporef of toporefs) {
-            delete toporef.residues_1;
-            delete toporef.residues_2;
-            delete toporef.interface_1;
-            delete toporef.interface_2;
+            delete toporef.map;
           }
           // Prepare the inputs json file to be sent
           if (metadata) {
