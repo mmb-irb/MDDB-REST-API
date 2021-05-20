@@ -50,6 +50,7 @@ module.exports = (_, { projects }) => {
             delete toporef.interface_1;
             delete toporef.interface_2;
           }
+          // Prepare the inputs json file to be sent
           if (metadata) {
             const inputs = {
               chainnames: metadata.CHAINNAMES,
