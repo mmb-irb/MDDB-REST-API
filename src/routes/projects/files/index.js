@@ -96,13 +96,13 @@ module.exports = (db, { projects }) => {
     }),
   );
   // This function finds the project which matches the request accession
-  // When found, saves the project object ID and files
+  // When found, saves the project object ID, accession and files
   const getProject = project =>
     projects.findOne(
       // Returns a filter with the publishedFilter attributes and the project ObjectID
       augmentFilterWithIDOrAccession(publishedFilter, project),
       // Declare that we only want the id and files to be returned from findOne()
-      { projection: { _id: true, files: true } },
+      { projection: { _id: true, accession: true, files: true } },
     );
 
   // When structure is requested (i.e. .../files/structure)
@@ -113,6 +113,9 @@ module.exports = (db, { projects }) => {
         // Finds the project by the accession
         const projectDoc = await getProject(request.params.project);
         if (!projectDoc) return; // If there is no projectDoc stop here
+        const accessionOrId = projectDoc.accession
+          ? projectDoc.accession.toLowerCase()
+          : projectDoc._id;
         // Get the object id of the project structure
         const oid = ObjectId(
           (
@@ -151,7 +154,7 @@ module.exports = (db, { projects }) => {
           stream = bucket.openDownloadStream(oid);
         }
 
-        return { descriptor, stream };
+        return { descriptor, stream, accessionOrId };
       },
       // If there is an active stream, send range and length content
       headers(response, retrieved) {
@@ -163,10 +166,10 @@ module.exports = (db, { projects }) => {
         if (retrieved.descriptor.contentType) {
           response.set('content-type', retrieved.descriptor.contentType);
         }
-        response.setHeader(
-          'Content-disposition',
-          `filename=${retrieved.descriptor.filename}`,
-        );
+        // Set the output filename according to some standards
+        const format = 'pdb';
+        const filename = retrieved.accessionOrId + '_structure.' + format;
+        response.setHeader('Content-disposition', `filename=${filename}`);
       },
       // If there is a retrieved stream, start sending data through the stream
       body(response, retrieved, request) {
@@ -208,6 +211,9 @@ module.exports = (db, { projects }) => {
         // Get the ID from the previously found file and save the file through the ID
         projectDoc = await getProject(request.params.project); // Finds the project by the accession
         if (!projectDoc) return NOT_FOUND; // If there is no projectDoc stop here
+        const accessionOrId = projectDoc.accession
+          ? projectDoc.accession.toLowerCase()
+          : projectDoc._id;
         const cursor = projectDoc.files.find(
           file => file.filename === 'trajectory.bin',
         );
@@ -258,7 +264,7 @@ module.exports = (db, { projects }) => {
           }
           // In case of frame query
           if (request.query.frames) {
-            // If data is already saved in the rangeString variable because there was a selection query
+            // If data is already saved in the rangeStrinMDCRD_TYPEg variable because there was a selection query
             if (rangeString) rangeString += ', '; // Add coma and space to separate the new incoming data
             // Translates the frames query string format into a explicit frame selection in string format
             const parsed = parseQuerystringFrameRange(request.query.frames);
@@ -322,7 +328,14 @@ module.exports = (db, { projects }) => {
             stream = rangedStream;
           }
         }
-        return { stream, descriptor, range, transformFormat, lengthMultiplier };
+        return {
+          stream,
+          descriptor,
+          range,
+          transformFormat,
+          lengthMultiplier,
+          accessionOrId,
+        };
       },
       headers(
         response,
@@ -333,6 +346,7 @@ module.exports = (db, { projects }) => {
           transformFormat,
           lengthMultiplier,
           noContent,
+          accessionOrId,
         },
       ) {
         if (noContent) return response.sendStatus(NO_CONTENT);
@@ -383,6 +397,11 @@ module.exports = (db, { projects }) => {
             transformFormat || descriptor.contentType,
           );
         }
+        // Set the output filename according to some standards
+        let format = 'bin';
+        if (transformFormat === MDCRD_TYPE) format = 'mdcrd';
+        const filename = accessionOrId + '_trajectory.' + format;
+        response.setHeader('Content-disposition', `filename=${filename}`);
 
         response.set('accept-ranges', ['bytes', 'atoms', 'frames']);
       },
@@ -491,6 +510,11 @@ module.exports = (db, { projects }) => {
         if (retrieved.descriptor.contentType) {
           response.set('content-type', retrieved.descriptor.contentType);
         }
+        // Set the output filename
+        response.setHeader(
+          'Content-disposition',
+          `filename=${retrieved.descriptor.filename}`,
+        );
       },
       // If there is a retrieved stream, start sending data through the stream
       body(response, retrieved, request) {
