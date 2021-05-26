@@ -1,4 +1,4 @@
-// This script converts the stored file (.bin) into web friendly format (chemical/x-trj)
+// This script converts the stored file (.bin) into human friendly format (chemical/mdcrd)
 // This is complex since the request is quite customizable and the transform process highly optimized
 // Files are originally stored in lines (separated by break lines) of 10 characters (a.k.a. elements)
 // Each character is definde by 32 bits (or 4 bytes)

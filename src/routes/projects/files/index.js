@@ -6,8 +6,8 @@ const { Readable, PassThrough } = require('stream');
 const omit = require('lodash').omit;
 
 const handler = require('../../../utils/generic-handler');
-// Converts the stored file (.bin) into web friendly format (chemical/x-trj)
-const BinToTrjStream = require('../../../utils/bin-to-trj');
+// Converts the stored file (.bin) into human friendly format (chemical/mdcrd)
+const BinToMdcrdStream = require('../../../utils/bin-to-mdcrd');
 // Converts ranges of different types (e.g. frames or atoms) into a single summarized range of bytes
 const handleRange = require('../../../utils/handle-range');
 // Returns a simple stream when asking for the whole file
@@ -33,7 +33,7 @@ const {
   REQUEST_RANGE_NOT_SATISFIABLE,
 } = require('../../../utils/status-codes');
 
-const TRJ_TYPE = 'chemical/x-trj';
+const MDCRD_TYPE = 'chemical/x-mdcrd';
 
 // Set the standard name of the structure and trajectory files
 const STANDARD_STRUCTURE_FILENAME = 'md.imaged.rot.dry.pdb';
@@ -49,9 +49,9 @@ const acceptTransformFormat = (requested, filename) => {
   const _requested = (requested || '').toLowerCase();
   const _filename = filename.toLowerCase();
   // _requested is a string sent by the header which includes the names of all accepted formats
-  // If "trj" or "traj" are accepted and the requestd file is a ".bin" return the "trj" type
-  if (_requested.includes('trj') || _requested.includes('traj')) {
-    if (_filename.endsWith('.bin')) return TRJ_TYPE;
+  // If "crd" or "mdcrd" are requested and the requested file is a ".bin" return the "mdcrd" type
+  if (_requested.includes('crd') || _requested.includes('mdcrd')) {
+    if (_filename.endsWith('.bin')) return MDCRD_TYPE;
   }
   // added (possible future) accepted transformation formats here
   //
@@ -283,10 +283,9 @@ module.exports = (db, { projects }) => {
           // Return a simple stream when asking for the whole file
           // Return an internally managed stream when asking for specific ranges
           const rangedStream = combineDownloadStreams(bucket, oid, range);
-          // When user accepts "trj" or "traj" files
-          // DANI: Esto realmente devuelve un ascii, que no un trj
-          if (transformFormat === TRJ_TYPE) {
-            // Set a title for the trj file (i.e. the first line)
+          // When user requests "crd" or "mdcrd" files
+          if (transformFormat === MDCRD_TYPE) {
+            // Set a title for the mdcrd file (i.e. the first line)
             let title = 'BioExcel-CV19 - ' + request.params.project;
             if (request.query.frames)
               title += ' - frames: ' + request.query.frames;
@@ -303,21 +302,21 @@ module.exports = (db, { projects }) => {
             // DANI: Esta fórmula de aquí abajo aparentemente funciona, pero ni idea de por que
             range.size += Buffer.byteLength(title) / 2 - 0.5;
             const titleStream = Readable.from([title]);
-            // Start a process to convert the original .bin file to .trj format
-            const transformStream = BinToTrjStream();
+            // Start a process to convert the original .bin file to .mdcrd format
+            const transformStream = BinToMdcrdStream();
             // Set a new stream which is ready to be destroyed
-            // It is destroyed when the .bin to .trj process or the client request are over
+            // It is destroyed when the .bin to .mdcrd process or the client request are over
             rangedStream.pipe(transformStream);
             transformStream.on('close', () => rangedStream.destroy());
             request.on('close', () => rangedStream.destroy());
             //
-            lengthMultiplier = BinToTrjStream.MULTIPLIER;
+            lengthMultiplier = BinToMdcrdStream.MULTIPLIER;
             // Combine both the title and the main data streams
             let combined = new PassThrough();
             combined = titleStream.pipe(combined, { end: false });
             combined = transformStream.pipe(combined, { end: false });
             transformStream.once('end', () => combined.emit('end'));
-            // Return the .bin to .trj process stream
+            // Return the .bin to .mdcrd process stream
             stream = combined;
           } else {
             stream = rangedStream;

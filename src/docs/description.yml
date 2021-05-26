@@ -154,15 +154,14 @@ paths:
         This process may take some time since trajectories are heavy files.
       produces:
         - application/octet-stream
-        - chemical/x-pdb
-        - chemical/x-trj
+        - chemical/x-mdcrd
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: format
           in: query
           schema:
             type: string
-            enum: ['trj']
+            enum: ['mdcrd']
           description: >
             Specify a request format for the trajectory file. The default format is an internal
             binary format used by the client.<br>
@@ -211,11 +210,7 @@ paths:
         200:
           description: a trajectory
           content:
-            chemical/x-pdb:
-              schema:
-                type: string
-                format: binary
-            chemical/x-trj:
+            chemical/x-mdcrd:
               schema:
                 type: string
                 format: binary
@@ -225,11 +220,7 @@ paths:
         206:
           description: a partial trajectory
           content:
-            chemical/x-pdb:
-              schema:
-                type: string
-                format: binary
-            chemical/x-trj:
+            chemical/x-mdcrd:
               schema:
                 type: string
                 format: binary
@@ -245,7 +236,6 @@ paths:
       produces:
         - application/octet-stream
         - chemical/x-pdb
-        - chemical/x-trj
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: filename
@@ -264,13 +254,6 @@ paths:
             chemical/x-pdb:
               schema:
                 type: string
-                format: binary
-            chemical/x-trj:
-              schema:
-                type: string
-                format: binary
-            application/octet-stream:
-              schema:
                 format: binary
 
   /projects/{projectAccessionOrID}/analyses:
