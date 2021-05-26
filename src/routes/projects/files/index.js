@@ -19,6 +19,8 @@ const publishedFilter = require('../../../utils/published-filter');
 const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
 // Returns the selected atom indices as a string ("i1-i1,i2-i2,i3-i3..."")
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
+// Returns a pdb filtered according to an NGL selection
+const getSelectedPdb = require('../../../utils/get-selection-pdb-through-ngl');
 // Translates the frames query string format into a explicit frame selection in string format
 const parseQuerystringFrameRange = require('../../../utils/parse-querystring-frame-range');
 const consumeStream = require('../../../utils/consume-stream');
@@ -32,6 +34,9 @@ const {
 } = require('../../../utils/status-codes');
 
 const TRJ_TYPE = 'chemical/x-trj';
+
+// Set the standard name of the structure and trajectory files
+const STANDARD_STRUCTURE_FILENAME = 'md.imaged.rot.dry.pdb';
 
 // Set a function to ckeck if a string is a mongo id
 // WARNING: Do not use the builtin 'ObjectId.isValid'
@@ -100,7 +105,99 @@ module.exports = (db, { projects }) => {
       { projection: { _id: true, files: true } },
     );
 
-  // When there is a trajectory parameter (i.e. .../files/trajectory)
+  // When structure is requested (i.e. .../files/structure)
+  fileRouter.route('/structure').get(
+    handler({
+      async retriever(request) {
+        const bucket = new GridFSBucket(db);
+        // Finds the project by the accession
+        const projectDoc = await getProject(request.params.project);
+        if (!projectDoc) return; // If there is no projectDoc stop here
+        // Get the object id of the project structure
+        const oid = ObjectId(
+          (
+            projectDoc.files.find(
+              file => file.filename === STANDARD_STRUCTURE_FILENAME,
+            ) || {}
+          )._id,
+        );
+        // If there is no oid at this point it means there is no structure file
+        if (!oid) return;
+        // Save the corresponding file
+        const descriptor = await db.collection('fs.files').findOne(oid);
+        // If the object ID is not found in the data base, return here
+        if (!descriptor) return;
+
+        // Open a stream with the corresponding ID
+        let stream = bucket.openDownloadStream(oid);
+
+        // In case of selection query
+        if (request.query.selection) {
+          // Open a stream and save it completely into memory
+          const pdbFile = await consumeStream(bucket.openDownloadStream(oid));
+          // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
+          const selectedPdb = await getSelectedPdb(
+            pdbFile,
+            request.query.selection,
+          );
+          // Selected pdb will be never null, since an empty pdb file would have header and end
+          // Now convert the string pdb to a stream
+          //const bufferPdb = Buffer.from(selectedPdb, 'base64');
+          const bufferPdb = Buffer.from(selectedPdb, 'utf-8');
+          stream = Readable.from([bufferPdb]);
+          // Modify the original length
+          descriptor.length = bufferPdb.length;
+        } else {
+          stream = bucket.openDownloadStream(oid);
+        }
+
+        return { descriptor, stream };
+      },
+      // If there is an active stream, send range and length content
+      headers(response, retrieved) {
+        if (!retrieved || !retrieved.descriptor) {
+          return response.sendStatus(NOT_FOUND);
+        }
+        response.set('content-length', retrieved.descriptor.length);
+        // Send content type also if known
+        if (retrieved.descriptor.contentType) {
+          response.set('content-type', retrieved.descriptor.contentType);
+        }
+        response.setHeader(
+          'Content-disposition',
+          `filename=${retrieved.descriptor.filename}`,
+        );
+      },
+      // If there is a retrieved stream, start sending data through the stream
+      body(response, retrieved, request) {
+        // If there is not retreieved stream, return here
+        if (!retrieved || !retrieved.stream) return;
+        // If the client has aborted the request before the streams starts, destroy the stream
+        if (request.aborted) {
+          retrieved.stream.destroy();
+          return;
+        }
+        // Manage the stream
+        retrieved.stream.on('data', data => {
+          retrieved.stream.pause();
+          response.write(data, () => {
+            retrieved.stream.resume();
+          });
+        });
+        // If there is an error, send the error to the console and end the data transfer
+        retrieved.stream.on('error', error => {
+          console.error(error);
+          response.end();
+        });
+        // Close the response when the read stream has finished
+        retrieved.stream.on('end', data => response.end(data));
+        // Close the stream when the request is closed
+        request.on('close', () => retrieved.stream.destroy());
+      },
+    }),
+  );
+
+  // When trajectory is requested (i.e. .../files/trajectory)
   fileRouter.route('/trajectory').get(
     handler({
       async retriever(request) {
@@ -141,10 +238,10 @@ module.exports = (db, { projects }) => {
             if (!projectDoc)
               projectDoc = await getProject(request.params.project);
             if (!projectDoc) return; // If there is no project stop here
-            // Get the ID from the file 'md.imaged.rot.dry.pdb' and save it through the ID
+            // Get the ID from the structure file and save it through the ID
             const oid = ObjectId(
               projectDoc.files.find(
-                file => file.filename === 'md.imaged.rot.dry.pdb',
+                file => file.filename === STANDARD_STRUCTURE_FILENAME,
               )._id,
             );
             // Open a stream and save it completely into memory
@@ -245,7 +342,7 @@ module.exports = (db, { projects }) => {
           // If you have a bad request error check that 'request.query.frames' is correct
           if (range === -1) return response.sendStatus(BAD_REQUEST);
           if (range === -2) {
-            // NEVER FORGET: 'content-range' where disabled and now this data is got from project files
+            // NEVER FORGET: 'content-range' was disabled and now this data is got from project files
             // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
             //response.set('content-range', [
             //  `bytes=*/${descriptor.length}`,
@@ -365,7 +462,7 @@ module.exports = (db, { projects }) => {
 
         // Save the corresponding file
         const descriptor = await db.collection('fs.files').findOne(oid);
-        // If the object ID is not found in the data bsae, return here
+        // If the object ID is not found in the data base, return here
         if (!descriptor) return;
 
         // Open a stream with the corresponding ID

@@ -100,6 +100,52 @@ paths:
                 items:
                   $ref: '#/components/schemas/FileDescription'
 
+  /projects/{projectAccessionOrID}/files/structure:
+    get:
+      summary: Get the main structure of the project in pdb format.
+      description: >
+        Get the main structure of the project in pdb format.
+        Structure may be filtered by specific atoms.
+      produces:
+        - chemical/x-pdb
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+        - name: selection
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a NGL-formatted selection for the returned structure.<br>
+            The user can request specific atoms instead of the whole file.<br>
+            [See here for the kind of selection that can be used](http://nglviewer.org/ngl/api/manual/usage/selection-language.html).
+          examples:
+            allCAtoms:
+              summary: All carbon atoms
+              value: _C
+            backbone:
+              summary: Backbone atoms
+              value: backbone
+            allCInBackbone:
+              summary: All carbon atoms in the backbone
+              value: backbone and _C
+      tags:
+        - files
+      responses:
+        200:
+          description: a structure
+          content:
+            chemical/x-pdb:
+              schema:
+                type: string
+                format: binary
+        206:
+          description: an atom filtered structure
+          content:
+            chemical/x-pdb:
+              schema:
+                type: string
+                format: binary
+
   /projects/{projectAccessionOrID}/files/trajectory:
     get:
       summary: Get a complete or partial trajectory of the project.
