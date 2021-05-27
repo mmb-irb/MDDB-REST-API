@@ -169,7 +169,10 @@ module.exports = (db, { projects }) => {
         // Set the output filename according to some standards
         const format = 'pdb';
         const filename = retrieved.accessionOrId + '_structure.' + format;
-        response.setHeader('Content-disposition', `filename=${filename}`);
+        response.setHeader(
+          'Content-disposition',
+          `attachment; filename=${filename}`,
+        );
       },
       // If there is a retrieved stream, start sending data through the stream
       body(response, retrieved, request) {
@@ -401,7 +404,10 @@ module.exports = (db, { projects }) => {
         let format = 'bin';
         if (transformFormat === MDCRD_TYPE) format = 'mdcrd';
         const filename = accessionOrId + '_trajectory.' + format;
-        response.setHeader('Content-disposition', `filename=${filename}`);
+        response.setHeader(
+          'Content-disposition',
+          `attachment; filename=${filename}`,
+        );
 
         response.set('accept-ranges', ['bytes', 'atoms', 'frames']);
       },
@@ -513,7 +519,7 @@ module.exports = (db, { projects }) => {
         // Set the output filename
         response.setHeader(
           'Content-disposition',
-          `filename=${retrieved.descriptor.filename}`,
+          `attachment; filename=${retrieved.descriptor.filename}`,
         );
       },
       // If there is a retrieved stream, start sending data through the stream
