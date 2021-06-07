@@ -283,60 +283,54 @@ module.exports = (db, { projects }) => {
           // Get the bytes ranges
           range = handleRange(request.headers.range, descriptor);
         }
+        // In case there is no selection range is no iterable
+        else {
+          range = handleRange(null, descriptor);
+        }
         // Set the final stream to be returned
         let stream;
-        //
-        let lengthMultiplier = x => x;
-        if (!range || typeof range === 'object') {
-          // This is the usual stream to be called
-          // Return a simple stream when asking for the whole file
-          // Return an internally managed stream when asking for specific ranges
-          const rangedStream = combineDownloadStreams(bucket, oid, range);
-          // When user requests "crd" or "mdcrd" files
-          if (transformFormat === MDCRD_TYPE) {
-            // Set a title for the mdcrd file (i.e. the first line)
-            let title = 'BioExcel-CV19 - ' + request.params.project;
-            if (request.query.frames)
-              title += ' - frames: ' + request.query.frames;
-            if (request.query.selection)
-              title += ' - selection: ' + request.query.selection;
-            title += '\n';
-            // Add an extra chunk with the title
-            // WARNING: This is important for the correct parsing of this format
-            // e.g. VMD skips the first line when reading this format
-            // WARNING: The size of the title must be included in the range (and then content-length)
-            // DANI: Llevo dos días perdidos investigando esto y no entiendo que está pasando
-            // DANI: El tamaño en bytes de tanto el título como el resto de datos no cuadra
-            // DANI: Buffer.byteLength devuelve casi el doble de tamaño que el real
-            // DANI: Esta fórmula de aquí abajo aparentemente funciona, pero ni idea de por que
-            range.size += Buffer.byteLength(title) / 2 - 0.5;
-            const titleStream = Readable.from([title]);
-            // Start a process to convert the original .bin file to .mdcrd format
-            const transformStream = BinToMdcrdStream();
-            // Set a new stream which is ready to be destroyed
-            // It is destroyed when the .bin to .mdcrd process or the client request are over
-            rangedStream.pipe(transformStream);
-            transformStream.on('close', () => rangedStream.destroy());
-            request.on('close', () => rangedStream.destroy());
-            //
-            lengthMultiplier = BinToMdcrdStream.MULTIPLIER;
-            // Combine both the title and the main data streams
-            let combined = new PassThrough();
-            combined = titleStream.pipe(combined, { end: false });
-            combined = transformStream.pipe(combined, { end: false });
-            transformStream.once('end', () => combined.emit('end'));
-            // Return the .bin to .mdcrd process stream
-            stream = combined;
-          } else {
-            stream = rangedStream;
-          }
+        // Return a simple stream when asking for the whole file (i.e. range is not iterable)
+        // Return an internally managed stream when asking for specific ranges
+        const rangedStream = combineDownloadStreams(bucket, oid, range);
+        // When user requests "crd" or "mdcrd" files
+        if (transformFormat === MDCRD_TYPE) {
+          // Set a title for the mdcrd file (i.e. the first line)
+          let title = 'BioExcel-CV19 - ' + request.params.project;
+          if (request.query.frames)
+            title += ' - frames: ' + request.query.frames;
+          if (request.query.selection)
+            title += ' - selection: ' + request.query.selection;
+          title += '\n';
+          // Add an extra chunk with the title
+          // WARNING: This is important for the correct parsing of this format
+          // e.g. VMD skips the first line when reading this format
+          const titleStream = Readable.from([title]);
+          // Start a process to convert the original .bin file to .mdcrd format
+          const transformStream = BinToMdcrdStream();
+          const lengthMultiplier = BinToMdcrdStream.MULTIPLIER;
+          // WARNING: The size of the title must be included in the range (and then content-length)
+          range.size = lengthMultiplier(range.size);
+          range.size += Buffer.byteLength(title);
+          // Set a new stream which is ready to be destroyed
+          // It is destroyed when the .bin to .mdcrd process or the client request are over
+          rangedStream.pipe(transformStream);
+          transformStream.on('close', () => rangedStream.destroy());
+          request.on('close', () => rangedStream.destroy());
+          // Combine both the title and the main data streams
+          let combined = new PassThrough();
+          combined = titleStream.pipe(combined, { end: false });
+          combined = transformStream.pipe(combined, { end: false });
+          transformStream.once('end', () => combined.emit('end'));
+          // Return the .bin to .mdcrd process stream
+          stream = combined;
+        } else {
+          stream = rangedStream;
         }
         return {
           stream,
           descriptor,
           range,
           transformFormat,
-          lengthMultiplier,
           accessionOrId,
         };
       },
@@ -347,7 +341,6 @@ module.exports = (db, { projects }) => {
           descriptor,
           range,
           transformFormat,
-          lengthMultiplier,
           noContent,
           accessionOrId,
         },
@@ -376,7 +369,7 @@ module.exports = (db, { projects }) => {
               `frames=*/${descriptor.metadata.frames}`,
             );
           }
-          // NEVER FORGET: 'content-range' where disabled and now this data is got from project files
+          // NEVER FORGET: 'content-range' were disabled and now this data is got from project files
           // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
           //response.set('content-range', range.responseHeaders);
 
@@ -390,10 +383,7 @@ module.exports = (db, { projects }) => {
         // Send the expected bytes length of the file
         // WARNING: If sent bytes are less than specified the download will fail with error signal
         // WARNING: If sent bytes are more than specified the download will succed but it will be cutted
-        response.set(
-          'content-length',
-          lengthMultiplier(range ? range.size : descriptor.length),
-        );
+        response.set('content-length', range.size);
         if (descriptor.contentType) {
           response.set(
             'content-type',

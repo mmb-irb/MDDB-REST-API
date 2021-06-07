@@ -88,12 +88,17 @@ const handleRange = (rangeInput, descriptor) => {
     return range;
   }
 
-  // if none of the supported range is defined, bail
-  if (!(rangeStrings.frames || rangeStrings.atoms)) return;
-
   // Output object returned at the end
   const bytes = {};
   bytes.responseHeaders = [];
+
+  // if none of the supported range is defined the return a generic range for the whole trajectory data
+  if (!(rangeStrings.frames || rangeStrings.atoms)) {
+    const bytesLength = descriptor.length;
+    bytes.size = bytesLength;
+    bytes.type = 'bytes';
+    return bytes;
+  }
 
   // Try to combine frame ranges
   const frames = getRangeForPartOrAll('frames', rangeStrings, descriptor);

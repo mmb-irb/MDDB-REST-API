@@ -1,5 +1,11 @@
 const PassThrough = require('stream').PassThrough;
 
+// Set a function to check if an object is iterable
+const isIterable = obj => {
+  if (!obj) return false;
+  return typeof obj[Symbol.iterator] === 'function';
+};
+
 // Found experimentally
 const chunkSize = 4194304;
 
@@ -126,17 +132,15 @@ const combine = async (outputStream, bucket, objectId, range) => {
 };
 
 const combineDownloadStreams = (bucket, objectId, range) => {
-  // When asking for the whole file
-  if (!(range && typeof range === 'object')) {
-    // Return a readable stream of the whole file
-    return bucket.openDownloadStream(objectId);
+  // If range is iterable it means we have to return only specific chunks of the input stream
+  if (range && isIterable(range)) {
+    const outputStream = new PassThrough();
+    combine(outputStream, bucket, objectId, range);
+    // Return the ranged stream
+    return outputStream;
   }
-  // Else, asking for parts of the file
-  // Create a fake stream into which we'll push just the requested parts
-  const outputStream = new PassThrough();
-  combine(outputStream, bucket, objectId, range);
-  // Return the created stream
-  return outputStream;
+  // Otherwise, return a readable stream of the whole file
+  return bucket.openDownloadStream(objectId);
 };
 
 module.exports = combineDownloadStreams;
