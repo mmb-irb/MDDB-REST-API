@@ -1,6 +1,6 @@
-// This script is not in JavaScript, but in AssemblyScript
-// This code needs to be compiled when updated in WebDev2/WebProd2. Use "npm run build"
-// This is used to conver binary data from the database to a trash format
+// This script is not in JavaScript, but in TypeScript
+// This code needs to be compiled when updated. Use "npm run build"
+// This is used to conver binary data from the database to mdcrd format
 // The entry file of your WebAssembly module.
 
 const numberToASCII = (n: u8): u8 => n + 48;
@@ -70,8 +70,8 @@ export function transform(nValues: usize, outputOffset: usize): u8 {
       store<u8>(outputIndex++, numberToASCII(hundreds));
     }
     // position 3: 10
-    if (tens === 0 && thousands === 0 && hundreds === 0) {
-      if (sign === -1 && units !== 0) {
+    if (tens === 0 && hundreds === 0 && thousands === 0) {
+      if (sign === -1) { // The sign goes here even if units === 0
         store<u8>(outputIndex++, MINUS);
       } else {
         store<u8>(outputIndex++, SPACE);
