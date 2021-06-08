@@ -295,7 +295,7 @@ module.exports = (db, { projects }) => {
         // When user requests "crd" or "mdcrd" files
         if (transformFormat === MDCRD_TYPE) {
           // Set a title for the mdcrd file (i.e. the first line)
-          let title = 'BioExcel-CV19 - ' + request.params.project;
+          let title = process.env.DOCS_DB_NAME + ' - ' + request.params.project;
           if (request.query.frames)
             title += ' - frames: ' + request.query.frames;
           if (request.query.selection)
