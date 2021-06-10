@@ -7,9 +7,11 @@ const PAGE_SIZE = 0x10000; // fixed page size: 16KiB, or in hex 0x10000
 // Divides the number of bytes between the defined bytes size of a page and rounds the result
 const getNPages = bytes => Math.ceil(bytes / PAGE_SIZE);
 
-// This function builds a special assembly which is able to calculate faster
+// This function allocates memory for a special code assembly
 // This assembly is used to convert .bin files into .mdcrd files when it is possible
 // 'mdcrd' is not the default format (it is binary) so this is not usually run
+// The code for this functionallity is found at 'assembly/index.ts'
+// It must be previously compiled with 'npm run build'
 const importWA = (path, memorySize = 1) => {
   let bytes = memorySize;
   // Read a script with non JavaScript code

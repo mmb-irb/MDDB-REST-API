@@ -1,16 +1,19 @@
-// This script is not in JavaScript, but in TypeScript
+// This script is not in JavaScript, but in AssemblyScript
 // This code needs to be compiled when updated. Use "npm run build"
 // This is used to conver binary data from the database to mdcrd format
 // The entry file of your WebAssembly module.
+
+const VALUES_PER_LINE = 10;
 
 const numberToASCII = (n: u8): u8 => n + 48;
 const SPACE = u8(32);
 const DOT = u8(46);
 const MINUS = u8(45);
 const NEWLINE = u8(10);
+let countInFrame = usize(1);
 let countInLine = u8(1);
 
-export function transform(nValues: usize, outputOffset: usize): u8 {
+export function transform(nValues: usize, nValuesPerFrame: usize, outputOffset: usize): u8 {
   let outputIndex = outputOffset;
   for (let i = usize(0); i < nValues; i++) {
     // read data from input part of the memory
@@ -93,11 +96,19 @@ export function transform(nValues: usize, outputOffset: usize): u8 {
     store<u8>(outputIndex++, numberToASCII(thousandths));
 
     // if countInLine !== 10, but written as a bitwise operation
-    if (countInLine ^ 10) {
+    if (countInLine ^ VALUES_PER_LINE) {
       countInLine++;
     } else {
       // every 10 coordinates
       store<u8>(outputIndex++, NEWLINE);
+      countInLine = 1;
+    }
+    // Add a breakline between frames
+    if (countInFrame < nValuesPerFrame) {
+      countInFrame++;
+    } else {
+      store<u8>(outputIndex++, NEWLINE);
+      countInFrame = 1;
       countInLine = 1;
     }
   }

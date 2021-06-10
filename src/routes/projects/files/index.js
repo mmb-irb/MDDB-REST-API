@@ -305,12 +305,18 @@ module.exports = (db, { projects }) => {
           // WARNING: This is important for the correct parsing of this format
           // e.g. VMD skips the first line when reading this format
           const titleStream = Readable.from([title]);
+          // Get the atoms per frames count. It is required to add the breakline between frames at the mdcrd format
+          // If this data is missing we cannot convert .bin to .mdcrd
+          const atomCount = range.atomCount;
+          if (!atomCount) return;
           // Start a process to convert the original .bin file to .mdcrd format
-          const transformStream = BinToMdcrdStream();
-          const lengthMultiplier = BinToMdcrdStream.MULTIPLIER;
+          const transformStream = BinToMdcrdStream(atomCount);
+          const lengthConverter = BinToMdcrdStream.CONVERTER;
+          // Calculate the bytes length in the new format
           // WARNING: The size of the title must be included in the range (and then content-length)
-          range.size = lengthMultiplier(range.size);
-          range.size += Buffer.byteLength(title);
+          range.size =
+            lengthConverter(range.size, atomCount) / 10 +
+            Buffer.byteLength(title);
           // Set a new stream which is ready to be destroyed
           // It is destroyed when the .bin to .mdcrd process or the client request are over
           rangedStream.pipe(transformStream);

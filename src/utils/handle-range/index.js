@@ -41,12 +41,11 @@ const getResponseHeader = (type, range, length) => {
 const rangeTypeSeparator = /, *(?=[a-z])/i;
 
 // Calculate the total output size by adding all the "end - start + 1" range values
-// Warning!! the input array will be modified!
-const addSize = array => {
+const getSize = array => {
   // Return here if the argument is not an array
   if (!Array.isArray(array)) return;
   // Sum of all range lengths
-  array.size = array.reduce(
+  return array.reduce(
     (size, { start, end }) => size + end - start + 1,
     0, // This 0 is the initial value used by the reduce (not the initial value of the array)
   );
@@ -84,20 +83,24 @@ const handleRange = (rangeInput, descriptor) => {
       getResponseHeader('bytes', range, descriptor.length),
     ];
     // Calculate the size of all ranges together. The range variable is modifed.
-    addSize(range);
+    // DANI: No es fácil saber el número de frames/átomos que se están pidiendo en un range de bytes
+    // DANI: De manera que de momento no hay soporte completo a esta funcionalidad
+    // DANI: e.g. no se puede convertir a formato mdcrd (con breaklines entre frames)
+    range.size = getSize(range);
     return range;
   }
 
   // Output object returned at the end
-  const bytes = {};
-  bytes.responseHeaders = [];
+  const range = {};
+  range.responseHeaders = [];
 
   // if none of the supported range is defined the return a generic range for the whole trajectory data
   if (!(rangeStrings.frames || rangeStrings.atoms)) {
-    const bytesLength = descriptor.length;
-    bytes.size = bytesLength;
-    bytes.type = 'bytes';
-    return bytes;
+    range.size = descriptor.length;
+    range.type = 'bytes';
+    range.frameCount = descriptor.metadata.frames;
+    range.atomCount = descriptor.metadata.atoms;
+    return range;
   }
 
   // Try to combine frame ranges
@@ -108,12 +111,12 @@ const handleRange = (rangeInput, descriptor) => {
   if (Number.isFinite(frames)) return frames;
   if (rangeInput && rangeInput.toLowerCase().includes('frames')) {
     // Set the header
-    bytes.responseHeaders.push(
+    range.responseHeaders.push(
       getResponseHeader('frames', frames, descriptor.metadata.frames),
     );
   }
   // Calculate the size of all ranges together. The frames variable is modifed.
-  addSize(frames);
+  frames.size = getSize(frames);
   // then, atoms
   const atoms = getRangeForPartOrAll('atoms', rangeStrings, descriptor);
   // In case there's a problem with the range, return error code from parseRange
@@ -122,14 +125,14 @@ const handleRange = (rangeInput, descriptor) => {
   if (Number.isFinite(atoms)) return atoms;
   if (rangeInput && rangeInput.toLowerCase().includes('atoms')) {
     // Set the header
-    bytes.responseHeaders.push(
+    range.responseHeaders.push(
       getResponseHeader('atoms', atoms, descriptor.metadata.atoms),
     );
   }
   // Calculate the size of all ranges together. The atoms variable is modifed.
-  addSize(atoms);
+  atoms.size = getSize(atoms);
 
-  // Claculate additional sizes
+  // Calculate additional sizes
   const atomSize = Float32Array.BYTES_PER_ELEMENT * 3;
   const frameSize = atomSize * descriptor.metadata.atoms;
 
@@ -137,7 +140,7 @@ const handleRange = (rangeInput, descriptor) => {
   // and atoms, which might be A LOT!
   // Instead, let's create an iterator
   // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/iterator
-  bytes[Symbol.iterator] = function*() {
+  range[Symbol.iterator] = function*() {
     let currentStartByte = null;
     let currentEndByte = null;
     for (const frameRange of frames) {
@@ -161,17 +164,20 @@ const handleRange = (rangeInput, descriptor) => {
     }
     yield { start: currentStartByte, end: currentEndByte };
   };
-  bytes.size = atoms.size * atomSize * frames.size;
-  bytes.type = 'bytes';
-
+  // Calculate the final size of this ranged data in bytes
+  range.size = atoms.size * atomSize * frames.size;
+  range.type = 'bytes';
+  // Add also the atom and frame counts
+  range.frameCount = frames.size;
+  range.atomCount = atoms.size;
   // If we send this it might get truncated when it gets to big
   // header size in Node HTTP Parser is limited to 80kb, see ref below
   // https://github.com/nodejs/node/blob/cdcb1b77379f780b7b187d711c44181dbd0a6e24/deps/http_parser/http_parser.h#L63
 
-  // bytes.responseHeaders.push(
+  // range.responseHeaders.push(
   //   getResponseHeader('bytes', bytes, descriptor.length),
   // );
-  return bytes;
+  return range;
 };
 
 module.exports = handleRange;

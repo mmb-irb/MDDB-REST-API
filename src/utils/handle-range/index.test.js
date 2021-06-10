@@ -9,20 +9,22 @@ const descriptor = {
 };
 
 describe('Corner cases', () => {
+  const expected = [];
   test('no range', () => {
-    expect(handleRange()).toBeUndefined();
-    expect(handleRange('')).toBeUndefined();
+    expect(Array.from(handleRange(null, descriptor))).toEqual(expected);
   });
 
   test('invalid range type', () => {
-    expect(handleRange('apples=0-10')).toBeUndefined();
+    expect(Array.from(handleRange('apples=0-10', descriptor))).toEqual(
+      expected,
+    );
   });
 });
 
 describe('With byte range', () => {
   test('only byte range', () => {
     const expected = [{ start: 0, end: 19 }];
-    expect(Array.from(handleRange('bytes=0-9,10-19', { length: 100 }))).toEqual(
+    expect(Array.from(handleRange('bytes=0-9,10-19', descriptor))).toEqual(
       expected,
     );
   });
@@ -30,7 +32,7 @@ describe('With byte range', () => {
   test('invalid range, followed by byte range', () => {
     const expected = [{ start: 0, end: 19 }];
     expect(
-      Array.from(handleRange('apples=0-10, bytes=0-9,10-19', { length: 100 })),
+      Array.from(handleRange('apples=0-10, bytes=0-9,10-19', descriptor)),
     ).toEqual(expected);
   });
 
