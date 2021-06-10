@@ -315,8 +315,7 @@ module.exports = (db, { projects }) => {
           // Calculate the bytes length in the new format
           // WARNING: The size of the title must be included in the range (and then content-length)
           range.size =
-            lengthConverter(range.size, atomCount) / 10 +
-            Buffer.byteLength(title);
+            lengthConverter(range.size, atomCount) + Buffer.byteLength(title);
           // Set a new stream which is ready to be destroyed
           // It is destroyed when the .bin to .mdcrd process or the client request are over
           rangedStream.pipe(transformStream);
