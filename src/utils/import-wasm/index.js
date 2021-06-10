@@ -11,7 +11,7 @@ const getNPages = bytes => Math.ceil(bytes / PAGE_SIZE);
 // This assembly is used to convert .bin files into .mdcrd files when it is possible
 // 'mdcrd' is not the default format (it is binary) so this is not usually run
 // The code for this functionallity is found at 'assembly/index.ts'
-// It must be previously compiled with 'npm run build'
+// It must be previously compiled with 'sudo npm run build'
 const importWA = (path, memorySize = 1) => {
   let bytes = memorySize;
   // Read a script with non JavaScript code

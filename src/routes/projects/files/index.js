@@ -325,6 +325,8 @@ module.exports = (db, { projects }) => {
           let combined = new PassThrough();
           combined = titleStream.pipe(combined, { end: false });
           combined = transformStream.pipe(combined, { end: false });
+          // WARNING: Do not use outputStream.emit('end') here!!
+          // This could trigger the 'end' event before all data has been consumed by the next stream
           transformStream.once('end', () => combined.end());
           // Return the .bin to .mdcrd process stream
           stream = combined;
@@ -388,6 +390,8 @@ module.exports = (db, { projects }) => {
         // Send the expected bytes length of the file
         // WARNING: If sent bytes are less than specified the download will fail with error signal
         // WARNING: If sent bytes are more than specified the download will succed but it will be cutted
+        // WARNING: If sent bytes are a decimal number then it will generate an error 502 (Bad Gateway)
+        if (range.size % 1 !== 0) console.error('ERROR: Size is not integer');
         response.set('content-length', range.size);
         if (descriptor.contentType) {
           response.set(

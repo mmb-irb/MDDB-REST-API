@@ -1,5 +1,5 @@
 // This script is not in JavaScript, but in AssemblyScript
-// This code needs to be compiled when updated. Use "npm run build"
+// This code needs to be compiled when updated. Use "sudo npm run build"
 // This is used to conver binary data from the database to mdcrd format
 // The entry file of your WebAssembly module.
 

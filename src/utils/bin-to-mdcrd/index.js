@@ -32,7 +32,7 @@ module.exports = function(atomCount) {
   // Set an instance of non JavaScript code which is runned in a deeper (closer to the CPU) module
   // This assembly allows a faster calculation
   // The code for this functionallity is found at 'assembly/index.ts'
-  // It must be previously compiled with 'npm run build'
+  // It must be previously compiled with 'sudo npm run build'
   const wasmInstance = importWA('./build/optimized.wasm');
   // Set a transform, which is a kind of stream
   const transform = new Transform({
