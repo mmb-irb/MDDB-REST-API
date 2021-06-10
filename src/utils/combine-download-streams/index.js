@@ -128,7 +128,9 @@ const combine = async (outputStream, bucket, objectId, range) => {
     }
   }
   // finished looping through range parts, we can end the combined stream now
-  outputStream.emit('end');
+  // WARNING: Do not use outputStream.emit('end') here!!
+  // This could trigger the 'end' event before all data has been consumed by the next stream
+  outputStream.end();
 };
 
 const combineDownloadStreams = (bucket, objectId, range) => {

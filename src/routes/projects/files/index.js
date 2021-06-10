@@ -418,6 +418,9 @@ module.exports = (db, { projects }) => {
         // Write the input readable stream with the trajectroy data into the response
         // This is possible since the response is a writable stream itself
         stream.on('data', data => {
+          // If you are having this error it means some 'end' event is beeing triggered before data is consumed
+          if (response.finished)
+            return console.error('ERROR: Potential data loss');
           stream.pause();
           // Check that local buffer is sending data out before continue to prevent memory leaks
           response.write(data, () => {
