@@ -325,7 +325,7 @@ module.exports = (db, { projects }) => {
           let combined = new PassThrough();
           combined = titleStream.pipe(combined, { end: false });
           combined = transformStream.pipe(combined, { end: false });
-          transformStream.once('end', () => combined.emit('end'));
+          transformStream.once('end', () => combined.end());
           // Return the .bin to .mdcrd process stream
           stream = combined;
         } else {
