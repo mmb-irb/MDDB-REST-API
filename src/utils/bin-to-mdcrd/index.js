@@ -100,8 +100,13 @@ module.exports = function(atomCount) {
         outputOffset,
       );
 
+      // Make a copy of the offset buffer since it may change its content even after is has been pushed
+      // WARNING: Skipping this part may result in duplicated chunks for big data downloads
+      const safeOutputBuffer = Buffer.alloc(outputBuffer.length);
+      outputBuffer.copy(safeOutputBuffer);
+
       // Push data out, and see if we can continue or not
-      const canContinue = this.push(outputBuffer);
+      const canContinue = this.push(safeOutputBuffer);
       if (canContinue) {
         next();
       } else {
