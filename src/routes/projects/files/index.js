@@ -33,6 +33,8 @@ const {
   REQUEST_RANGE_NOT_SATISFIABLE,
 } = require('../../../utils/status-codes');
 
+var crypto = require('crypto');
+
 const MDCRD_TYPE = 'chemical/x-mdcrd';
 
 // Set the standard name of the structure and trajectory files
@@ -427,7 +429,7 @@ module.exports = (db, { projects }) => {
         // Write the input readable stream with the trajectroy data into the response
         // This is possible since the response is a writable stream itself
         stream.on('data', data => {
-          // If you are having this error it means some 'end' event is beeing triggered before data is consumed
+          // If you are having this error it means some 'end' event is beeing triggered before all data is consumed
           if (response.finished)
             return console.error('ERROR: Potential data loss');
           stream.pause();
