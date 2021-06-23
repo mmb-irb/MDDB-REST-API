@@ -36,16 +36,20 @@ module.exports = (_, { projects }) => {
           const metadata = retrieved.metadata;
           // Prepare the input interactions as only interaction names and selections
           const interactions = metadata.INTERACTIONS;
-          for (const interaction of interactions) {
-            delete interaction.residues_1;
-            delete interaction.residues_2;
-            delete interaction.interface_1;
-            delete interaction.interface_2;
+          if (interactions) {
+            for (const interaction of interactions) {
+              delete interaction.residues_1;
+              delete interaction.residues_2;
+              delete interaction.interface_1;
+              delete interaction.interface_2;
+            }
           }
           // Prepare the input toporefs as only toporefs names
           const toporefs = metadata.TOPOREFS;
-          for (const toporef of toporefs) {
-            delete toporef.map;
+          if (toporefs) {
+            for (const toporef of toporefs) {
+              delete toporef.map;
+            }
           }
           // Prepare the inputs json file to be sent
           if (metadata) {
