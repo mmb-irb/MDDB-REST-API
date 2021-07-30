@@ -60,7 +60,7 @@ module.exports = (_, { projects }) => {
               interactions: interactions,
               toporefs: toporefs,
               unit: metadata.UNIT,
-              pdbId: metadata.PDBID,
+              pdbIds: metadata.PDBIDS,
               name: metadata.NAME,
               description: metadata.DESCRIPTION,
               contact: metadata.CONTACT,
