@@ -55,6 +55,11 @@ const parseType = input => {
   return input;
 };
 
+// Escape all regex sensible characters
+const escapeRegExp = input => {
+  return input.replace(/[-[/\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+};
+
 (async () => {
   const client = await dbConnection; // Save the mongo database connection
   const db = client.db(process.env.DB_NAME); // Access the database
@@ -78,7 +83,7 @@ const parseType = input => {
         const search = request.query.search;
         if (search) {
           // trim() removes surrounding white spaces
-          const tsearch = search.trim();
+          const tsearch = escapeRegExp(search.trim());
           // $regex is a mongo command to search for regular expressions inside fields
           // $options: 'i' stands for the search to be case insensitive
           finder.$and = [
