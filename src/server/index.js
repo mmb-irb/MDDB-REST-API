@@ -63,40 +63,44 @@ const swaggerDoc = yaml.load(`${__dirname}/../docs/description.yml`);
 // Adapt the documentation to the current database name, prefix and url
 const swaggerInfo = swaggerDoc.info;
 swaggerInfo.title = swaggerInfo.title.replace(
-  'DATABASE',
+  '$DATABASE',
   process.env.DOCS_DB_NAME,
 );
 swaggerInfo.description = swaggerInfo.description.replace(
-  'DATABASE',
+  /\$DATABASE/g, // Use regexp instead of string in order to replace all matches
   process.env.DOCS_DB_NAME,
+);
+swaggerInfo.description = swaggerInfo.description.replace(
+  '$CLIENT_URL', // Use regexp instead of string in order to replace all matches
+  process.env.CLIENT_URL,
 );
 for (const path in swaggerDoc.paths) {
   swaggerDoc.paths[path].get.description = swaggerDoc.paths[
     path
-  ].get.description.replace('DATABASE', process.env.DOCS_DB_NAME);
+  ].get.description.replace('$DATABASE', process.env.DOCS_DB_NAME);
 }
 swaggerDoc.components.schemas.Project.properties.accession.example = swaggerDoc.components.schemas.Project.properties.accession.example.replace(
-  'PREFIX',
+  '$PREFIX',
   process.env.DOCS_DB_PREFIX,
 );
 swaggerDoc.definitions.constants.AccessionPattern = swaggerDoc.definitions.constants.AccessionPattern.replace(
-  'PREFIX',
+  '$PREFIX',
   process.env.DOCS_DB_PREFIX,
 );
 swaggerDoc.definitions.arguments.projectAccessionOrID.description = swaggerDoc.definitions.arguments.projectAccessionOrID.description.replace(
-  'PREFIX',
+  '$PREFIX',
   process.env.DOCS_DB_PREFIX,
 );
 swaggerDoc.definitions.arguments.projectAccessionOrID.schema.pattern = swaggerDoc.definitions.arguments.projectAccessionOrID.schema.pattern.replace(
-  'PREFIX',
+  '$PREFIX',
   process.env.DOCS_DB_PREFIX,
 );
 swaggerDoc.definitions.arguments.projectAccessionOrID.example = swaggerDoc.definitions.arguments.projectAccessionOrID.example.replace(
-  'PREFIX',
+  '$PREFIX',
   process.env.DOCS_DB_PREFIX,
 );
 swaggerDoc.servers[0].url = swaggerDoc.servers[0].url.replace(
-  'URL',
+  '$URL',
   process.env.DOCS_API_URL,
 );
 

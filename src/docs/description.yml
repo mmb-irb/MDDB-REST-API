@@ -1,11 +1,21 @@
 openapi: 3.0.2
 info:
-  title: DATABASE API
-  description: API to access DATABASE data and files.
+  title: $DATABASE API
+  description:  >
+    This is the $DATABASE REST API documentation.
+    This API grants programatic access to the $DATABASE database.
+    It may retirve trajectory data, analyses, files and metadata.
+    Below, API endpoints are listed and documented.
+    Click on any endpoint to drop more information such as the description and accepted parameters.
+    Use the 'try it out' button to test any endpoint at the moment.
+    <br />
+    <br />
+    This API is used by the
+    <a href="$CLIENT_URL" target="_blank" rel="noreferrer noopener">$DATABASE web client</a>.
   version: 1.0.0
 
 servers:
-  - url: '{protocol}:URL'
+  - url: '{protocol}:$URL'
     variables:
       protocol:
         enum:
@@ -23,8 +33,7 @@ paths:
     get:
       summary: Get a list of projects.
       description: >
-        Get a list of DATABASE projects (simulations and related data and
-        analyses).
+        Get a list of $DATABASE projects (simulations and related data and analyses).
       tags:
         - projects
       parameters:
@@ -68,7 +77,7 @@ paths:
     get:
       summary: Get a project by its accession or identifier.
       description: >
-        Get a DATABASE project (simulations and related data and analyses) by
+        Get a $DATABASE project (simulations and related data and analyses) by
         its accession or identifier.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
@@ -85,7 +94,7 @@ paths:
   /projects/{projectAccessionOrID}/files:
     get:
       summary: Get the files for a project.
-      description: Get the list of files for a specific DATABASE project.
+      description: Get the list of files for a specific $DATABASE project.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
@@ -232,7 +241,7 @@ paths:
     get:
       summary: Get a file for a project.
       description: >
-        Get a specific file for a specific DATABASE project by its name.
+        Get a specific file for a specific $DATABASE project by its name.
       produces:
         - application/octet-stream
         - chemical/x-pdb
@@ -258,8 +267,8 @@ paths:
 
   /projects/{projectAccessionOrID}/analyses:
     get:
-      summary: Get the analyses for a project.
-      description: Get the list of analyses for a specific DATABASE project.
+      summary: Get the list of available analyses in a specific project.
+      description: Get a list with available analyses in a specific $DATABASE project.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
@@ -275,7 +284,7 @@ paths:
     get:
       summary: Get an analysis for a project.
       description: >
-        Get a specific analysis for a specific DATABASE project by its name.
+        Get a specific analysis for a specific $DATABASE project by its name.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: analysisName
@@ -284,22 +293,48 @@ paths:
           required: true
           schema:
             type: string
-          example: rgyr
+            enum: [
+              'dist-perres',
+              'energies',
+              'fluctuation',
+              'hbonds',
+              'pca',
+              'pockets',
+              'rgyr',
+              'rmsd-pairwise',
+              'rmsd-perres',
+              'rmsds',
+              'sasa',
+              'tmscores']
       tags:
         - analyses
       responses:
         200:
-          description: an analysis object
+          description: an object containing analysis data
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Analysis'
+                oneOf:
+                  - $ref: '#/components/schemas/Distance per residue analysis'
+                  - $ref: '#/components/schemas/Energies analysis'
+                  - $ref: '#/components/schemas/Fluctuation analysis'
+                  - $ref: '#/components/schemas/Hydrogen bonds analysis'
+                  - $ref: '#/components/schemas/PCA analysis'
+                  - $ref: '#/components/schemas/Pockets analysis'
+                  - $ref: '#/components/schemas/Radius of gyration analysis'
+                  - $ref: '#/components/schemas/RMSD pairwise analysis'
+                  - $ref: '#/components/schemas/RMSD per residue analysis'
+                  - $ref: '#/components/schemas/RMSDs'
+                  - $ref: '#/components/schemas/Solvent accessible surface analysis'
+                  - $ref: '#/components/schemas/TM scores'
+                example: >
+                  No example is provided since each analysis is different. Look at the schemas
 
   /projects/{projectAccessionOrID}/chains:
     get:
       summary: Get the sequence chains for a project.
       description: >
-        Get the list of sequence chains for a specific DATABASE project.
+        Get the list of sequence chains for a specific $DATABASE project.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
@@ -315,7 +350,7 @@ paths:
     get:
       summary: Get a sequence chain for a project.
       description: >
-        Get a specific sequence chain for a specific DATABASE project by its
+        Get a specific sequence chain for a specific $DATABASE project by its
         name (case-sensitive). It might include sequence analyses run on
         external services (InterProScan and HMMer)
       parameters:
@@ -378,7 +413,7 @@ components:
           type: string
           pattern:
             $ref: '#/definitions/constants/AccessionPattern'
-          example: PREFIX00002
+          example: $PREFIX00002
         metadata:
           type: object
         pdbInfo:
@@ -409,6 +444,683 @@ components:
           oneOf:
             - type: object
             - type: array
+
+    'Distance per residue analysis':
+      type: object
+      description: >
+        The 'data' array has an object for each defined interaction containing distances per residue data.
+        Note that interactions are defined at the project metadata.
+        Distances are stored in the form of two matrices: one for the mean and one for the standard deviation
+        in the distance between each pair of residues for each residue in each interacting agent.
+        Matrix values are sorted according to interaction agent residues order.
+        Matrix values are organized as an array of arrays with numeric values.
+        Each array with numeric values contains the mean distance/distance standard deviation values between
+        each residue from the interaction agent 1 and one residue from the agent 2. Each array with numeric values
+        is represented as a row in the client matrix representation.
+        Note that the count of numeric values on each array must match the number of resiudes in agent 1 and
+        the count of arrays must match the number of residues in agent 2.
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            description: >
+              Each interaction includes the interaction name, the mean distance matrix and the distance standard
+              deviation matrix.
+            properties:
+              name:
+                type: string
+                description: The interaction name
+              means:
+                type: array
+                description: Array of arrays which is actually a matrix with mean distance values
+                items:
+                  type: array
+                  items:
+                    type: float
+              stdvs:
+                type: array
+                description: Array of arrays which is actually a matrix with distance standard deviation values
+                items:
+                  type: array
+                  items:
+                    type: float
+            required:
+              - name
+              - means
+              - stdvs
+
+    'Energies analysis':
+      type: object
+      description: >
+        The 'data' array contains an object with data for each defined interaction.
+        Note that interactions are defined at the project metadata.
+        Each interaction contains the interaction name and two more objects containing
+        data for the interaction agents 1 and 2.
+        Each agent includes the labels its residues (redundant*) and energies data for
+        each residue. Energies data includes electrostatic, Van der Waals and the sum of both energies.
+        In addition, there are three datasets for each of the previous three energies: overall energy,
+        initial energy and final energy.
+        e.g. Electrostatic: es (overall), ies (initial) and fes (final).
+        * Labels are redundant since they are also in project metadata. This field may be removed in the future.
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            description: >
+              Each interaction contains the interaction name and both interacting agents data.
+            required:
+              - name
+              - agent1
+              - agent2
+            properties:
+              name:
+                type: string
+                description: The interaction name
+              agent1:
+                type: object
+                description: Energies data for interacting agent 1
+                required:
+                  - labels
+                  - es
+                  - ies
+                  - fes
+                  - vdw
+                  - ivdw
+                  - fvdw
+                  - both
+                  - iboth
+                  - fboth
+                properties:
+                  labels:
+                    type: array
+                    items:
+                      type: string
+                  es:
+                    type: array
+                    items:
+                      type: float
+                  ies:
+                    type: array
+                    items:
+                      type: float
+                  fes:
+                    type: array
+                    items:
+                      type: float
+                  vdw:
+                    type: array
+                    items:
+                      type: float
+                  ivdw:
+                    type: array
+                    items:
+                      type: float
+                  fvdw:
+                    type: array
+                    items:
+                      type: float
+                  both:
+                    type: array
+                    items:
+                      type: float
+                  iboth:
+                    type: array
+                    items:
+                      type: float
+                  fboth:
+                    type: array
+                    items:
+                      type: float
+              agent2:
+                type: object
+                description: Energies data for interacting agent 2
+                required:
+                  - labels
+                  - es
+                  - ies
+                  - fes
+                  - vdw
+                  - ivdw
+                  - fvdw
+                  - both
+                  - iboth
+                  - fboth
+                properties:
+                  labels:
+                    type: array
+                    items:
+                      type: string
+                  es:
+                    type: array
+                    items:
+                      type: float
+                  ies:
+                    type: array
+                    items:
+                      type: float
+                  fes:
+                    type: array
+                    items:
+                      type: float
+                  vdw:
+                    type: array
+                    items:
+                      type: float
+                  ivdw:
+                    type: array
+                    items:
+                      type: float
+                  fvdw:
+                    type: array
+                    items:
+                      type: float
+                  both:
+                    type: array
+                    items:
+                      type: float
+                  iboth:
+                    type: array
+                    items:
+                      type: float
+                  fboth:
+                    type: array
+                    items:
+                      type: float
+
+    'Fluctuation analysis':
+      type: object
+      description: >
+        The start (deprecated*) and step values stand for trajectory frames. Fluctuation values are found inside
+        y.rmsf where the mean, standard deviation, maximum, minimum and a list with each atom fluctuation value.
+        * The starting frame is deprecated since it is not used by the client anymore. The start frame in all
+        "framed" analyses is always the trajectory first frame.
+      required:
+        - start
+        - step
+        - y
+      properties:
+        start:
+          type: int
+          description: The starting frame
+        step:
+          type: int
+          description: The frame step
+        y:
+          type: object
+          required:
+            -rmsf
+          properties:
+            rmsf:
+              type: object
+              description: Fluctuation data
+              required:
+                - average
+                - stddev
+                - min
+                - max
+                - data
+              properties:
+                average:
+                  type: float
+                  description: Average for all atom fluctuations
+                stddev:
+                  type: float
+                  description: Standard deviation for all atom fluctuations
+                min:
+                  type: float
+                  description: Minimum value in all atom fluctuations
+                max:
+                  type: float
+                  description: Maximum value in all atom fluctuations
+                data:
+                  type: array
+                  description: Atom fluctuation values
+                  items:
+                    type: float
+
+    'Hydrogen bonds analysis':
+      type: object
+      description: >
+        The 'data' array contains an object with all hydrogen bonds for each defined interaction.
+        Note that interactions are defined at the project metadata.
+        Each hydrogen bond is defined by one acceptor, one donor and one hydrogen atoms.
+        In addition, an array of true/false stores whenever the hydrogen bond is formed or not
+        along different frames. Note that array fields in this object are coordinated, since
+        each index stands for the same hydrogen bond in all arrays.
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          description: Each object includes all hydrogen bonds found for an especific interaction interface
+          items:
+            type: object
+            description: >
+              Each interaction includes the interaction name, the list of acceptor, donor and hydrogen atom indices
+              for atoms participating on each hydrogen bond and an array with the bond status along different frames
+              for each hydrogen bond.
+            required:
+              - name
+              - acceptors
+              - donors
+              - hydrogens
+              - hbonds
+            properties:
+              name:
+                type: string
+                description: The interaction name
+              acceptors:
+                type: array
+                description: Indexes (from 0 to n-1) of acceptor atoms for each hydrogen bond
+                items:
+                  type: int
+              donors:
+                type: array
+                description: Indexes (from 0 to n-1) of donor atoms for each hydrogen bond
+                items:
+                  type: int
+              hydrogens:
+                type: array
+                description: Indexes (from 0 to n-1) of hydrogen atoms for each hydrogen bond
+                items:
+                  type: int
+              hbonds:
+                type: array
+                description: >
+                  Arrays of true/false storing whenever the bond is formed or not
+                  along different frames for each hydrogen bond
+                items:
+                  type: array
+                  items:
+                    type: boolean
+
+    'PCA analysis':
+      type: object
+      description: >
+        PCA analysis data includes all eigenvalues found during the analysis. Eigenvalues with an explained variance
+        greater than 1% also include the projection data with a value for each different frame.
+      required:
+        - step
+        - y
+      properties:
+        step:
+          type: int
+          description: The frame step
+        y:
+          type: array
+          description: Eigenvectors data
+          items:
+            type: object
+            properties:
+              eigenvalue:
+                type: float
+                description: Eigenvalue for current eigenvector
+              data:
+                type: array
+                description: Projection values for different frames (only for eigenvalues greater than 1)
+                items:
+                  type: float
+            required:
+              - eigenvalue
+
+    'Pockets analysis':
+      type: object
+      description: >
+        The 'data' array contains an object with data for each pocket. This data includes pocket name,
+        volume along different frames and atoms which conform the pocket itself.
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          description: Each object includes data for a specific pocket.
+          items:
+            type: object
+            description: >
+              Each pocket includes name, volume along different frames and atoms which conform the pocket itself.
+            required:
+              - name
+              - volumes
+              - atoms
+            properties:
+              name:
+                type: string
+                description: The interaction name
+              volumes:
+                type: array
+                description: Pocket volumes for different frames
+                items:
+                  type: float
+              atoms:
+                type: array
+                description: Indexes (from 0 to n-1) of atoms conforming the pocket
+                items:
+                  type: int
+
+    'Radius of gyration analysis':
+      type: object
+      description: >
+        The start (deprecated*) and step values stand for trajectory frames.
+        Radius of gyration data is found inside 'y'.
+        Radius of gyration is calculated for the three spatial dimensions (x,y,z) independently and all
+        together. Each set of values contains the mean, standard deviation, maximum, minimum and a list with
+        each different frame value.
+        * The starting frame is deprecated since it is not used by the client anymore. The start frame in all
+        "framed" analyses is always the trajectory first frame.
+      required:
+        - start
+        - step
+        - y
+      properties:
+        start:
+          type: int
+          description: The starting frame
+        step:
+          type: int
+          description: The frame step
+        y:
+          type: object
+          required:
+            - rgyr
+            - rgyrx
+            - rgyry
+            - rgyrz
+          properties:
+            rgyr:
+              type: object
+              description: Overall radius of gyration data
+              required:
+                - average
+                - stddev
+                - min
+                - max
+                - data
+              properties:
+                average:
+                  type: float
+                  description: Average for all frame values
+                stddev:
+                  type: float
+                  description: Standard deviation for all frame values
+                min:
+                  type: float
+                  description: Minimum value in all frame values
+                max:
+                  type: float
+                  description: Maximum value in all frame values
+                data:
+                  type: array
+                  description: Radius of gyration values for different frames
+                  items:
+                    type: float
+            rgyrx:
+              type: object
+              description: X dimensional radius of gyration data
+              required:
+                - average
+                - stddev
+                - min
+                - max
+                - data
+              properties:
+                average:
+                  type: float
+                  description: Average for all frame values
+                stddev:
+                  type: float
+                  description: Standard deviation for all frame values
+                min:
+                  type: float
+                  description: Minimum value in all frame values
+                max:
+                  type: float
+                  description: Maximum value in all frame values
+                data:
+                  type: array
+                  description: Radius of gyration values for different frames
+                  items:
+                    type: float
+            rgyry:
+              type: object
+              description: Y dimensional radius of gyration data
+              required:
+                - average
+                - stddev
+                - min
+                - max
+                - data
+              properties:
+                average:
+                  type: float
+                  description: Average for all frame values
+                stddev:
+                  type: float
+                  description: Standard deviation for all frame values
+                min:
+                  type: float
+                  description: Minimum value in all frame values
+                max:
+                  type: float
+                  description: Maximum value in all frame values
+                data:
+                  type: array
+                  description: Radius of gyration values for different frames
+                  items:
+                    type: float
+            rgyrz:
+              type: object
+              description: Z dimensional radius of gyration data
+              required:
+                - average
+                - stddev
+                - min
+                - max
+                - data
+              properties:
+                average:
+                  type: float
+                  description: Average for all frame values
+                stddev:
+                  type: float
+                  description: Standard deviation for all frame values
+                min:
+                  type: float
+                  description: Minimum value in all frame values
+                max:
+                  type: float
+                  description: Maximum value in all frame values
+                data:
+                  type: array
+                  description: Radius of gyration values for different frames
+                  items:
+                    type: float
+
+    'RMSD pairwise analysis':
+      type: object
+      description: >
+        The start (deprecated*) and step values stand for trajectory frames.
+        The 'data' array has an object for the overall structure and an additional object for each defined
+        interaction. Each object contains a name which is the interaction name or 'Overall' for the overall
+        structure. Note that interactions are defined at the project metadata.
+        RMSD values are stored in the form of a matrix where both rows and columns stand for different frames.
+        Matrix values are organized as an array of arrays with numeric values.
+        Each array with numeric values contains the RMSD values between each different frame and one specific frame.
+        * The starting frame is deprecated since it is not used by the client anymore. The start frame in all
+        "framed" analyses is always the trajectory first frame.
+      required:
+        - start
+        - step
+        - data
+      properties:
+        start:
+          type: int
+          description: The starting frame
+        step:
+          type: int
+          description: The frame step
+        data:
+          type: array
+          description: Each object includes distances per residue data for an especific interaction.
+          items:
+            type: object
+            description: >
+              Each interaction includes the interaction name, the mean distance matrix and the distance standard
+              deviation matrix.
+            properties:
+              name:
+                type: string
+                description: The overall structure or interaction name
+              rmsds:
+                type: array
+                description: Array of arrays which is actually a matrix with rmsd values
+                items:
+                  type: array
+                  items:
+                    type: float
+            required:
+              - name
+              - rmsds
+
+    'RMSD per residue analysis':
+      type: object
+      description: >
+        The 'data' array has an object for each analyzed residue. Each residue has its name and its RMSD
+        values for each different frame.
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          description: Each object is a different residue.
+          items:
+            type: object
+            description: Each residue includes its name and its RMSD values for each different frame
+            properties:
+              name:
+                type: string
+                description: The residue name (tag) including chain, number and possibly an icode
+              rmsds:
+                type: array
+                items:
+                  type: float
+            required:
+              - name
+              - rmsds
+
+    'RMSDs':
+      type: object
+      description: >
+        The start (deprecated*) and step values stand for trajectory frames.
+        The 'data' array has eight objects: each possible combination of the two possible references (first frame and average)
+        with the four possible atom selections (all protein atoms, heavy atoms, backbone and alpha carbons).
+        * The starting frame is deprecated since it is not used by the client anymore. The start frame in all
+        "framed" analyses is always the trajectory first frame.
+      required:
+        - start
+        - step
+        - data
+      properties:
+        start:
+          type: int
+          description: The starting frame
+        step:
+          type: int
+          description: The frame step
+        data:
+          type: array
+          items:
+            type: object
+            description: >
+              Each object includes the reference and the group it belongs to and the RMSD values for each different frame
+            properties:
+              reference:
+                type: string
+                description: The reference structure for this values (first frame or average)
+              group:
+                type: string
+                description: >
+                  The atom selection group for this values (all protein atoms, heavy atoms, backbone or alpha carbons)
+              values:
+                type: array
+                items:
+                  type: float
+            required:
+              - reference
+              - group
+              - values
+
+    'Solvent accessible surface analysis':
+      type: object
+      description: >
+        The 'data' array has an object for each analyzed residue. Each residue has its name and its SAS
+        values for each different frame.
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            description: Each residue includes its name and its SAS values for each different frame
+            properties:
+              name:
+                type: string
+                description: The residue name (tag) including chain, number and possibly an icode
+              saspf:
+                type: array
+                items:
+                  type: float
+            required:
+              - name
+              - saspf
+
+    'TM scores':
+      type: object
+      description: >
+        The start (deprecated*) and step values stand for trajectory frames.
+        The 'data' array has two objects: each of the two possible references (first frame and average).
+        Note that TM scores are calculated using only alpha carbon atoms.
+        * The starting frame is deprecated since it is not used by the client anymore. The start frame in all
+        "framed" analyses is always the trajectory first frame.
+      required:
+        - start
+        - step
+        - data
+      properties:
+        start:
+          type: int
+          description: The starting frame
+        step:
+          type: int
+          description: The frame step
+        data:
+          type: array
+          items:
+            type: object
+            description: >
+              Each object includes the reference and the group it belongs to and the TM score values for each different frame
+            properties:
+              reference:
+                type: string
+                description: The reference structure for this values (first frame or average)
+              group:
+                type: string
+                description: >
+                  The atom selection group for this values (always alpha carbons)
+              values:
+                type: array
+                items:
+                  type: float
+            required:
+              - reference
+              - group
+              - values
 
     AnalysisList:
       type: array
@@ -458,7 +1170,7 @@ components:
 definitions:
   constants:
     IDPattern: '^[a-fA-F\d]{24}$'
-    AccessionPattern: '^PREFIX[0-9]{5}$'
+    AccessionPattern: '^$PREFIX[0-9]{5}$'
   arguments:
     projectAccessionOrID:
       name: projectAccessionOrID
@@ -468,11 +1180,11 @@ definitions:
         A project will always have a unique identifier (even if unpublished and
         in the development version of the API).<br>
         When published, it will be assigned a never-changing unique
-        user-friendly accession starting with PREFIX.<br>
+        user-friendly accession starting with $PREFIX.<br>
         You can use either to access the corresponding data, even if the
         **accession is recommended**
       required: true
       schema:
         type: string
-        pattern: '^([a-fA-F\d]{24})|(PREFIX[0-9]{5})$'
-      example: PREFIX00002
+        pattern: '^([a-fA-F\d]{24})|($PREFIX[0-9]{5})$'
+      example: $PREFIX00002
