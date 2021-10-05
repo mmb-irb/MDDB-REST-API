@@ -427,24 +427,6 @@ components:
           items:
             $ref: '#/components/schemas/FileDescription'
 
-    Analysis:
-      type: object
-      required:
-        - name
-        - step
-        - y
-      properties:
-        name:
-          type: string
-          example: pca
-        step:
-          type: integer
-          example: 10
-        y:
-          oneOf:
-            - type: object
-            - type: array
-
     'Distance per residue analysis':
       type: object
       description: >
