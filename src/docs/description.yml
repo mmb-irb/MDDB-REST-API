@@ -3,8 +3,8 @@ info:
   title: $DATABASE API
   description:  >
     This is the $DATABASE REST API documentation.
-    This API grants programatic access to the $DATABASE database.
-    It may retirve trajectory data, analyses, files and metadata.
+    This API grants programmatic access to the $DATABASE database.
+    It may retrieve trajectory data, analyses, files and metadata.
     Below, API endpoints are listed and documented.
     Click on any endpoint to drop more information such as the description and accepted parameters.
     Use the 'try it out' button to test any endpoint at the moment.
