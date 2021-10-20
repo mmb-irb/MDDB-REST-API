@@ -14,7 +14,11 @@ const publishedFilter = require('../../utils/published-filter');
 // Adds the project associated ID from mongo db to the provided object
 const augmentFilterWithIDOrAccession = require('../../utils/augment-filter-with-id-or-accession');
 
-const { NO_CONTENT, NOT_FOUND } = require('../../utils/status-codes');
+const {
+  BAD_REQUEST,
+  NO_CONTENT,
+  NOT_FOUND,
+} = require('../../utils/status-codes');
 
 const projectRouter = Router();
 
@@ -25,16 +29,7 @@ const projectObjectCleaner = project => {
   // Add the project "_id" in a new attribute called "identifier"
   const output = omit(project, ['_id']);
   output.identifier = project._id;
-  // Add the attribute "pdbInfo". If the project has not a pdbInfo attribute then leave it empty
-  // If the project has a pdbInfo attribute then add all its attributes to the new pdbInfo
-  // Again, the "_id" attribute is first omited and then added as a new attribute called "identifier"
-  output.pdbInfo = {};
-  if (project.pdbInfo) {
-    output.pdbInfo = { ...omit(project.pdbInfo, ['_id']) };
-    output.pdbInfo.identifier = project.pdbInfo._id;
-  }
   // If the project has files then, in each file, remove the "_id", the "chunkSize" and the "uploadDate" attributes
-  output.files = [];
   if (project.files) {
     output.files = project.files.map(file =>
       omit(file, ['_id', 'chunkSize', 'uploadDate']),
@@ -53,6 +48,16 @@ const parseType = input => {
   if (+input) return +input;
   // Other strings
   return input;
+};
+
+// Try to parse JSON and return the bad request error in case it fails
+const parseJSON = string => {
+  try {
+    const parse = JSON.parse(string);
+    if (parse && typeof parse === 'object') return parse;
+  } catch (e) {
+    return false;
+  }
 };
 
 // Escape all regex sensible characters
@@ -113,7 +118,7 @@ const escapeRegExp = input => {
         // Look for a specified value in any database field
         let filter = request.query.filter;
         if (filter) {
-          // In case there is a single filter it would be a string, not an array, so transform it
+          // In case there is a single filter it would be a string, not an array, so adapt it
           if (typeof filter === 'string') filter = [filter];
           filter.forEach(f => {
             // The filters with '++' stand for 'OR'
@@ -158,6 +163,35 @@ const escapeRegExp = input => {
             }
           });
         }
+        // Handle when it is a mongo query itself
+        let query = request.query.query;
+        if (query) {
+          // In case there is a single query it would be a string, not an array, so adapt it
+          if (typeof query === 'string') query = [query];
+          for (const q of query) {
+            // Parse the string into a json object
+            const objectQuery = parseJSON(q);
+            if (!objectQuery) return { error: BAD_REQUEST };
+            // At this point the query object should correspond to a mongo query itself
+            if (!finder.$and) finder.$and = [];
+            finder.$and.push(objectQuery);
+          }
+        }
+        // Set the projection object for the mongo query
+        const projector = {};
+        // Handle when it is a mongo projection itself
+        let projection = request.query.projection;
+        if (projection) {
+          // In case there is a single query it would be a string, not an array, so adapt it
+          if (typeof projection === 'string') projection = [projection];
+          for (const p of projection) {
+            // Parse the string into a json object
+            const objectProjection = parseJSON(p);
+            if (!objectProjection) return { error: BAD_REQUEST };
+            // Append the specified projection to the projector object
+            Object.assign(projector, objectProjection);
+          }
+        }
         // The "score" refers to how similar is the result to the provided search terms (the string)
         // This is a standarized protocol in mongo to sort ".find" results according to their score
         // WARNING: It must be only used when a '$text' query command is passed
@@ -165,12 +199,13 @@ const escapeRegExp = input => {
         // DANI: Actualmente no se usa '$text' sino '$regex', de manera que esto no hace nada
         // DANI: Algun día podríamos necesitar usar '$text' así que mejor que esto se quede así
         const score = finder.$text ? { score: { $meta: 'textScore' } } : {};
+        if (finder.$text) projector.score = { $meta: 'textScore' };
         // Finally, perform the mongo query
         // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
         // e.g. cursor.toArray()
         let cursor = await model.projects
           .find(finder, score)
-          .project(score)
+          .project(projector)
           .sort(score);
         // If there are no results, we try it with the mongo internal ids
         // This only works with the full object id, not partial ids
@@ -200,7 +235,11 @@ const escapeRegExp = input => {
         return { projects, filteredCount, totalCount };
       },
       // If there is not filteredCount (the search was not sucessful), a NO_CONTENT status is sent in the header
-      headers(response, { filteredCount }) {
+      headers(response, { error, filteredCount }) {
+        if (error) {
+          response.status(error);
+          return;
+        }
         if (!filteredCount) response.status(NO_CONTENT);
       },
       // Else, the projects list and the two counts are sent in the body
