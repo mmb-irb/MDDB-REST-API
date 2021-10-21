@@ -17,8 +17,15 @@ module.exports = (_, { projects }) => {
         // Get all projects
         const cursor = await projects.find(
           publishedFilter,
-          // But return only the "metadata" attribute
-          { projection: { _id: false, metadata: true } },
+          // Discard the heaviest fields we do not need anyway
+          {
+            projection: {
+              id: false,
+              'metadata.pdbInfo': false,
+              'metadata.INTERACTIONS': false,
+              'metadata.CHARGES': false,
+            },
+          },
         );
         // Consume the cursor
         const data = await cursor.toArray();
