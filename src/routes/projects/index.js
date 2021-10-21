@@ -251,6 +251,9 @@ const escapeRegExp = input => {
     }),
   );
 
+  // Summary
+  projectRouter.use('/summary', require('./summary')(db, model));
+
   // When the request (URL) contains a project parameter
   // It is expected to be a project ID (e.g. .../projects/MCNS00001)
   projectRouter.route('/:project').get(

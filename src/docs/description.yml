@@ -73,6 +73,22 @@ paths:
                   totalCount:
                     type: integer
                     example: 250
+
+  /projects/summary:
+    get:
+      summary: Get summary from projects.
+      description: >
+        Get summary from the $DATABASE projects collection.
+      tags:
+        - projects
+      responses:
+        200:
+          description: an object with statistic values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectSummary'
+
   /projects/{projectAccessionOrID}:
     get:
       summary: Get a project by its accession or identifier.
@@ -426,6 +442,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FileDescription'
+
+    ProjectSummary:
+      type: object
+      required:
+        - projectsCount
+        - totalTime
+        - totalFrames
+        - totalFiles
+        - totalAnalyses
+        - unitPercents
+      properties:
+        projectsCount:
+          type: int
+        totalTime:
+          type: float
+        totalFrames:
+          type: int
+        totalFiles:
+          type: int
+        totalAnalyses:
+          type: int
+        unitPercents:
+          type: object
 
     'Distance per residue analysis':
       type: object
