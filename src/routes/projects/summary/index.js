@@ -70,21 +70,19 @@ module.exports = (_, { projects }) => {
             } else return acc;
           }, 0);
         summary['totalAnalyses'] = totalAnalyses;
-        // Get the percent of each 'unit' in all simulations
+        // Get the count of each 'unit' in all simulations
         const units = data.map(object => object.metadata.UNIT);
-        const unitPercents = {};
-        units.forEach(
-          unit => (unitPercents[unit] = (unitPercents[unit] || 0) + 1),
-        );
-        summary['unitPercents'] = unitPercents;
+        const unitCounts = {};
+        units.forEach(unit => (unitCounts[unit] = (unitCounts[unit] || 0) + 1));
+        summary['unitCounts'] = unitCounts;
         // Send all mined data
         return summary;
       },
-      // If there is nothing retrieved send a NOT_FOUND status in the header
+      // If there is nothing retrieved send a INTERNAL_SERVER_ERROR status in the header
       headers(response, retrieved) {
         if (!retrieved) response.sendStatus(INTERNAL_SERVER_ERROR);
       },
-      // If there is retrieved and the retrieved has metadata then send the inputs file
+      // If there is retrieved and the retrieved then send it
       body(response, retrieved) {
         if (!retrieved) response.end();
         response.json(retrieved);

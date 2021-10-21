@@ -83,7 +83,7 @@ paths:
         - projects
       responses:
         200:
-          description: an object with statistic values
+          description: an object with summary values
           content:
             application/json:
               schema:
