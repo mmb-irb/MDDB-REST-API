@@ -251,6 +251,9 @@ const escapeRegExp = input => {
     }),
   );
 
+  // Options
+  projectRouter.use('/options', require('./options')(db, model));
+
   // Summary
   projectRouter.use('/summary', require('./summary')(db, model));
 

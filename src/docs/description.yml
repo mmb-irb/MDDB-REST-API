@@ -48,7 +48,7 @@ paths:
           schema:
             type: integer
             default: 10
-            maximum: 50
+            maximum: 100
         - name: page
           in: query
           description: pagination, page number
@@ -73,6 +73,26 @@ paths:
                   totalCount:
                     type: integer
                     example: 250
+
+  /projects/options:
+    get:
+      summary: Get a list of projects field with the counts of each possible value for each field.
+      description: >
+        Get a list of projects field with the counts of each possible value for each field.
+      tags:
+        - projects
+      parameters:
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          schema:
+            type: string
+      responses:
+        200:
+          description: an object with options per field
+          content:
+            application/json:
+              type: object
 
   /projects/summary:
     get:
