@@ -39,16 +39,24 @@ module.exports = (_, { projects }) => {
         const options = {};
         // For each projected field, get the counts
         projection.forEach(field => {
-          const fieldSteps = field.split('.');
-          const getFieldValue = object => {
+          const values = [];
+          const getValues = (object, steps) => {
             let value = object;
-            for (const step of fieldSteps) {
+            for (const [index, step] of steps.entries()) {
               value = value[step];
               if (value === undefined) return;
+              // In case it is an array search for the remaining steps on each element
+              if (Array.isArray(value)) {
+                const remainingSteps = steps.slice(index + 1);
+                value.forEach(element => getValues(element, remainingSteps));
+                return;
+              }
             }
-            return value;
+            values.push(value);
           };
-          const values = data.map(object => getFieldValue(object));
+          const fieldSteps = field.split('.');
+          data.forEach(project => getValues(project, fieldSteps));
+          // Count how many times is repeated each value and save the number with the fieldname key
           const counts = {};
           values.forEach(v => (counts[v] = (counts[v] || 0) + 1));
           options[field] = counts;
