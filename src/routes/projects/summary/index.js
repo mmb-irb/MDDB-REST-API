@@ -70,11 +70,6 @@ module.exports = (_, { projects }) => {
             } else return acc;
           }, 0);
         summary['totalAnalyses'] = totalAnalyses;
-        // Get the count of each 'unit' in all simulations
-        const units = data.map(object => object.metadata.UNIT);
-        const unitCounts = {};
-        units.forEach(unit => (unitCounts[unit] = (unitCounts[unit] || 0) + 1));
-        summary['unitCounts'] = unitCounts;
         // Send all mined data
         return summary;
       },

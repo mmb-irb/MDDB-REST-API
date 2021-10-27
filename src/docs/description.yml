@@ -471,7 +471,6 @@ components:
         - totalFrames
         - totalFiles
         - totalAnalyses
-        - unitPercents
       properties:
         projectsCount:
           type: int
@@ -483,8 +482,6 @@ components:
           type: int
         totalAnalyses:
           type: int
-        unitPercents:
-          type: object
 
     'Distance per residue analysis':
       type: object
