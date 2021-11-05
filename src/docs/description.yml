@@ -42,6 +42,11 @@ paths:
           description: text search inside project names and important fields
           schema:
             type: string
+        - name: query
+          in: query
+          description: query object in mongoDB format
+          schema:
+            type: string
         - name: limit
           in: query
           description: pagination, maximum number of projects per query
