@@ -36,7 +36,7 @@ module.exports = (_, { projects }) => {
         summary['projectsCount'] = data.length;
         // Get the total simulation time
         const totalTime = data
-          .map(object => +object.metadata.LENGTH)
+          .map(object => object.metadata && +object.metadata.LENGTH)
           .reduce((acc, curr) => {
             if (curr) {
               return acc + curr;
@@ -45,7 +45,7 @@ module.exports = (_, { projects }) => {
         summary['totalTime'] = totalTime;
         // Get the total number of frames
         const totalFrames = data
-          .map(object => +object.metadata.SNAPSHOTS)
+          .map(object => object.metadata && +object.metadata.SNAPSHOTS)
           .reduce((acc, curr) => {
             if (curr) {
               return acc + curr;
