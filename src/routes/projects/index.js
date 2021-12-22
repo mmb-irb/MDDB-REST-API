@@ -221,7 +221,9 @@ const escapeRegExp = input => {
           // If the request (URL) contains a limit query (i.e. ...?limit=x)
           request.query.limit
             ? cursor
-                .sort({ accession: 1 }) // We sort again. This time alphabetically by accession (*previous sort may be redundant)
+                // WARNING: Sorting by _id in second place is crucial for projects without accession, no never remove it
+                // WARNING: Otherwise the sort may be totally inconsistent, which is very dangerous in combination with the 'skip'
+                .sort({ accession: 1, _id: 1 }) // We sort again. This time alphabetically by accession (*previous sort may be redundant)
                 .skip(request.skip) // Avoid the first results when a page is provided in the request (URL)
                 .limit(request.query.limit) // Avoid the last results when a limit is provided in the request query (URL)
                 .map(projectObjectCleaner) // Each project is cleaned (some attributes are renamed or removed)
