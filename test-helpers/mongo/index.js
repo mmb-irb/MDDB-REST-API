@@ -48,6 +48,7 @@ const establishFakeConnection = async () => {
     const toporefs = await db.createCollection('toporefs');
     await toporefs.insertOne(toporef1);
     await toporefs.insertOne(toporef2);
+    await db.createCollection('topologies');
     return client;
   } catch (error) {
     console.error('fake mongodb connection error');

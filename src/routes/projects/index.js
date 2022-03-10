@@ -74,6 +74,7 @@ const escapeRegExp = input => {
     analyses: db.collection('analyses'),
     chains: db.collection('chains'),
     toporefs: db.collection('toporefs'),
+    topologies: db.collection('topologies'),
   };
 
   // Root
@@ -296,6 +297,8 @@ const escapeRegExp = input => {
   projectRouter.use('/:project/toporefs', require('./toporefs')(db, model));
   // Inputs
   projectRouter.use('/:project/inputs', require('./inputs')(db, model));
+  // Topology
+  projectRouter.use('/:project/topology', require('./topology')(db, model));
 })();
 
 module.exports = projectRouter;
