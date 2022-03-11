@@ -1,24 +1,48 @@
 const Router = require('express').Router;
 
+// Funtion to conver string ids to mongo object ids
 const { ObjectId } = require('mongodb');
+// Set a function to ckeck if a string is a mongo id
+// WARNING: Do not use the builtin 'ObjectId.isValid'
+// WARNING: It returns true with whatever string 12 characters long
+const isObjectId = string => /[a-z0-9]{24}/.test(string);
 
+// Function to remove keys from objects
 const omit = require('lodash').omit;
 
 const handler = require('../../../utils/generic-handler');
 
 const { NOT_FOUND } = require('../../../utils/status-codes');
+// Mongo DB filter that only returns published results when the environment is set as "production"
+const publishedFilter = require('../../../utils/published-filter');
+// Adds the project associated ID from mongo db to the provided object
+const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
 
 const topologyRouter = Router({ mergeParams: true });
 
 // This endpoint returns some summary of data contained in the projects collection
-module.exports = (_, { topologies }) => {
+module.exports = (_, { projects, topologies }) => {
   // Root
   topologyRouter.route('/').get(
     handler({
       async retriever(request) {
+        // If the project id is a mongo id then we can directly ask for the topology
+        // If the project id is an accession we must find the project first in order to know the internal mongo id
+        let projectId = request.params.project;
+        if (!isObjectId(projectId)) {
+          // Find the project which matches the request accession
+          const projectDoc = await projects.findOne(
+            augmentFilterWithIDOrAccession(publishedFilter, projectId),
+            // And get the "_id" attribute
+            { projection: { _id: true } },
+          );
+          // If there is no project we return here
+          if (!projectDoc) return;
+          projectId = projectDoc._id;
+        }
         // Return the project which matches the request accession
         const topology = await topologies.findOne({
-          project: ObjectId(request.params.project),
+          project: ObjectId(projectId),
         });
         // If no topology was found then return here
         if (!topology) return;
