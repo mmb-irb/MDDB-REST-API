@@ -33,7 +33,8 @@ const {
   REQUEST_RANGE_NOT_SATISFIABLE,
 } = require('../../../utils/status-codes');
 
-var crypto = require('crypto');
+// Esto no sirve para nada aparentemente
+//var crypto = require('crypto');
 
 const MDCRD_TYPE = 'chemical/x-mdcrd';
 

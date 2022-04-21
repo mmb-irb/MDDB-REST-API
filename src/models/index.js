@@ -8,7 +8,7 @@ const establishConnection = async () => {
       `mongodb://${process.env.DB_SERVER}:${process.env.DB_PORT}`,
       {
         auth: {
-          user: process.env.DB_AUTH_USER,
+          username: process.env.DB_AUTH_USER,
           password: process.env.DB_AUTH_PASSWORD,
         },
         authSource: process.env.DB_AUTHSOURCE,

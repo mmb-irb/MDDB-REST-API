@@ -193,21 +193,25 @@ const escapeRegExp = input => {
             Object.assign(projector, objectProjection);
           }
         }
+        // Set option to be passed
+        const options = {};
         // The "score" refers to how similar is the result to the provided search terms (the string)
         // This is a standarized protocol in mongo to sort ".find" results according to their score
         // WARNING: It must be only used when a '$text' query command is passed
         // WARNING: Otherwise it will make the query fail for mongo version >= 4.4
         // DANI: Actualmente no se usa '$text' sino '$regex', de manera que esto no hace nada
         // DANI: Algun día podríamos necesitar usar '$text' así que mejor que esto se quede así
-        const score = finder.$text ? { score: { $meta: 'textScore' } } : {};
-        if (finder.$text) projector.score = { $meta: 'textScore' };
+        if (finder.$text) {
+          options.score = { $meta: 'textScore' };
+          projector.score = { $meta: 'textScore' };
+        }
         // Finally, perform the mongo query
         // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
         // e.g. cursor.toArray()
         let cursor = await model.projects
-          .find(finder, score)
+          .find(finder, options)
           .project(projector)
-          .sort(score);
+          .sort(options);
         // If there are no results, we try it with the mongo internal ids
         // This only works with the full object id, not partial ids
         if ((await cursor.count()) === 0 && /[a-z0-9]{24}/.test(search)) {
@@ -217,25 +221,40 @@ const escapeRegExp = input => {
         // If we still having no results, return here
         if (cursor.count() === 0) return;
 
+        // Get the limit of projects to be returned according to the query
+        // If the query has no limit it is set to 10 by default
+        // If the query limit is grater than 100 it is set to 100
+        // This is defined in the src/server/index.js script
+        // If the limit is negative (which makes not sense) it is set to 0
+        let limit = request.query.limit;
+
         // 3 variables are declared at the same time
-        const [projects, filteredCount, totalCount] = await Promise.all([
+        const [projects, filteredCount] = await Promise.all([
           // If the request (URL) contains a limit query (i.e. ...?limit=x)
-          request.query.limit
+          limit
             ? cursor
                 // WARNING: Sorting by _id in second place is crucial for projects without accession, no never remove it
                 // WARNING: Otherwise the sort may be totally inconsistent, which is very dangerous in combination with the 'skip'
-                .sort({ accession: 1, _id: 1 }) // We sort again. This time alphabetically by accession (*previous sort may be redundant)
-                .skip(request.skip) // Avoid the first results when a page is provided in the request (URL)
-                .limit(request.query.limit) // Avoid the last results when a limit is provided in the request query (URL)
-                .map(projectObjectCleaner) // Each project is cleaned (some attributes are renamed or removed)
-                .toArray() // Changes the type from Cursor into Array, then saving data in memory
+                // We sort again. This time alphabetically by accession (*previous sort may be redundant)
+                .sort({ accession: 1, _id: 1 })
+                // Allow mongo to create temporally local files to handle the sort operation when reaching its 100Mb memory limit
+                .allowDiskUse()
+                // Avoid the first results when a page is provided in the request (URL)
+                .skip(request.skip)
+                // Avoid the last results when a limit is provided in the request query (URL)
+                .limit(limit)
+                // Each project is cleaned (some attributes are renamed or removed)
+                .map(projectObjectCleaner)
+                // Changes the type from Cursor into Array, then saving data in memory
+                .toArray()
             : [],
           // filteredCount
           cursor.count(),
           // totalCount
-          model.projects.find(publishedFilter).count(),
+          // DANI: Esto he decidido quiatlo ya que en principio no se usa
+          //model.projects.find(publishedFilter).count(),
         ]);
-        return { projects, filteredCount, totalCount };
+        return { projects, filteredCount };
       },
       // If there is not filteredCount (the search was not sucessful), a NO_CONTENT status is sent in the header
       headers(response, { error, filteredCount }) {

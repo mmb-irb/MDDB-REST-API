@@ -32,10 +32,10 @@ const establishFakeConnection = async () => {
   let client;
   try {
     // Create the server with a stablished port and dbname, so the connection string is always the same
-    const mongod = new MongoMemoryServer({
+    const mongod = await MongoMemoryServer.create({
       instance: { port: 38279, dbName: 'f97aa129-34f0-441b-bbe3-7d9e3750bea0' },
     });
-    const connectionString = await mongod.getConnectionString();
+    const connectionString = await mongod.getUri();
     client = await mongodb.MongoClient.connect(connectionString, {
       useUnifiedTopology: true,
     });
