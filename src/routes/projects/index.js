@@ -229,7 +229,14 @@ const escapeRegExp = input => {
         let limit = request.query.limit;
 
         // 3 variables are declared at the same time
-        const [projects, filteredCount] = await Promise.all([
+        const [filteredCount, projects] = await Promise.all([
+          // filteredCount
+          // WARNING: We must count before the limit or the count will be affected
+          // WARNING: This was not like this in mongodb 3.3, but it changed when updated to mongodb 4.5
+          cursor.count(),
+          // totalCount
+          // DANI: Esto he decidido quiatlo ya que en principio no se usa
+          //model.projects.find(publishedFilter).count(),
           // If the request (URL) contains a limit query (i.e. ...?limit=x)
           limit
             ? cursor
@@ -248,13 +255,8 @@ const escapeRegExp = input => {
                 // Changes the type from Cursor into Array, then saving data in memory
                 .toArray()
             : [],
-          // filteredCount
-          cursor.count(),
-          // totalCount
-          // DANI: Esto he decidido quiatlo ya que en principio no se usa
-          //model.projects.find(publishedFilter).count(),
         ]);
-        return { projects, filteredCount };
+        return { filteredCount, projects };
       },
       // If there is not filteredCount (the search was not sucessful), a NO_CONTENT status is sent in the header
       headers(response, { error, filteredCount }) {
