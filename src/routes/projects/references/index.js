@@ -8,11 +8,11 @@ const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-wi
 
 const { NOT_FOUND } = require('../../../utils/status-codes');
 
-const toporefRouter = Router({ mergeParams: true });
+const referenceRouter = Router({ mergeParams: true });
 
 module.exports = (_, { projects, references }) => {
   // Root
-  toporefRouter.route('/').get(
+  referenceRouter.route('/').get(
     handler({
       async retriever(request) {
         // Return the project which matches the request accession
@@ -30,9 +30,9 @@ module.exports = (_, { projects, references }) => {
         const projectReferences = projectDoc.metadata.REFERENCES;
         // If there are no references then send an empty list
         if (!projectReferences || projectReferences.length == 0) return [];
-        // Set up the db query with all toporef names
-        const queries = projectReferences.map(toporef => {
-          return { name: toporef.name };
+        // Set up the db query with all reference names
+        const queries = projectReferences.map(reference => {
+          return { name: reference };
         });
         // Otherwise, find the corresponding references in the database and send their data
         const cursor = await references.find(
@@ -57,5 +57,5 @@ module.exports = (_, { projects, references }) => {
     }),
   );
 
-  return toporefRouter;
+  return referenceRouter;
 };
