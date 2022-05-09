@@ -44,13 +44,6 @@ module.exports = (_, { projects }) => {
               delete interaction.interface_2;
             }
           }
-          // Prepare the input toporefs as only toporefs names
-          const toporefs = metadata.TOPOREFS;
-          if (toporefs) {
-            for (const toporef of toporefs) {
-              delete toporef.map;
-            }
-          }
           // Prepare the inputs json file to be sent
           if (metadata) {
             const inputs = {
@@ -58,7 +51,7 @@ module.exports = (_, { projects }) => {
               ligands: metadata.LIGANDS,
               domains: metadata.DOMAINS,
               interactions: interactions,
-              toporefs: toporefs,
+              references: metadata.REFERENCES,
               unit: metadata.UNIT,
               pdbIds: metadata.PDBIDS,
               name: metadata.NAME,

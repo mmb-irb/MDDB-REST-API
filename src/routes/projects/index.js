@@ -73,7 +73,7 @@ const escapeRegExp = input => {
     projects: db.collection('projects'),
     analyses: db.collection('analyses'),
     chains: db.collection('chains'),
-    toporefs: db.collection('toporefs'),
+    references: db.collection('references'),
     topologies: db.collection('topologies'),
   };
 
@@ -314,8 +314,8 @@ const escapeRegExp = input => {
   projectRouter.use('/:project/chains', require('./chains')(db, model));
   // Analyses
   projectRouter.use('/:project/analyses', require('./analyses')(db, model));
-  // Toporefs
-  projectRouter.use('/:project/toporefs', require('./toporefs')(db, model));
+  // References
+  projectRouter.use('/:project/references', require('./references')(db, model));
   // Inputs
   projectRouter.use('/:project/inputs', require('./inputs')(db, model));
   // Topology

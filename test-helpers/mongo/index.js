@@ -11,19 +11,19 @@ const project1 = {
     NAME: 'prueba 1',
     UNIT: 'A',
     ATOMS: 123,
-    TOPOREFS: [{ name: 'Spike' }, { name: 'ACE2' }],
+    REFERENCES: ['SARS-CoV-2 spike', 'Angiotensin-converting enzyme 2'],
   },
 };
 
 const project2 = require('./project.json');
 
-const toporef1 = {
-  name: 'Spike',
+const reference1 = {
+  name: 'SARS-CoV-2 spike',
   sequence: 'ABCDEFG',
 };
 
-const toporef2 = {
-  name: 'ACE2',
+const reference2 = {
+  name: 'Angiotensin-converting enzyme 2',
   sequence: 'WTFRUTA',
 };
 
@@ -45,9 +45,9 @@ const establishFakeConnection = async () => {
     const projects = await db.createCollection('projects');
     await projects.insertOne(project1);
     await projects.insertOne(project2);
-    const toporefs = await db.createCollection('toporefs');
-    await toporefs.insertOne(toporef1);
-    await toporefs.insertOne(toporef2);
+    const references = await db.createCollection('references');
+    await references.insertOne(reference1);
+    await references.insertOne(reference2);
     await db.createCollection('topologies');
     return client;
   } catch (error) {

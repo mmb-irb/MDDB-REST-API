@@ -10,7 +10,7 @@ const { NOT_FOUND } = require('../../../utils/status-codes');
 
 const toporefRouter = Router({ mergeParams: true });
 
-module.exports = (_, { projects, toporefs }) => {
+module.exports = (_, { projects, references }) => {
   // Root
   toporefRouter.route('/').get(
     handler({
@@ -22,28 +22,28 @@ module.exports = (_, { projects, toporefs }) => {
             request.params.project,
           ),
           // But return only the "analyses" attribute
-          { projection: { _id: false, 'metadata.TOPOREFS': true } },
+          { projection: { _id: false, 'metadata.REFERENCES': true } },
         );
         // If there is nothing retrieved or the retrieved has no metadata then stop here
         if (!(projectDoc && projectDoc.metadata)) return;
-        // Get the project toporefs
-        const projectToporefs = projectDoc.metadata.TOPOREFS;
-        // If there are no toporefs then send an empty list
-        if (!projectToporefs || projectToporefs.length == 0) return [];
+        // Get the project references
+        const projectReferences = projectDoc.metadata.REFERENCES;
+        // If there are no references then send an empty list
+        if (!projectReferences || projectReferences.length == 0) return [];
         // Set up the db query with all toporef names
-        const queries = projectToporefs.map(toporef => {
+        const queries = projectReferences.map(toporef => {
           return { name: toporef.name };
         });
-        // Otherwise, find the corresponding toporefs in the database and send their data
-        const cursor = await toporefs.find(
+        // Otherwise, find the corresponding references in the database and send their data
+        const cursor = await references.find(
           {
             $or: queries,
           },
           // But do not return the _id
           { projection: { _id: false } },
         );
-        const toporefsData = await cursor.toArray();
-        return toporefsData;
+        const referencesData = await cursor.toArray();
+        return referencesData;
       },
       headers(response, retrieved) {
         // If there is nothing retrieved then send a 'NOT_FOUND' header
