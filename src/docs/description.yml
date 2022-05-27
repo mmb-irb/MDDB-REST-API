@@ -39,7 +39,23 @@ paths:
       parameters:
         - name: search
           in: query
-          description: text search inside project names and important fields
+          description: Text search inside project names, descriptions, authors and group names.
+          schema:
+            type: string
+        - name: query
+          in: query
+          description: >
+            A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
+            Note that this is an alternative to the 'search' parameter
+            which is more flexible but also more difficult to use if you have not experiencie with Mongo.
+          schema:
+            type: string
+        - name: projection
+          in: query
+          description: >
+            A projection stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
+            It is useful to reduce the amount of data in the response and thus the internet traffic.
+            Note that this parameter is difficult to use if you have not experiencie with Mongo.
           schema:
             type: string
         - name: limit
@@ -126,6 +142,131 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
+
+  /projects/{projectAccessionOrID}/topology:
+    get:
+      summary: Get the simulation topology.
+      description: Get a json object containing data related to atom, residue and chains (e.g. atom names, residue numbers).
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+      tags:
+        - topology
+      responses:
+        200:
+          description: JSON formatted topology
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  atom_names:
+                    type: array
+                    description: A list containing the name of every atom in the topology
+                    items:
+                      type: string
+                      example:
+                        - 'N'
+                        - 'HN'
+                        - 'CA'
+                  atom_elements:
+                    type: array
+                    description: A list containing the element of every atom in the topology
+                    items:
+                      type: string
+                      example:
+                        - 'N'
+                        - 'H'
+                        - 'C'
+                  atom_charges:
+                    type: array
+                    description: A list containing the charge of every atom in the topology
+                    items:
+                      type: float
+                      example:
+                        - 0.09
+                        - 0.51
+                        - -0.51
+                  atom_residue_indices:
+                    type: array
+                    description: A list containing the residue index of every atom in the topology
+                    items:
+                      type: int
+                      example:
+                        - 0
+                        - 0
+                        - 1
+                  residue_names:
+                    type: array
+                    description: A list containing the name of every residue in the topology
+                    items:
+                      type: string
+                      example:
+                        - 'SER'
+                        - 'THR'
+                        - 'ARG'
+                  residue_numbers:
+                    type: array
+                    description: A list containing the number of every residue in the topology
+                    items:
+                      type: int
+                      example:
+                        - 17
+                        - 18
+                        - 345
+                  residue_icodes:
+                    type: object
+                    description: >
+                      An object containing the residue icodes in the topology.
+                      Keys are residue indices and values are icodes.
+                      It is null when there are no icodes at all.
+                    example: { '0' : 'A', '17': 'B' }
+                  residue_chain_indices:
+                    type: array
+                    description: A list containing the chain index of every residue in the topology
+                    items:
+                      type: int
+                      example:
+                        - 0
+                        - 0
+                        - 1
+                  chain_names:
+                    type: array
+                    description: A list containing the name of every chain in the topology
+                    items:
+                      type: string
+                      example:
+                        - 'A'
+                        - 'B'
+                        - 'X'
+                  chain_names:
+                    type: array
+                    description: >
+                      A list containing the reference names of every residue sequence reference used.
+                      References are used to numerate residues in the topology according to the standards.
+                    items:
+                      type: string
+                      example:
+                        - "SARS-CoV-2 spike"
+                        - "Angiotensin-converting enzyme 2"
+                  residue_reference_indices:
+                    type: array
+                    description: A list containing the reference index of every residue in the topology
+                    items:
+                      type: int
+                      example:
+                        - 0
+                        - 0
+                        - 1
+                  residue_reference_numbers:
+                    type: array
+                    description: A list containing the reference number of every residue in the topology
+                    items:
+                      type: int
+                      example:
+                        - 17
+                        - 18
+                        - 345
+                  
 
   /projects/{projectAccessionOrID}/files:
     get:
@@ -483,6 +624,60 @@ components:
         totalAnalyses:
           type: int
 
+    'Interactions':
+      type: array
+      description: >
+        This array has an object for each defined interaction containing residue indices for the interacting residues.
+        Note that interactions are defined at the project metadata.
+        Each interaction is defined by a name and two different agents: agent 1 and agent 2.
+        Each agent is defined by its name, residue indices and interface residue indices.
+        In addition, the interaction includes a list of atom indices for atoms covalently bonded between both agents.
+      items:
+        type: object
+        description: The interaction object
+        properties:
+          name:
+            type: string
+            description: The interaction name
+            exemple: Protein-ligand interaction
+          agent_1:
+            type: string
+            description: The agent 1 name
+            exemple: Protein
+          agent_2:
+            type: string
+            description: The agent 2 name
+            exemple: Ligand
+          strong_bonds:
+            type: array
+            description: Pairs of atom indices for pairs of atoms covalently bonded between both agents
+            items:
+              type: array
+              items:
+                type: int
+                minItems: 2
+                maxItems: 2
+          residue_indices_1:
+            type: array
+            description: Residue indices for all residues in agent 1
+            items:
+                type: int
+          residue_indices_2:
+            type: array
+            description: Residue indices for all residues in agent 2
+            items:
+                type: int
+          interface_indices_1:
+            type: array
+            description: Residue indices for interface residues in agent 1
+            items:
+                type: int
+          interface_indices_2:
+            type: array
+            description: Residue indices for interface residues in agent 1
+            items:
+                type: int
+
     'Distance per residue analysis':
       type: object
       description: >
@@ -781,31 +976,36 @@ components:
     'PCA analysis':
       type: object
       description: >
-        PCA analysis data includes all eigenvalues found during the analysis. Eigenvalues with an explained variance
-        greater than 1% also include the projection data with a value for each different frame.
+        The 'data' array contains all eigenvalues found during the analysis, projection data for
+        principal components with an explained variance greater than 1% and the atom indices of
+        atoms which where used for the analysis. Note that both eigenvalues and projections are sorted.
+        It also includes the framestep of the reduced trajectory which was used for the analysis.
       required:
-        - step
-        - y
+        - framestep
+        - atoms
+        - eigenvalues
+        - projections
       properties:
-        step:
+        framestep:
           type: int
           description: The frame step
-        y:
+        atoms:
           type: array
-          description: Eigenvectors data
+          description: Atom indices for atoms used for the analysis
           items:
-            type: object
-            properties:
-              eigenvalue:
-                type: float
-                description: Eigenvalue for current eigenvector
-              data:
-                type: array
-                description: Projection values for different frames (only for eigenvalues greater than 1)
-                items:
-                  type: float
-            required:
-              - eigenvalue
+            type: int
+        eigenvalues:
+          type: array
+          description: Eigenvalues for each principal component in the analysis
+          items:
+            type: float
+        projections:
+          type: array
+          description: Projection data for principal components with an explained variance greater than 1%
+          items:
+            type: array
+            items:
+              type: float
 
     'Pockets analysis':
       type: object
