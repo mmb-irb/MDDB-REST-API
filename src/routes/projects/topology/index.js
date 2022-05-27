@@ -41,9 +41,10 @@ module.exports = (_, { projects, topologies }) => {
           projectId = projectDoc._id;
         }
         // Return the project which matches the request accession
-        const topology = await topologies.findOne({
-          project: ObjectId(projectId),
-        });
+        const topology = await topologies.findOne(
+          { project: ObjectId(projectId) },
+          { projection: { _id: false, project: false } },
+        );
         // If no topology was found then return here
         if (!topology) return;
         const output = omit(topology, ['_id']);
