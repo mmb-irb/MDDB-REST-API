@@ -101,6 +101,13 @@ paths:
         - name: projection
           in: query
           description: name of the field to be checked for options
+          examples:
+            unit:
+              summary: simulation families
+              value: 'metadata.UNIT'
+            method:
+              summary: simulation methods
+              value: 'metadata.METHOD'
           schema:
             type: string
       responses:
@@ -357,7 +364,7 @@ paths:
             type: string
           description: >
             Specify a frame range for the returned trajectory.<br>
-            The user can requested only specific frames instead of the whole file.<br>
+            The user can request only specific frames instead of the whole file.<br>
             Ranges are defined by dashes, and multiple ranges can be defined
             separated by commas. It can also be defined as the start:end:step
             format.<br>
