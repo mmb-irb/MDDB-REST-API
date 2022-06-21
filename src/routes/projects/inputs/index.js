@@ -68,7 +68,6 @@ module.exports = (_, { projects }) => {
               citation: metadata.CITATION,
               thanks: metadata.THANKS,
               length: metadata.LENGTH,
-              frequency: metadata.FREQUENCY,
               temp: metadata.TEMP,
               ensemble: metadata.ENSEMBLE,
               timestep: metadata.TIMESTEP,
