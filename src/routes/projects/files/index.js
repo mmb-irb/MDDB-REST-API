@@ -24,10 +24,10 @@ const getSelectedPdb = require('../../../utils/get-selection-pdb-through-ngl');
 // Translates the frames query string format into a explicit frame selection in string format
 const parseQuerystringFrameRange = require('../../../utils/parse-querystring-frame-range');
 const consumeStream = require('../../../utils/consume-stream');
+const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
 
 const {
   NO_CONTENT,
-  PARTIAL_CONTENT,
   BAD_REQUEST,
   NOT_FOUND,
   REQUEST_RANGE_NOT_SATISFIABLE,
@@ -36,7 +36,37 @@ const {
 // Esto no sirve para nada aparentemente
 //var crypto = require('crypto');
 
-const MDCRD_TYPE = 'chemical/x-mdcrd';
+// Trajectory exporting supported formats
+const trajectoryFormats = {
+  bin: {
+    name: 'bin',
+    contentType: 'application/octet-stream',
+  },
+  mdcrd: {
+    name: 'mdcrd',
+    contentType: 'text/mdcrd',
+  },
+  xtc: {
+    name: 'xtc',
+    contentType: 'application/xtc',
+    chemfilesName: 'XTC',
+  },
+  trr: {
+    name: 'trr',
+    contentType: 'application/trr',
+    chemfilesName: 'TRR',
+  },
+  // DANI: Este formato no funciona en streaming
+  // DANI: No hay ninguna ley que impida que funcione
+  // DANI: Es solo que el método de escritura con el que está implementado en chemfiles no es compatible con el streaming
+  // DANI: Alguien con experiencia en c++ (o con tiempo) podría arreglarlo
+  // DANI: Mas detalles del problema en los mails con Guillaume
+  // nc: {
+  //   name: 'nc',
+  //   contentType: 'application/nc',
+  //   chemfilesName: 'Amber NetCDF'
+  // },
+};
 
 // Set the standard name of the structure and trajectory files
 const STANDARD_STRUCTURE_FILENAME = 'md.imaged.rot.dry.pdb';
@@ -48,18 +78,25 @@ const isObjectId = string => /[a-z0-9]{24}/.test(string);
 
 // Check if the requested files meet the accepted formats, which are provided by the request header
 // If so, send the format name. Else, send null
-const acceptTransformFormat = (requested, filename) => {
-  const _requested = (requested || '').toLowerCase();
-  const _filename = filename.toLowerCase();
+const acceptTransformFormat = requestedFormat => {
+  // If no format is specified then the source format is returned
+  if (!requestedFormat) return trajectoryFormats.bin;
+  const _requestedFormat = requestedFormat.toLowerCase();
   // _requested is a string sent by the header which includes the names of all accepted formats
-  // If "crd" or "mdcrd" are requested and the requested file is a ".bin" return the "mdcrd" type
-  if (_requested.includes('crd') || _requested.includes('mdcrd')) {
-    if (_filename.endsWith('.bin')) return MDCRD_TYPE;
+  if (_requestedFormat === 'crd' || _requestedFormat === 'mdcrd') {
+    return trajectoryFormats.mdcrd;
   }
-  // added (possible future) accepted transformation formats here
-  //
-  // default case, not an accepted format, just transform
-  return null; // Data will be sent in binary format
+  if (_requestedFormat === 'xtc') {
+    return trajectoryFormats.xtc;
+  }
+  if (_requestedFormat === 'trr') {
+    return trajectoryFormats.trr;
+  }
+  if (_requestedFormat === 'nc') {
+    return trajectoryFormats.nc;
+  }
+  // If format is not recognized the an error will be sent
+  return null;
 };
 
 const fileRouter = Router({ mergeParams: true });
@@ -229,11 +266,17 @@ module.exports = (db, { projects }) => {
         // Save the corresponding file, which is found by object id
         const descriptor = await db.collection('fs.files').findOne(oid);
         // Set the format in which data will be sent
-        const transformFormat = acceptTransformFormat(
-          // Format is requested through query
-          request.query.format,
-          descriptor.filename,
-        );
+        // Format is requested through the query
+        const transformFormat = acceptTransformFormat(request.query.format);
+        if (!transformFormat)
+          return {
+            error: {
+              header: BAD_REQUEST,
+              body:
+                'ERROR: Not supported format. Choose one of these: ' +
+                Object.keys(trajectoryFormats).join(', '),
+            },
+          };
 
         // range handling
         // range in querystring > range in headers
@@ -270,7 +313,7 @@ module.exports = (db, { projects }) => {
           }
           // In case of frame query
           if (request.query.frames) {
-            // If data is already saved in the rangeStrinMDCRD_TYPEg variable because there was a selection query
+            // If data is already saved in the rangeString variable because there was a selection query
             if (rangeString) rangeString += ', '; // Add coma and space to separate the new incoming data
             // Translates the frames query string format into a explicit frame selection in string format
             const parsed = parseQuerystringFrameRange(request.query.frames);
@@ -295,8 +338,10 @@ module.exports = (db, { projects }) => {
         // Return a simple stream when asking for the whole file (i.e. range is not iterable)
         // Return an internally managed stream when asking for specific ranges
         const rangedStream = combineDownloadStreams(bucket, oid, range);
+        // Get the output format name
+        const transformFormatName = transformFormat.name;
         // When user requests "crd" or "mdcrd" files
-        if (transformFormat === MDCRD_TYPE) {
+        if (transformFormatName === 'mdcrd') {
           // Set a title for the mdcrd file (i.e. the first line)
           let title = process.env.DOCS_DB_NAME + ' - ' + request.params.project;
           if (request.query.frames)
@@ -333,8 +378,27 @@ module.exports = (db, { projects }) => {
           transformStream.once('end', () => combined.end());
           // Return the .bin to .mdcrd process stream
           stream = combined;
-        } else {
+        } else if (
+          transformFormatName === 'xtc' ||
+          transformFormatName === 'trr' ||
+          transformFormatName === 'nc'
+        ) {
+          // Get the number of atoms and frames
+          const atomCount = range.atomCount;
+          const frameCount = range.frameCount;
+          // Use chemfiles to convert the trajectory from .bin to the requested format
+          stream = chemfilesConverter(
+            rangedStream,
+            atomCount,
+            frameCount,
+            transformFormat.chemfilesName,
+          );
+          // We can not predict the size of the resulting file (yet?)
+          range.size = null;
+        } else if (transformFormatName === 'bin') {
           stream = rangedStream;
+        } else {
+          throw new Error('Missing instructions to export format');
         }
         return {
           stream,
@@ -353,8 +417,11 @@ module.exports = (db, { projects }) => {
           transformFormat,
           noContent,
           accessionOrId,
+          error,
         },
       ) {
+        // In case of error
+        if (error) return response.status(error.header);
         if (noContent) return response.sendStatus(NO_CONTENT);
         if (range) {
           // When something wrong happend while getting the atoms range
@@ -385,7 +452,8 @@ module.exports = (db, { projects }) => {
 
           if (!stream) return response.sendStatus(NOT_FOUND);
 
-          response.status(PARTIAL_CONTENT);
+          // NEVER FORGET: This partial content (i.e. 206) makes Chrome fail when downloading data directly from API
+          //response.status(PARTIAL_CONTENT);
         }
 
         if (!stream) return response.sendStatus(NOT_FOUND);
@@ -399,13 +467,12 @@ module.exports = (db, { projects }) => {
         if (descriptor.contentType) {
           response.set(
             'content-type',
-            transformFormat || descriptor.contentType,
+            // Here descriptor.contentType should be "application/octet-stream"
+            transformFormat.contentType,
           );
         }
         // Set the output filename according to some standards
-        let format = 'bin';
-        if (transformFormat === MDCRD_TYPE) format = 'mdcrd';
-        const filename = accessionOrId + '_trajectory.' + format;
+        const filename = accessionOrId + '_trajectory.' + transformFormat.name;
         response.setHeader(
           'Content-disposition',
           `attachment; filename=${filename}`,
@@ -413,7 +480,10 @@ module.exports = (db, { projects }) => {
 
         response.set('accept-ranges', ['bytes', 'atoms', 'frames']);
       },
-      body(response, { stream }, request) {
+      body(response, { stream, error }, request) {
+        // In case of error
+        if (error) return response.json(error.body);
+
         if (!stream) return;
 
         if (request.aborted) {

@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "start": "npm-run-all --silent --print-label --parallel asbuild:watch server:watch",
-    "build": "npm run asbuild:optimized",
+    "build": "npm run asbuild:optimized; npm run asbuild:chemfiles",
     "server:watch": "nodemon --inspect --ext js,json,yml index.js",
     "serve": "node index.js",
     "lint": "eslint '**/*.js'",
@@ -16,7 +16,8 @@
     "asbuild:untouched": "asc assembly/index.ts -b build/untouched.wasm -t build/untouched.wat --sourceMap --validate --importMemory --debug",
     "asbuild:optimized": "asc assembly/index.ts -b build/optimized.wasm -t build/optimized.wat --sourceMap --validate --importMemory --optimize",
     "asbuild": "npm run asbuild:untouched && npm run asbuild:optimized",
-    "asbuild:watch": "nodemon --watch assembly --ext ts --exec \"npm run asbuild\""
+    "asbuild:watch": "nodemon --watch assembly --ext ts --exec \"npm run asbuild\"",
+    "asbuild:chemfiles": "g++ -o build/chemfiles_bin_converter assembly/chemfiles_bin_converter.cpp -L /usr/local/lib -lchemfiles"
   },
   "repository": {
     "type": "git",

@@ -347,14 +347,16 @@ paths:
         This process may take some time since trajectories are heavy files.
       produces:
         - application/octet-stream
-        - chemical/x-mdcrd
+        - text/mdcrd
+        - application/xtc
+        - application/trr
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: format
           in: query
           schema:
             type: string
-            enum: ['mdcrd']
+            enum: ['mdcrd', 'xtc', 'trr']
           description: >
             Specify a request format for the trajectory file. The default format is an internal
             binary format used by the client.<br>
@@ -401,9 +403,9 @@ paths:
         - files
       responses:
         200:
-          description: a trajectory
+          description: the main trajectory
           content:
-            chemical/x-mdcrd:
+            text/mdcrd:
               schema:
                 type: string
                 format: binary
@@ -413,7 +415,7 @@ paths:
         206:
           description: a partial trajectory
           content:
-            chemical/x-mdcrd:
+            text/mdcrd:
               schema:
                 type: string
                 format: binary
