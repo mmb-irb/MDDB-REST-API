@@ -461,9 +461,12 @@ module.exports = (db, { projects }) => {
         // Send the expected bytes length of the file
         // WARNING: If sent bytes are less than specified the download will fail with error signal
         // WARNING: If sent bytes are more than specified the download will succed but it will be cutted
-        // WARNING: If sent bytes are a decimal number then it will generate an error 502 (Bad Gateway)
-        if (range.size % 1 !== 0) console.error('ERROR: Size is not integer');
-        response.set('content-length', range.size);
+        // WARNING: If sent bytes are a decimal number or null then it will generate an error 502 (Bad Gateway)
+        // If we dont send this header the download works anyway, but the user does not know how long it is going to take
+        if (range.size) {
+          if (range.size % 1 !== 0) console.error('ERROR: Size is not integer');
+          response.set('content-length', range.size);
+        }
         if (descriptor.contentType) {
           response.set(
             'content-type',
