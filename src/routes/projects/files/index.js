@@ -26,7 +26,7 @@ const parseQuerystringFrameRange = require('../../../utils/parse-querystring-fra
 const consumeStream = require('../../../utils/consume-stream');
 const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
 // Get the configuration parameters for the different requesting hosts
-const hostConfig = require('../../config.js').hosts;
+const hostConfig = require('../../../../config.js').hosts;
 
 const {
   NO_CONTENT,
