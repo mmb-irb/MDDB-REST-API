@@ -4,14 +4,9 @@ const handler = require('../../../utils/generic-handler');
 
 const { INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
 // Mongo DB filter that only returns published results when the environment is set as "production"
-const publishedFilter = require('../../../utils/published-filter');
+const getBaseFilter = require('../../../utils/base-filter');
 
 const analysisRouter = Router({ mergeParams: true });
-
-// Get the count of identical elements in an array
-const getCounts = (array, counter) => {
-  array.forEach(e => (counter[e] = (counter[e] || 0) + 1));
-};
 
 // This endpoint returns some options of data contained in the projects collection
 module.exports = (_, { projects }) => {
@@ -28,7 +23,7 @@ module.exports = (_, { projects }) => {
         projection.forEach(p => (projector[p] = true));
         // Get all projects
         const cursor = await projects.find(
-          publishedFilter,
+          getBaseFilter(request),
           // Discard the heaviest fields we do not need anyway
           { projection: projector },
         );

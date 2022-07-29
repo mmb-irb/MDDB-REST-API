@@ -10,7 +10,7 @@ const { ObjectId } = require('mongodb');
 // WARNING: It returns true with whatever string 12 characters long
 const isObjectId = string => /[a-z0-9]{24}/.test(string);
 
-// filter is expected to be publishedFilter
+// filter is expected to be the base filter
 // idOrAccession is expected to be the project parameter from the request
 const augmentFilterWithIDOrAccession = (filter, idOrAccession) => {
   // Creates an object called "output" that contains all the provided filters

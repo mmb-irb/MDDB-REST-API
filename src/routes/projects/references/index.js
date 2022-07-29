@@ -2,7 +2,7 @@ const Router = require('express').Router;
 const handler = require('../../../utils/generic-handler');
 
 // Mongo DB filter that only returns published results when the environment is set as "production"
-const publishedFilter = require('../../../utils/published-filter');
+const getBaseFilter = require('../../../utils/base-filter');
 // Adds the project associated ID from mongo db to the provided object
 const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
 
@@ -18,7 +18,7 @@ module.exports = (_, { projects, references }) => {
         // Return the project which matches the request accession
         const projectDoc = await projects.findOne(
           augmentFilterWithIDOrAccession(
-            publishedFilter,
+            getBaseFilter(request),
             request.params.project,
           ),
           // But return only the "analyses" attribute

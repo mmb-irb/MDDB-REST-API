@@ -14,7 +14,7 @@ const handleRange = require('../../../utils/handle-range');
 // Returns an internally managed stream when asking for specific ranges
 const combineDownloadStreams = require('../../../utils/combine-download-streams');
 // Mongo DB filter that only returns published results when the environment is set as "production"
-const publishedFilter = require('../../../utils/published-filter');
+const getBaseFilter = require('../../../utils/base-filter');
 // Adds the project associated ID from mongo db to the provided object
 const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
 // Returns the selected atom indices as a string ("i1-i1,i2-i2,i3-i3..."")
@@ -25,6 +25,8 @@ const getSelectedPdb = require('../../../utils/get-selection-pdb-through-ngl');
 const parseQuerystringFrameRange = require('../../../utils/parse-querystring-frame-range');
 const consumeStream = require('../../../utils/consume-stream');
 const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
+// Get the configuration parameters for the different requesting hosts
+const hostConfig = require('../../config.js').hosts;
 
 const {
   NO_CONTENT,
@@ -111,7 +113,7 @@ module.exports = (db, { projects }) => {
         // Return the project which matches the request accession
         return projects.findOne(
           augmentFilterWithIDOrAccession(
-            publishedFilter,
+            getBaseFilter(request),
             request.params.project,
           ),
           // But return only the "files" attribute
@@ -137,10 +139,13 @@ module.exports = (db, { projects }) => {
   );
   // This function finds the project which matches the request accession
   // When found, saves the project object ID, accession and files
-  const getProject = project =>
+  const getProject = request =>
     projects.findOne(
-      // Returns a filter with the publishedFilter attributes and the project ObjectID
-      augmentFilterWithIDOrAccession(publishedFilter, project),
+      // Returns a filter with the base filter attributes and the project ObjectID
+      augmentFilterWithIDOrAccession(
+        getBaseFilter(request),
+        request.params.project,
+      ),
       // Declare that we only want the id and files to be returned from findOne()
       { projection: { _id: true, accession: true, files: true } },
     );
@@ -151,7 +156,7 @@ module.exports = (db, { projects }) => {
       async retriever(request) {
         const bucket = new GridFSBucket(db);
         // Finds the project by the accession
-        const projectDoc = await getProject(request.params.project);
+        const projectDoc = await getProject(request);
         if (!projectDoc) return; // If there is no projectDoc stop here
         const accessionOrId = projectDoc.accession
           ? projectDoc.accession.toLowerCase()
@@ -252,7 +257,7 @@ module.exports = (db, { projects }) => {
         let projectDoc;
         // Find the project from the request and, inside this project, find the file 'trajectory.bin'
         // Get the ID from the previously found file and save the file through the ID
-        projectDoc = await getProject(request.params.project); // Finds the project by the accession
+        projectDoc = await getProject(request); // Finds the project by the accession
         if (!projectDoc) return NOT_FOUND; // If there is no projectDoc stop here
         const accessionOrId = projectDoc.accession
           ? projectDoc.accession.toLowerCase()
@@ -290,8 +295,7 @@ module.exports = (db, { projects }) => {
           if (request.query.selection) {
             // Save the project from the request if it is not saved yet
             // DANI: Esto no tiene sentido ¿no? ya deberíamos tener el proyecto de arriba
-            if (!projectDoc)
-              projectDoc = await getProject(request.params.project);
+            if (!projectDoc) projectDoc = await getProject(request);
             if (!projectDoc) return; // If there is no project stop here
             // Get the ID from the structure file and save it through the ID
             const oid = ObjectId(
@@ -343,7 +347,9 @@ module.exports = (db, { projects }) => {
         // When user requests "crd" or "mdcrd" files
         if (transformFormatName === 'mdcrd') {
           // Set a title for the mdcrd file (i.e. the first line)
-          let title = process.env.DOCS_DB_NAME + ' - ' + request.params.project;
+          const host = request.get('host');
+          const config = hostConfig[host];
+          let title = config.name + ' - ' + request.params.project;
           if (request.query.frames)
             title += ' - frames: ' + request.query.frames;
           if (request.query.selection)
@@ -549,7 +555,7 @@ module.exports = (db, { projects }) => {
           // If it was not a valid mongo ID, assume it was a file name
           // Find the project from the request and, inside this project, find the file named as the request
           // Get the ID from the previously found file and save the file through the ID
-          const projectDoc = await getProject(request.params.project); // Finds the project by the accession
+          const projectDoc = await getProject(request); // Finds the project by the accession
           if (!projectDoc) return; // If there is no projectDoc stop here
           oid = ObjectId(
             (

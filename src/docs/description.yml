@@ -14,20 +14,6 @@ info:
     <a href="$CLIENT_URL" target="_blank" rel="noreferrer noopener">$DATABASE web client</a>.
   version: 1.0.0
 
-servers:
-  - url: '{protocol}:$URL'
-    variables:
-      protocol:
-        enum:
-          - http
-          - https
-        default: https
-      version:
-        enum:
-          - v1
-          - current
-        default: v1
-
 paths:
   /projects:
     get:

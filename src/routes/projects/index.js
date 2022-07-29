@@ -10,7 +10,7 @@ const dbConnection =
     : require('../../models/index');
 const handler = require('../../utils/generic-handler');
 // Mongo DB filter that only returns published results when the environment is set as "production"
-const publishedFilter = require('../../utils/published-filter');
+const getBaseFilter = require('../../utils/base-filter');
 // Adds the project associated ID from mongo db to the provided object
 const augmentFilterWithIDOrAccession = require('../../utils/augment-filter-with-id-or-accession');
 
@@ -83,7 +83,7 @@ const escapeRegExp = input => {
       async retriever(request) {
         // Set an object with all the parameters to performe the mongo query
         // Start filtering by published projects only if we are in production environment
-        const finder = { ...publishedFilter };
+        const finder = getBaseFilter(request);
         // Then, search by 'search' parameters
         // Look for the search text in the accession and some metadata/pdbInfo fields
         const search = request.query.search;
@@ -234,9 +234,6 @@ const escapeRegExp = input => {
           // WARNING: We must count before the limit or the count will be affected
           // WARNING: This was not like this in mongodb 3.3, but it changed when updated to mongodb 4.5
           cursor.count(),
-          // totalCount
-          // DANI: Esto he decidido quiatlo ya que en principio no se usa
-          //model.projects.find(publishedFilter).count(),
           // If the request (URL) contains a limit query (i.e. ...?limit=x)
           limit
             ? cursor
@@ -286,13 +283,13 @@ const escapeRegExp = input => {
   projectRouter.route('/:project').get(
     handler({
       retriever(request) {
-        // Return the project which matches the request porject ID (accession)
-        return model.projects.findOne(
-          augmentFilterWithIDOrAccession(
-            publishedFilter,
-            request.params.project,
-          ),
+        // Set the project filter
+        const projectFilter = augmentFilterWithIDOrAccession(
+          getBaseFilter(request),
+          request.params.project,
         );
+        // Return the project which matches the request porject ID (accession)
+        return model.projects.findOne(projectFilter);
       },
       // If no project is found, a NOT_FOUND status is sent in the header
       headers(response, retrieved) {

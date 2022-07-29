@@ -2,7 +2,7 @@ const express = require('express');
 const paginate = require('express-paginate');
 const cors = require('cors');
 const swaggerUI = require('swagger-ui-express');
-const yaml = require('yamljs');
+const getSwaggerDocs = require(`${__dirname}/../docs`);
 const boxen = require('boxen');
 const chalk = require('chalk');
 
@@ -57,64 +57,26 @@ app.get('/rest', (_, res) =>
 app.use('/rest/v1', routes);
 app.use('/rest/current', routes);
 
-// Swagger documentation parsed to an object
-const swaggerDoc = yaml.load(`${__dirname}/../docs/description.yml`);
-
-// Adapt the documentation to the current database name, prefix and url
-const swaggerInfo = swaggerDoc.info;
-swaggerInfo.title = swaggerInfo.title.replace(
-  '$DATABASE',
-  process.env.DOCS_DB_NAME,
-);
-swaggerInfo.description = swaggerInfo.description.replace(
-  /\$DATABASE/g, // Use regexp instead of string in order to replace all matches
-  process.env.DOCS_DB_NAME,
-);
-swaggerInfo.description = swaggerInfo.description.replace(
-  '$CLIENT_URL', // Use regexp instead of string in order to replace all matches
-  process.env.CLIENT_URL,
-);
-for (const path in swaggerDoc.paths) {
-  swaggerDoc.paths[path].get.description = swaggerDoc.paths[
-    path
-  ].get.description.replace('$DATABASE', process.env.DOCS_DB_NAME);
-}
-swaggerDoc.components.schemas.Project.properties.accession.example = swaggerDoc.components.schemas.Project.properties.accession.example.replace(
-  '$PREFIX',
-  process.env.DOCS_DB_PREFIX,
-);
-swaggerDoc.definitions.constants.AccessionPattern = swaggerDoc.definitions.constants.AccessionPattern.replace(
-  '$PREFIX',
-  process.env.DOCS_DB_PREFIX,
-);
-swaggerDoc.definitions.arguments.projectAccessionOrID.description = swaggerDoc.definitions.arguments.projectAccessionOrID.description.replace(
-  '$PREFIX',
-  process.env.DOCS_DB_PREFIX,
-);
-swaggerDoc.definitions.arguments.projectAccessionOrID.schema.pattern = swaggerDoc.definitions.arguments.projectAccessionOrID.schema.pattern.replace(
-  '$PREFIX',
-  process.env.DOCS_DB_PREFIX,
-);
-swaggerDoc.definitions.arguments.projectAccessionOrID.example = swaggerDoc.definitions.arguments.projectAccessionOrID.example.replace(
-  '$PREFIX',
-  process.env.DOCS_DB_PREFIX,
-);
-swaggerDoc.servers[0].url = swaggerDoc.servers[0].url.replace(
-  '$URL',
-  process.env.DOCS_API_URL,
-);
-
+let options = {
+  customCss: `.swagger-ui .topbar { display: none }`,
+  customSiteTitle: `API - Swagger Documentation`,
+};
 app.use(
   '/rest/docs',
+  function(request, _, next) {
+    const { swaggerDocs, swaggerOpts } = getSwaggerDocs(request);
+    // This line is required for everything to work
+    request.swaggerDoc = swaggerDocs;
+    // DANI: Esta linea no hace nada, aunque debería
+    // DANI: No hay manera de pasarle opciones al swagger desde aquí
+    // DANI: Dejo esto preparado para cuando los arreglen, ya que estas options incluyen el nombre del servicio en el header
+    // DANI: El ejemplo de como hacer esto lo saqué de aquí
+    //       https://github.com/scottie1984/swagger-ui-express#modify-swagger-file-on-the-fly-before-load
+    options = swaggerOpts;
+    next();
+  },
   swaggerUI.serve,
-  swaggerUI.setup(swaggerDoc, {
-    customCss: `
-      .swagger-ui .topbar {
-        display: none;
-      }
-    `,
-    customSiteTitle: `${process.env.DOCS_DB_NAME} API - Swagger Documentation`,
-  }),
+  swaggerUI.setup({}, options),
 );
 
 module.exports = {

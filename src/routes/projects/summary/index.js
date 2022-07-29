@@ -4,7 +4,7 @@ const handler = require('../../../utils/generic-handler');
 
 const { INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
 // Mongo DB filter that only returns published results when the environment is set as "production"
-const publishedFilter = require('../../../utils/published-filter');
+const getBaseFilter = require('../../../utils/base-filter');
 
 const analysisRouter = Router({ mergeParams: true });
 
@@ -13,10 +13,10 @@ module.exports = (_, { projects }) => {
   // Root
   analysisRouter.route('/').get(
     handler({
-      async retriever() {
+      async retriever(request) {
         // Get all projects
         const cursor = await projects.find(
-          publishedFilter,
+          getBaseFilter(request),
           // Discard the heaviest fields we do not need anyway
           {
             projection: {

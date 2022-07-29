@@ -4,7 +4,7 @@ const handler = require('../../../utils/generic-handler');
 
 const { NOT_FOUND } = require('../../../utils/status-codes');
 // Mongo DB filter that only returns published results when the environment is set as "production"
-const publishedFilter = require('../../../utils/published-filter');
+const getBaseFilter = require('../../../utils/base-filter');
 // Adds the project associated ID from mongo db to the provided object
 const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
 
@@ -19,7 +19,7 @@ module.exports = (_, { projects }) => {
         // Return the project which matches the request accession
         return projects.findOne(
           augmentFilterWithIDOrAccession(
-            publishedFilter,
+            getBaseFilter(request),
             request.params.project,
           ),
           // But return only the "metadata" attribute
