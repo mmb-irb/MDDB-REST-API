@@ -1,5 +1,5 @@
 // Configure which collections are returned according to the host (client) who is asking
-const hostConfig = require('../../../config.js').hosts;
+const hostConfigs = require('../../../config.js').hosts;
 
 // This filter return an object
 // It is used for mongo DB queries, since only objects are allowed
@@ -21,7 +21,9 @@ const publishedFilter = Object.seal(
 // Note that unknown hosts (e.g. 'localhost:8000') will get all simulations, with no filter
 const getCollectionFilter = request => {
   const host = request.get('host');
-  const hostCollection = hostConfig[host].collection;
+  const hostConfig = hostConfigs[host];
+  if (!hostConfig) return {};
+  const hostCollection = hostConfig.collection;
   return Object.seal(
     hostCollection ? { 'metadata.COLLECTIONS': hostCollection } : {},
   );
