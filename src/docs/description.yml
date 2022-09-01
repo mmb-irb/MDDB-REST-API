@@ -11,7 +11,7 @@ info:
     <br />
     <br />
     This API is used by the
-    <a href="$CLIENT_URL" target="_blank" rel="noreferrer noopener">$DATABASE web client</a>.
+    <a href="//$CLIENT_URL" target="_blank" rel="noreferrer noopener">$DATABASE web client</a>.
   version: 1.0.0
 
 paths:

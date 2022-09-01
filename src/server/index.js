@@ -2,6 +2,7 @@ const express = require('express');
 const paginate = require('express-paginate');
 const cors = require('cors');
 const swaggerUI = require('swagger-ui-express');
+const serveStatic = swaggerUI.serve[1];
 const getSwaggerDocs = require(`${__dirname}/../docs`);
 const boxen = require('boxen');
 const chalk = require('chalk');
@@ -57,27 +58,37 @@ app.get('/rest', (_, res) =>
 app.use('/rest/v1', routes);
 app.use('/rest/current', routes);
 
-let options = {
-  customCss: `.swagger-ui .topbar { display: none }`,
-  customSiteTitle: `API - Swagger Documentation`,
-};
-app.use(
-  '/rest/docs',
-  function(request, _, next) {
-    const { swaggerDocs, swaggerOpts } = getSwaggerDocs(request);
-    // This line is required for everything to work
-    request.swaggerDoc = swaggerDocs;
-    // DANI: Esta linea no hace nada, aunque debería
-    // DANI: No hay manera de pasarle opciones al swagger desde aquí
-    // DANI: Dejo esto preparado para cuando los arreglen, ya que estas options incluyen el nombre del servicio en el header
-    // DANI: El ejemplo de como hacer esto lo saqué de aquí
-    //       https://github.com/scottie1984/swagger-ui-express#modify-swagger-file-on-the-fly-before-load
-    options = swaggerOpts;
-    next();
-  },
-  swaggerUI.serve,
-  swaggerUI.setup({}, options),
-);
+// NEVER FORGET: El sistema recomendado para editar el swagger on the fly no me funcionaba bien y no me permitía pasar opciones
+//    https://github.com/scottie1984/swagger-ui-express#modify-swagger-file-on-the-fly-before-load
+// NEVER FORGET: El gran problema con el que perdí dos días
+//    El gran problema solo aparecía al haber varias instancias en pm2
+//    El gran problema consistía en que a veces el swagger recibido no se correspondía parcialmente con el solicitado
+//    El orignel del problema está en el swagger, que al hacer el swaggerUI.setup modifica un script de js enviado más adelante:
+//      Una vez ejecutada la primera request a '/rest/docs', cuyo valor de request.url es '/', se producen varias requests más
+//      Estas requests tienen distintas urls, pero todas solicitan scripts de JS
+//      El script problemático se llama swagger-ui-init.js y es enviado por la función swaggerUI.serve[0]*
+//        * Recuerda que swaggerUI.serve no es una función, sino una lista con dos funciones
+//      Este script construye el body del swagger, de manera que es crítico
+//      El problema es que cada una de las request extras puede ir a parar una instancia distinta del pm2
+//        Esto hace que a pesar de que el header esté bien, todo el body pueda ser el de otro swagger distinto
+app.use('/rest/docs', (request, response, next) => {
+  // Get the swagger responses which correspond to the requesting host
+  const swaggerResponses = getSwaggerDocs(request);
+  const { swaggerHtmlResponse, swaggerUiInitJs } = swaggerResponses;
+  // Send the html swagger base only in the first request
+  if (request.url === '/') {
+    response.send(swaggerHtmlResponse);
+    return next();
+  }
+  // Send the swagger-ui-init.js script only when requested
+  if (request.url === '/swagger-ui-init.js') {
+    response.set('Content-Type', 'application/javascript');
+    response.send(swaggerUiInitJs);
+    return next();
+  }
+  // Load the rest of swagger stuff: scripts, css, etc.
+  serveStatic(request, response, next);
+});
 
 module.exports = {
   app,
