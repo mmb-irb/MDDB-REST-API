@@ -52,7 +52,6 @@ module.exports = (_, { projects }) => {
               domains: metadata.DOMAINS,
               interactions: interactions,
               references: metadata.REFERENCES,
-              unit: metadata.UNIT,
               pdbIds: metadata.PDBIDS,
               name: metadata.NAME,
               description: metadata.DESCRIPTION,
@@ -61,6 +60,7 @@ module.exports = (_, { projects }) => {
               groups: metadata.GROUPS,
               program: metadata.PROGRAM,
               version: metadata.VERSION,
+              type: metadata.TYPE,
               method: metadata.METHOD,
               links: metadata.LINKS,
               license: metadata.LICENSE,
@@ -76,6 +76,10 @@ module.exports = (_, { projects }) => {
               boxtype: metadata.BOXTYPE,
               exceptions: metadata.EXCEPTIONS,
               membranes: metadata.MEMBRANES,
+              customs: metadata.CUSTOMS,
+              orientation: metadata.ORIENTATION,
+              collections: metadata.COLLECTIONS,
+              cv19_unit: metadata.CV19_UNIT,
             };
             response.json(inputs);
           } else response.json({ error: 'There is no metadata' });
