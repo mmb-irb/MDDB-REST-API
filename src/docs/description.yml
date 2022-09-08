@@ -1419,5 +1419,4 @@ definitions:
       required: true
       schema:
         type: string
-        pattern: '^([a-fA-F\d]{24})|($PREFIX[0-9]{5})$'
       example: $PREFIX00002

@@ -58,10 +58,6 @@ Object.entries(hostConfig).forEach(([host, config]) => {
     '$PREFIX',
     config.prefix,
   );
-  swaggerDocs.definitions.arguments.projectAccessionOrID.schema.pattern = swaggerDocs.definitions.arguments.projectAccessionOrID.schema.pattern.replace(
-    '$PREFIX',
-    config.prefix,
-  );
   swaggerDocs.definitions.arguments.projectAccessionOrID.example = swaggerDocs.definitions.arguments.projectAccessionOrID.example.replace(
     '$PREFIX',
     config.prefix,
