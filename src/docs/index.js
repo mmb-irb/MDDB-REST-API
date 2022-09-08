@@ -21,7 +21,7 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   // Set the servers
   swaggerDocs.servers = [
     {
-      url: '{protocol}:' + host + '/api/rest/{version}',
+      url: '{protocol}:/api/rest/{version}', // The host here is included automatically
       description: config.description,
       variables: {
         protocol: { enum: ['https', 'http'], default: 'https' },
