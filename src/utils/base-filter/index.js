@@ -20,6 +20,8 @@ const publishedFilter = Object.seal(
 // This filter is applied over the metadata 'collections', nothing to do with mongo collections
 // Note that unknown hosts (e.g. 'localhost:8000') will get all simulations, with no filter
 const getCollectionFilter = request => {
+  // NEVE FORGET: For the host to be inherited (and not 'localhost') you need to configure your apache
+  // Add the line 'ProxyPreserveHost On' in the API location settings
   const host = request.get('host');
   const hostConfig = hostConfigs[host];
   if (!hostConfig) return {};
