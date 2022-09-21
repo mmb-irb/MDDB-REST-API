@@ -19,9 +19,13 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   // Swagger documentation parsed to an object
   const swaggerDocs = yaml.load(`${__dirname}/../docs/description.yml`);
   // Set the servers
+  const url =
+    host === 'localhost:8000'
+      ? 'http://localhost:8000/rest/{version}'
+      : '{protocol}://' + host + '/api/rest/{version}';
   swaggerDocs.servers = [
     {
-      url: '{protocol}:/api/rest/{version}', // The host here is included automatically
+      url: url,
       description: config.description,
       variables: {
         protocol: { enum: ['https', 'http'], default: 'https' },

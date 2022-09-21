@@ -8,5 +8,6 @@ rootRouter.route('/').get((_, res) => {
 
 // Set the real routes
 rootRouter.use('/projects', require('./projects'));
+rootRouter.use('/references', require('./references'));
 
 module.exports = rootRouter;
