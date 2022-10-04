@@ -30,9 +30,9 @@ module.exports = (_, { projects, references }) => {
         const projectReferences = projectDoc.metadata.REFERENCES;
         // If there are no references then send an empty list
         if (!projectReferences || projectReferences.length == 0) return [];
-        // Set up the db query with all reference names
+        // Set up the db query with all reference uniprots
         const queries = projectReferences.map(reference => {
-          return { name: reference };
+          return { uniprot: reference };
         });
         // Otherwise, find the corresponding references in the database and send their data
         const cursor = await references.find(
