@@ -51,7 +51,7 @@ module.exports = (_, { projects }) => {
               ligands: metadata.LIGANDS,
               domains: metadata.DOMAINS,
               interactions: interactions,
-              references: metadata.REFERENCES,
+              forced_references: metadata.FORCED_REFERENCES,
               pdbIds: metadata.PDBIDS,
               name: metadata.NAME,
               description: metadata.DESCRIPTION,
