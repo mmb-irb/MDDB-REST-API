@@ -10,6 +10,10 @@ info:
     Use the 'try it out' button to test any endpoint at the moment.
     <br />
     <br />
+    Data may be accessed also through an
+    <a href="//$CLIENT_URL/optimade/" target="_blank" rel="noreferrer noopener">OPTIMADE API</a>.
+    <br />
+    <br />
     This API is used by the
     <a href="//$CLIENT_URL" target="_blank" rel="noreferrer noopener">$DATABASE web client</a>.
   version: 1.0.0
