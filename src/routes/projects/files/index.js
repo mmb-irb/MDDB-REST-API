@@ -151,394 +151,390 @@ module.exports = (db, { projects }) => {
     );
 
   // When structure is requested (i.e. .../files/structure)
-  fileRouter.route('/structure').get(
-    handler({
-      async retriever(request) {
-        const bucket = new GridFSBucket(db);
-        // Finds the project by the accession
-        const projectDoc = await getProject(request);
-        if (!projectDoc) return; // If there is no projectDoc stop here
-        const accessionOrId = projectDoc.accession
-          ? projectDoc.accession.toLowerCase()
-          : projectDoc._id;
-        // Get the object id of the project structure
-        const oid = ObjectId(
-          (
+  // Note that structure may be requested both trough GET and POST methods
+  // POST method was implemented to allow long atom selections
+  const structureHandler = handler({
+    async retriever(request) {
+      const bucket = new GridFSBucket(db);
+      // Finds the project by the accession
+      const projectDoc = await getProject(request);
+      if (!projectDoc) return; // If there is no projectDoc stop here
+      const accessionOrId = projectDoc.accession
+        ? projectDoc.accession.toLowerCase()
+        : projectDoc._id;
+      // Get the object id of the project structure
+      const oid = ObjectId(
+        (
+          projectDoc.files.find(
+            file => file.filename === STANDARD_STRUCTURE_FILENAME,
+          ) || {}
+        )._id,
+      );
+      // If there is no oid at this point it means there is no structure file
+      if (!oid) return;
+      // Save the corresponding file
+      const descriptor = await db.collection('fs.files').findOne(oid);
+      // If the object ID is not found in the data base, return here
+      if (!descriptor) return;
+
+      // Open a stream with the corresponding ID
+      let stream = bucket.openDownloadStream(oid);
+      const selection = request.body.selection || request.query.selection;
+      // In case of selection query
+      if (selection) {
+        // Open a stream and save it completely into memory
+        const pdbFile = await consumeStream(bucket.openDownloadStream(oid));
+        // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
+        const selectedPdb = await getSelectedPdb(pdbFile, selection);
+        // Selected pdb will be never null, since an empty pdb file would have header and end
+        // Now convert the string pdb to a stream
+        //const bufferPdb = Buffer.from(selectedPdb, 'base64');
+        const bufferPdb = Buffer.from(selectedPdb, 'utf-8');
+        stream = Readable.from([bufferPdb]);
+        // Modify the original length
+        descriptor.length = bufferPdb.length;
+      } else {
+        stream = bucket.openDownloadStream(oid);
+      }
+
+      return { descriptor, stream, accessionOrId };
+    },
+    // If there is an active stream, send range and length content
+    headers(response, retrieved) {
+      if (!retrieved || !retrieved.descriptor) {
+        return response.sendStatus(NOT_FOUND);
+      }
+      response.set('content-length', retrieved.descriptor.length);
+      // Send content type also if known
+      if (retrieved.descriptor.contentType) {
+        response.set('content-type', retrieved.descriptor.contentType);
+      }
+      // Set the output filename according to some standards
+      const format = 'pdb';
+      const filename = retrieved.accessionOrId + '_structure.' + format;
+      response.setHeader(
+        'Content-disposition',
+        `attachment; filename=${filename}`,
+      );
+    },
+    // If there is a retrieved stream, start sending data through the stream
+    body(response, retrieved, request) {
+      // If there is not retreieved stream, return here
+      if (!retrieved || !retrieved.stream) return;
+      // If the client has aborted the request before the streams starts, destroy the stream
+      if (request.aborted) {
+        retrieved.stream.destroy();
+        return;
+      }
+      // Manage the stream
+      retrieved.stream.on('data', data => {
+        retrieved.stream.pause();
+        response.write(data, () => {
+          retrieved.stream.resume();
+        });
+      });
+      // If there is an error, send the error to the console and end the data transfer
+      retrieved.stream.on('error', error => {
+        console.error(error);
+        response.end();
+      });
+      // Close the response when the read stream has finished
+      retrieved.stream.on('end', data => response.end(data));
+      // Close the stream when the request is closed
+      request.on('close', () => retrieved.stream.destroy());
+    },
+  });
+  fileRouter.route('/structure').get(structureHandler);
+  fileRouter.route('/structure').post(structureHandler);
+
+  // When trajectory is requested (i.e. .../files/trajectory)
+  // Note that trajectory may be requested both trough GET and POST methods
+  // POST method was implemented to allow long atom/frame selections
+  const trajectoryHandler = handler({
+    async retriever(request) {
+      // The bucket is used to process files splitting them in 4 Mb fragments
+      const bucket = new GridFSBucket(db);
+      let projectDoc;
+      // Find the project from the request and, inside this project, find the file 'trajectory.bin'
+      // Get the ID from the previously found file and save the file through the ID
+      projectDoc = await getProject(request); // Finds the project by the accession
+      if (!projectDoc) return NOT_FOUND; // If there is no projectDoc stop here
+      const accessionOrId = projectDoc.accession
+        ? projectDoc.accession.toLowerCase()
+        : projectDoc._id;
+      const cursor = projectDoc.files.find(
+        file => file.filename === 'trajectory.bin',
+      );
+      if (!cursor) return { noContent: true }; // If the project has no trajectory, stop here
+      const oid = ObjectId(cursor._id);
+
+      // Save the corresponding file, which is found by object id
+      const descriptor = await db.collection('fs.files').findOne(oid);
+      // Set the format in which data will be sent
+      // Format is requested through the query
+      const transformFormat = acceptTransformFormat(request.query.format);
+      if (!transformFormat)
+        return {
+          error: {
+            header: BAD_REQUEST,
+            body:
+              'ERROR: Not supported format. Choose one of these: ' +
+              Object.keys(trajectoryFormats).join(', '),
+          },
+        };
+
+      // range handling
+      // range in querystring > range in headers
+      // but we do transform the querystring format into the headers format
+
+      // When there is a selection or frame query (e.g. .../files/trajectory?selection=x)
+      let range;
+      const selection = request.body.selection || request.query.selection;
+      const frames = request.body.frames || request.query.frames;
+      if (selection || frames) {
+        let rangeString = '';
+        // In case of selection query
+        if (selection) {
+          // Save the project from the request if it is not saved yet
+          // DANI: Esto no tiene sentido ¿no? ya deberíamos tener el proyecto de arriba
+          if (!projectDoc) projectDoc = await getProject(request);
+          if (!projectDoc) return; // If there is no project stop here
+          // Get the ID from the structure file and save it through the ID
+          const oid = ObjectId(
             projectDoc.files.find(
               file => file.filename === STANDARD_STRUCTURE_FILENAME,
-            ) || {}
-          )._id,
-        );
-        // If there is no oid at this point it means there is no structure file
-        if (!oid) return;
-        // Save the corresponding file
-        const descriptor = await db.collection('fs.files').findOne(oid);
-        // If the object ID is not found in the data base, return here
-        if (!descriptor) return;
-
-        // Open a stream with the corresponding ID
-        let stream = bucket.openDownloadStream(oid);
-
-        // In case of selection query
-        if (request.query.selection) {
+            )._id,
+          );
           // Open a stream and save it completely into memory
           const pdbFile = await consumeStream(bucket.openDownloadStream(oid));
           // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
-          const selectedPdb = await getSelectedPdb(
-            pdbFile,
-            request.query.selection,
-          );
-          // Selected pdb will be never null, since an empty pdb file would have header and end
-          // Now convert the string pdb to a stream
-          //const bufferPdb = Buffer.from(selectedPdb, 'base64');
-          const bufferPdb = Buffer.from(selectedPdb, 'utf-8');
-          stream = Readable.from([bufferPdb]);
-          // Modify the original length
-          descriptor.length = bufferPdb.length;
-        } else {
-          stream = bucket.openDownloadStream(oid);
+          const atoms = await getAtomIndices(pdbFile, selection);
+          // If no atoms where found, then return here and set the header to NOT_FOUND
+          if (!atoms) return { noContent: true };
+          // Else, save the atoms indices with the "atoms=" head
+          rangeString = `atoms=${atoms}`;
         }
-
-        return { descriptor, stream, accessionOrId };
-      },
-      // If there is an active stream, send range and length content
-      headers(response, retrieved) {
-        if (!retrieved || !retrieved.descriptor) {
-          return response.sendStatus(NOT_FOUND);
+        // In case of frame query
+        if (frames) {
+          // If data is already saved in the rangeString variable because there was a selection query
+          if (rangeString) rangeString += ', '; // Add coma and space to separate the new incoming data
+          // Translates the frames query string format into a explicit frame selection in string format
+          const parsed = parseQuerystringFrameRange(frames);
+          if (!parsed) return { range: -1 }; // This results in a 'BAD_REQUEST' error
+          rangeString += `frames=${parsed}`;
         }
-        response.set('content-length', retrieved.descriptor.length);
-        // Send content type also if known
-        if (retrieved.descriptor.contentType) {
-          response.set('content-type', retrieved.descriptor.contentType);
-        }
-        // Set the output filename according to some standards
-        const format = 'pdb';
-        const filename = retrieved.accessionOrId + '_structure.' + format;
-        response.setHeader(
-          'Content-disposition',
-          `attachment; filename=${filename}`,
-        );
-      },
-      // If there is a retrieved stream, start sending data through the stream
-      body(response, retrieved, request) {
-        // If there is not retreieved stream, return here
-        if (!retrieved || !retrieved.stream) return;
-        // If the client has aborted the request before the streams starts, destroy the stream
-        if (request.aborted) {
-          retrieved.stream.destroy();
-          return;
-        }
-        // Manage the stream
-        retrieved.stream.on('data', data => {
-          retrieved.stream.pause();
-          response.write(data, () => {
-            retrieved.stream.resume();
-          });
-        });
-        // If there is an error, send the error to the console and end the data transfer
-        retrieved.stream.on('error', error => {
-          console.error(error);
-          response.end();
-        });
-        // Close the response when the read stream has finished
-        retrieved.stream.on('end', data => response.end(data));
-        // Close the stream when the request is closed
-        request.on('close', () => retrieved.stream.destroy());
-      },
-    }),
-  );
-
-  // When trajectory is requested (i.e. .../files/trajectory)
-  fileRouter.route('/trajectory').get(
-    handler({
-      async retriever(request) {
-        // The bucket is used to process files splitting them in 4 Mb fragments
-        const bucket = new GridFSBucket(db);
-        let projectDoc;
-        // Find the project from the request and, inside this project, find the file 'trajectory.bin'
-        // Get the ID from the previously found file and save the file through the ID
-        projectDoc = await getProject(request); // Finds the project by the accession
-        if (!projectDoc) return NOT_FOUND; // If there is no projectDoc stop here
-        const accessionOrId = projectDoc.accession
-          ? projectDoc.accession.toLowerCase()
-          : projectDoc._id;
-        const cursor = projectDoc.files.find(
-          file => file.filename === 'trajectory.bin',
-        );
-        if (!cursor) return { noContent: true }; // If the project has no trajectory, stop here
-        const oid = ObjectId(cursor._id);
-
-        // Save the corresponding file, which is found by object id
-        const descriptor = await db.collection('fs.files').findOne(oid);
-        // Set the format in which data will be sent
-        // Format is requested through the query
-        const transformFormat = acceptTransformFormat(request.query.format);
-        if (!transformFormat)
-          return {
-            error: {
-              header: BAD_REQUEST,
-              body:
-                'ERROR: Not supported format. Choose one of these: ' +
-                Object.keys(trajectoryFormats).join(', '),
-            },
-          };
-
-        // range handling
-        // range in querystring > range in headers
-        // but we do transform the querystring format into the headers format
-
-        // When there is a selection or frame query (e.g. .../files/trajectory?selection=x)
-        let range;
-        if (request.query.selection || request.query.frames) {
-          let rangeString = '';
-          // In case of selection query
-          if (request.query.selection) {
-            // Save the project from the request if it is not saved yet
-            // DANI: Esto no tiene sentido ¿no? ya deberíamos tener el proyecto de arriba
-            if (!projectDoc) projectDoc = await getProject(request);
-            if (!projectDoc) return; // If there is no project stop here
-            // Get the ID from the structure file and save it through the ID
-            const oid = ObjectId(
-              projectDoc.files.find(
-                file => file.filename === STANDARD_STRUCTURE_FILENAME,
-              )._id,
-            );
-            // Open a stream and save it completely into memory
-            const pdbFile = await consumeStream(bucket.openDownloadStream(oid));
-            // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
-            const atoms = await getAtomIndices(
-              pdbFile,
-              request.query.selection,
-            );
-            // If no atoms where found, then return here and set the header to NOT_FOUND
-            if (!atoms) return { noContent: true };
-            // Else, save the atoms indices with the "atoms=" head
-            rangeString = `atoms=${atoms}`;
-          }
-          // In case of frame query
-          if (request.query.frames) {
-            // If data is already saved in the rangeString variable because there was a selection query
-            if (rangeString) rangeString += ', '; // Add coma and space to separate the new incoming data
-            // Translates the frames query string format into a explicit frame selection in string format
-            const parsed = parseQuerystringFrameRange(request.query.frames);
-            if (!parsed) return { range: -1 }; // This results in a 'BAD_REQUEST' error
-            rangeString += `frames=${parsed}`;
-          }
-          // Get the bytes ranges
-          range = handleRange(rangeString, descriptor);
-        }
-        // It is also able to obtain ranges through the header, when there are no queries
-        // This was the default way to receive ranges time ago
-        else if (request.headers.range) {
-          // Get the bytes ranges
-          range = handleRange(request.headers.range, descriptor);
-        }
-        // In case there is no selection range is no iterable
-        else {
-          range = handleRange(null, descriptor);
-        }
-        // Set the final stream to be returned
-        let stream;
-        // Return a simple stream when asking for the whole file (i.e. range is not iterable)
-        // Return an internally managed stream when asking for specific ranges
-        const rangedStream = combineDownloadStreams(bucket, oid, range);
-        // Get the output format name
-        const transformFormatName = transformFormat.name;
-        // When user requests "crd" or "mdcrd" files
-        if (transformFormatName === 'mdcrd') {
-          // Set a title for the mdcrd file (i.e. the first line)
-          const host = request.get('host');
-          const config = hostConfig[host];
-          let title = config.name + ' - ' + request.params.project;
-          if (request.query.frames)
-            title += ' - frames: ' + request.query.frames;
-          if (request.query.selection)
-            title += ' - selection: ' + request.query.selection;
-          title += '\n';
-          // Add an extra chunk with the title
-          // WARNING: This is important for the correct parsing of this format
-          // e.g. VMD skips the first line when reading this format
-          const titleStream = Readable.from([title]);
-          // Get the atoms per frames count. It is required to add the breakline between frames at the mdcrd format
-          // If this data is missing we cannot convert .bin to .mdcrd
-          const atomCount = range.atomCount;
-          if (!atomCount) return;
-          // Start a process to convert the original .bin file to .mdcrd format
-          const transformStream = BinToMdcrdStream(atomCount);
-          const lengthConverter = BinToMdcrdStream.CONVERTER;
-          // Calculate the bytes length in the new format
-          // WARNING: The size of the title must be included in the range (and then content-length)
-          range.size =
-            lengthConverter(range.size, atomCount) + Buffer.byteLength(title);
-          // Set a new stream which is ready to be destroyed
-          // It is destroyed when the .bin to .mdcrd process or the client request are over
-          rangedStream.pipe(transformStream);
-          transformStream.on('close', () => rangedStream.destroy());
-          request.on('close', () => rangedStream.destroy());
-          // Combine both the title and the main data streams
-          let combined = new PassThrough();
-          combined = titleStream.pipe(combined, { end: false });
-          combined = transformStream.pipe(combined, { end: false });
-          // WARNING: Do not use outputStream.emit('end') here!!
-          // This could trigger the 'end' event before all data has been consumed by the next stream
-          transformStream.once('end', () => combined.end());
-          // Return the .bin to .mdcrd process stream
-          stream = combined;
-        } else if (
-          transformFormatName === 'xtc' ||
-          transformFormatName === 'trr' ||
-          transformFormatName === 'nc'
-        ) {
-          // Get the number of atoms and frames
-          const atomCount = range.atomCount;
-          const frameCount = range.frameCount;
-          // Use chemfiles to convert the trajectory from .bin to the requested format
-          stream = chemfilesConverter(
-            rangedStream,
-            atomCount,
-            frameCount,
-            transformFormat.chemfilesName,
-          );
-          // We can not predict the size of the resulting file (yet?)
-          range.size = null;
-        } else if (transformFormatName === 'bin') {
-          stream = rangedStream;
-        } else {
-          throw new Error('Missing instructions to export format');
-        }
-        return {
-          stream,
-          descriptor,
-          range,
-          transformFormat,
-          accessionOrId,
-        };
-      },
-      headers(
-        response,
-        {
-          stream,
-          descriptor,
-          range,
-          transformFormat,
-          noContent,
-          accessionOrId,
-          error,
-        },
+        // Get the bytes ranges
+        range = handleRange(rangeString, descriptor);
+      }
+      // It is also able to obtain ranges through the header, when there are no queries
+      // This was the default way to receive ranges time ago
+      else if (request.headers.range) {
+        // Get the bytes ranges
+        range = handleRange(request.headers.range, descriptor);
+      }
+      // In case there is no selection range is no iterable
+      else {
+        range = handleRange(null, descriptor);
+      }
+      // Set the final stream to be returned
+      let stream;
+      // Return a simple stream when asking for the whole file (i.e. range is not iterable)
+      // Return an internally managed stream when asking for specific ranges
+      const rangedStream = combineDownloadStreams(bucket, oid, range);
+      // Get the output format name
+      const transformFormatName = transformFormat.name;
+      // When user requests "crd" or "mdcrd" files
+      if (transformFormatName === 'mdcrd') {
+        // Set a title for the mdcrd file (i.e. the first line)
+        const host = request.get('host');
+        const config = hostConfig[host];
+        let title = config.name + ' - ' + request.params.project;
+        if (frames) title += ' - frames: ' + frames;
+        if (selection) title += ' - selection: ' + selection;
+        title += '\n';
+        // Add an extra chunk with the title
+        // WARNING: This is important for the correct parsing of this format
+        // e.g. VMD skips the first line when reading this format
+        const titleStream = Readable.from([title]);
+        // Get the atoms per frames count. It is required to add the breakline between frames at the mdcrd format
+        // If this data is missing we cannot convert .bin to .mdcrd
+        const atomCount = range.atomCount;
+        if (!atomCount) return;
+        // Start a process to convert the original .bin file to .mdcrd format
+        const transformStream = BinToMdcrdStream(atomCount);
+        const lengthConverter = BinToMdcrdStream.CONVERTER;
+        // Calculate the bytes length in the new format
+        // WARNING: The size of the title must be included in the range (and then content-length)
+        range.size =
+          lengthConverter(range.size, atomCount) + Buffer.byteLength(title);
+        // Set a new stream which is ready to be destroyed
+        // It is destroyed when the .bin to .mdcrd process or the client request are over
+        rangedStream.pipe(transformStream);
+        transformStream.on('close', () => rangedStream.destroy());
+        request.on('close', () => rangedStream.destroy());
+        // Combine both the title and the main data streams
+        let combined = new PassThrough();
+        combined = titleStream.pipe(combined, { end: false });
+        combined = transformStream.pipe(combined, { end: false });
+        // WARNING: Do not use outputStream.emit('end') here!!
+        // This could trigger the 'end' event before all data has been consumed by the next stream
+        transformStream.once('end', () => combined.end());
+        // Return the .bin to .mdcrd process stream
+        stream = combined;
+      } else if (
+        transformFormatName === 'xtc' ||
+        transformFormatName === 'trr' ||
+        transformFormatName === 'nc'
       ) {
-        // In case of error
-        if (error) return response.status(error.header);
-        if (noContent) return response.sendStatus(NO_CONTENT);
-        if (range) {
-          // When something wrong happend while getting the atoms range
-          // If you have a bad request error check that 'request.query.frames' is correct
-          if (range === -1) return response.sendStatus(BAD_REQUEST);
-          if (range === -2) {
-            // NEVER FORGET: 'content-range' was disabled and now this data is got from project files
-            // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
-            //response.set('content-range', [
-            //  `bytes=*/${descriptor.length}`,
-            //  `atoms=*/${descriptor.metadata.atoms}`,
-            //  `frames=*/${descriptor.metadata.frames}`,
-            //]);
-            return response.sendStatus(REQUEST_RANGE_NOT_SATISFIABLE);
-          }
-          // complete potentially missing range info
-          if (!range.responseHeaders.find(h => h.startsWith('atoms'))) {
-            range.responseHeaders.push(`atoms=*/${descriptor.metadata.atoms}`);
-          }
-          if (!range.responseHeaders.find(h => h.startsWith('frames'))) {
-            range.responseHeaders.push(
-              `frames=*/${descriptor.metadata.frames}`,
-            );
-          }
-          // NEVER FORGET: 'content-range' were disabled and now this data is got from project files
+        // Get the number of atoms and frames
+        const atomCount = range.atomCount;
+        const frameCount = range.frameCount;
+        // Use chemfiles to convert the trajectory from .bin to the requested format
+        stream = chemfilesConverter(
+          rangedStream,
+          atomCount,
+          frameCount,
+          transformFormat.chemfilesName,
+        );
+        // We can not predict the size of the resulting file (yet?)
+        range.size = null;
+      } else if (transformFormatName === 'bin') {
+        stream = rangedStream;
+      } else {
+        throw new Error('Missing instructions to export format');
+      }
+      return {
+        stream,
+        descriptor,
+        range,
+        transformFormat,
+        accessionOrId,
+      };
+    },
+    headers(
+      response,
+      {
+        stream,
+        descriptor,
+        range,
+        transformFormat,
+        noContent,
+        accessionOrId,
+        error,
+      },
+    ) {
+      // In case of error
+      if (error) return response.status(error.header);
+      if (noContent) return response.sendStatus(NO_CONTENT);
+      if (range) {
+        // When something wrong happend while getting the atoms range
+        // If you have a bad request error check that 'request.query.frames' is correct
+        if (range === -1) return response.sendStatus(BAD_REQUEST);
+        if (range === -2) {
+          // NEVER FORGET: 'content-range' was disabled and now this data is got from project files
           // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
-          //response.set('content-range', range.responseHeaders);
-
-          if (!stream) return response.sendStatus(NOT_FOUND);
-
-          // NEVER FORGET: This partial content (i.e. 206) makes Chrome fail when downloading data directly from API
-          //response.status(PARTIAL_CONTENT);
+          //response.set('content-range', [
+          //  `bytes=*/${descriptor.length}`,
+          //  `atoms=*/${descriptor.metadata.atoms}`,
+          //  `frames=*/${descriptor.metadata.frames}`,
+          //]);
+          return response.sendStatus(REQUEST_RANGE_NOT_SATISFIABLE);
         }
+        // complete potentially missing range info
+        if (!range.responseHeaders.find(h => h.startsWith('atoms'))) {
+          range.responseHeaders.push(`atoms=*/${descriptor.metadata.atoms}`);
+        }
+        if (!range.responseHeaders.find(h => h.startsWith('frames'))) {
+          range.responseHeaders.push(`frames=*/${descriptor.metadata.frames}`);
+        }
+        // NEVER FORGET: 'content-range' were disabled and now this data is got from project files
+        // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
+        //response.set('content-range', range.responseHeaders);
 
         if (!stream) return response.sendStatus(NOT_FOUND);
 
-        // Send the expected bytes length of the file
-        // WARNING: If sent bytes are less than specified the download will fail with error signal
-        // WARNING: If sent bytes are more than specified the download will succed but it will be cutted
-        // WARNING: If sent bytes are a decimal number or null then it will generate an error 502 (Bad Gateway)
-        // If we dont send this header the download works anyway, but the user does not know how long it is going to take
-        if (range.size) {
-          if (range.size % 1 !== 0) console.error('ERROR: Size is not integer');
-          response.set('content-length', range.size);
-        }
-        if (descriptor.contentType) {
-          response.set(
-            'content-type',
-            // Here descriptor.contentType should be "application/octet-stream"
-            transformFormat.contentType,
-          );
-        }
-        // Set the output filename according to some standards
-        const filename = accessionOrId + '_trajectory.' + transformFormat.name;
-        response.setHeader(
-          'Content-disposition',
-          `attachment; filename=${filename}`,
+        // NEVER FORGET: This partial content (i.e. 206) makes Chrome fail when downloading data directly from API
+        //response.status(PARTIAL_CONTENT);
+      }
+
+      if (!stream) return response.sendStatus(NOT_FOUND);
+
+      // Send the expected bytes length of the file
+      // WARNING: If sent bytes are less than specified the download will fail with error signal
+      // WARNING: If sent bytes are more than specified the download will succed but it will be cutted
+      // WARNING: If sent bytes are a decimal number or null then it will generate an error 502 (Bad Gateway)
+      // If we dont send this header the download works anyway, but the user does not know how long it is going to take
+      if (range.size) {
+        if (range.size % 1 !== 0) console.error('ERROR: Size is not integer');
+        response.set('content-length', range.size);
+      }
+      if (descriptor.contentType) {
+        response.set(
+          'content-type',
+          // Here descriptor.contentType should be "application/octet-stream"
+          transformFormat.contentType,
         );
+      }
+      // Set the output filename according to some standards
+      const filename = accessionOrId + '_trajectory.' + transformFormat.name;
+      response.setHeader(
+        'Content-disposition',
+        `attachment; filename=${filename}`,
+      );
 
-        response.set('accept-ranges', ['bytes', 'atoms', 'frames']);
-      },
-      body(response, { stream, error }, request) {
-        // In case of error
-        if (error) return response.json(error.body);
+      response.set('accept-ranges', ['bytes', 'atoms', 'frames']);
+    },
+    body(response, { stream, error }, request) {
+      // In case of error
+      if (error) return response.json(error.body);
 
-        if (!stream) return;
+      if (!stream) return;
 
-        if (request.aborted) {
+      if (request.aborted) {
+        stream.destroy();
+        return;
+      }
+
+      // WARNING: Do not substitute the supervised "response.write" by a "stream.pipe(response)"
+      // "pipe" is not able to detect overloading in the response (Unknown reason)
+      // Therefore, if response is piped, there may be a memory leak in some situations
+      // For example, when client stops receiving data but connection is not closed
+      // (e.g. When you pause but do not cancell the download from Chrome)
+
+      // Write the input readable stream with the trajectroy data into the response
+      // This is possible since the response is a writable stream itself
+      stream.on('data', data => {
+        // If you are having this error it means some 'end' event is beeing triggered before all data is consumed
+        if (response.finished)
+          return console.error('ERROR: Potential data loss');
+        stream.pause();
+        // Check that local buffer is sending data out before continue to prevent memory leaks
+        response.write(data, () => {
+          stream.resume();
+        });
+        // use these lines to prevent system collapse in case of memory leak
+        /*
+        if(process.memoryUsage().rss > 300000000){
+          console.error("Memory leak detected");
           stream.destroy();
+          console.error("Current stream has been destroyed");
           return;
         }
-
-        // WARNING: Do not substitute the supervised "response.write" by a "stream.pipe(response)"
-        // "pipe" is not able to detect overloading in the response (Unknown reason)
-        // Therefore, if response is piped, there may be a memory leak in some situations
-        // For example, when client stops receiving data but connection is not closed
-        // (e.g. When you pause but do not cancell the download from Chrome)
-
-        // Write the input readable stream with the trajectroy data into the response
-        // This is possible since the response is a writable stream itself
-        stream.on('data', data => {
-          // If you are having this error it means some 'end' event is beeing triggered before all data is consumed
-          if (response.finished)
-            return console.error('ERROR: Potential data loss');
-          stream.pause();
-          // Check that local buffer is sending data out before continue to prevent memory leaks
-          response.write(data, () => {
-            stream.resume();
-          });
-          // use these lines to prevent system collapse in case of memory leak
-          /*
-          if(process.memoryUsage().rss > 300000000){
-            console.error("Memory leak detected");
-            stream.destroy();
-            console.error("Current stream has been destroyed");
-            return;
-          }
-          */
-        });
-        // In case of error, print error in console
-        stream.on('error', error => {
-          console.error(error);
-          response.end();
-        });
-        // Close the response when the read stream has finished
-        stream.on('end', data => response.end(data));
-        // Close the stream when request is over
-        request.on('close', () => stream.destroy());
-      },
-    }),
-  );
+        */
+      });
+      // In case of error, print error in console
+      stream.on('error', error => {
+        console.error(error);
+        response.end();
+      });
+      // Close the response when the read stream has finished
+      stream.on('end', data => response.end(data));
+      // Close the stream when request is over
+      request.on('close', () => stream.destroy());
+    },
+  });
+  fileRouter.route('/trajectory').get(trajectoryHandler);
+  fileRouter.route('/trajectory').post(trajectoryHandler);
 
   // When there is a file parameter (e.g. .../files/5d08c0d8174bf85a17e00861)
   fileRouter.route('/:file').get(

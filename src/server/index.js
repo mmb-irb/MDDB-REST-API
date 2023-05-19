@@ -36,13 +36,16 @@ app.use(
 app.use(
   cors({
     origin: '*',
-    methods: ['GET', 'HEAD', 'OPTIONS'],
+    methods: ['GET', 'POST', 'HEAD', 'OPTIONS'],
     exposedHeaders: ['content-length', 'content-range'],
   }),
 );
 
 // Pagination
 app.use(paginate.middleware(DEFAULT_LIMIT, MAX_LIMIT));
+
+// Parse POST request bodies
+app.use(express.json());
 
 // Root routes
 app.get('/', (_, res) => res.json({ 'api types': ['rest'] }));

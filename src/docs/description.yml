@@ -375,10 +375,136 @@ paths:
               schema:
                 type: string
                 format: binary
+    post:
+      summary: Get the main structure of the project in pdb format (long atom selections allowed).
+      description: >
+        Get the main structure of the project in pdb format.
+        Structure may be filtered by specific atoms.
+      produces:
+        - chemical/x-pdb
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+        - name: selection
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a NGL-formatted selection for the returned structure.<br>
+            The user can request specific atoms instead of the whole file.<br>
+            [See here for the kind of selection that can be used](http://nglviewer.org/ngl/api/manual/usage/selection-language.html).
+          examples:
+            allCAtoms:
+              summary: All carbon atoms
+              value: _C
+            backbone:
+              summary: Backbone atoms
+              value: backbone
+            allCInBackbone:
+              summary: All carbon atoms in the backbone
+              value: backbone and _C
+      tags:
+        - files
+      responses:
+        200:
+          description: a structure
+          content:
+            chemical/x-pdb:
+              schema:
+                type: string
+                format: binary
+        206:
+          description: an atom filtered structure
+          content:
+            chemical/x-pdb:
+              schema:
+                type: string
+                format: binary
 
   /projects/{projectAccessionOrID}/files/trajectory:
     get:
       summary: Get a complete or partial trajectory of the project.
+      description: >
+        Get a complete or partial trajectory of the project.
+        This process may take some time since trajectories are heavy files.
+      produces:
+        - application/octet-stream
+        - text/mdcrd
+        - application/xtc
+        - application/trr
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: ['mdcrd', 'xtc', 'trr']
+          description: >
+            Specify a request format for the trajectory file. The default format is an internal
+            binary format used by the client.<br>
+        - name: frames
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a frame range for the returned trajectory.<br>
+            The user can request only specific frames instead of the whole file.<br>
+            Ranges are defined by dashes, and multiple ranges can be defined
+            separated by commas. It can also be defined as the start:end:step
+            format.<br>
+            1-based numbering.
+          examples:
+            firstFrame:
+              summary: content of the first frame
+              value: 1
+            tenFrames:
+              summary: ten frames, from two different ranges
+              value: 1-5,11-15
+            everyTwoFrames:
+              summary: every two frames from frame 10 to frame 20
+              value: 10:20:2
+        - name: selection
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a NGL-formatted selection for the returned trajectory.<br>
+            The user can request specific atoms instead of the whole file.<br>
+            [See here for the kind of selection that can be used](http://nglviewer.org/ngl/api/manual/usage/selection-language.html).
+          examples:
+            allCAtoms:
+              summary: All carbon atoms
+              value: _C
+            backbone:
+              summary: Backbone atoms
+              value: backbone
+            allCInBackbone:
+              summary: All carbon atoms in the backbone
+              value: backbone and _C
+      tags:
+        - files
+      responses:
+        200:
+          description: the main trajectory
+          content:
+            text/mdcrd:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                format: binary
+        206:
+          description: a partial trajectory
+          content:
+            text/mdcrd:
+              schema:
+                type: string
+                format: binary
+            application/octet-stream:
+              schema:
+                format: binary
+    post:
+      summary: Get a complete or partial trajectory of the project (long atom and frame selections allowed).
       description: >
         Get a complete or partial trajectory of the project.
         This process may take some time since trajectories are heavy files.
