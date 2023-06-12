@@ -8,6 +8,18 @@ module.exports = {
       prefix: 'MDP',
       collection: null,
     },
+    'mdposit.mddbr.eu': {
+      name: 'MDposit',
+      description: 'The main server including all simulations',
+      prefix: 'MD',
+      collection: null,
+    },
+    'mdposit-dev.mddbr.eu': {
+      name: 'MDposit',
+      description: 'The main server including all simulations',
+      prefix: 'MD',
+      collection: null,
+    },
     'mdposit-dev.bsc.es': {
       name: 'MDposit',
       description: 'The main server including all simulations',
