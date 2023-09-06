@@ -178,6 +178,34 @@ const escapeRegExp = input => {
             finder.$and.push(objectQuery);
           }
         }
+        // Handle when it is a reference mongo query
+        // This allows querying projects by field of their uniprot references (e.g. organism, gene, etc.)
+        let referenceQuery = request.query.ref;
+        if (referenceQuery) {
+          // In case there is a single query it would be a string, not an array, so adapt it
+          if (typeof referenceQuery === 'string')
+            referenceQuery = [referenceQuery];
+          // Perform all queries individually and keep only those uniprot ids which are found in all queries
+          for (const q of referenceQuery) {
+            // Parse the string into a json object
+            const objectQuery = parseJSON(q);
+            if (!objectQuery) return { error: BAD_REQUEST };
+            // Query the references
+            // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
+            const referencesCursor = await model.references
+              .find(objectQuery)
+              .project({ uniprot: true, _id: false });
+            const results = await referencesCursor
+              .map(ref => ref.uniprot)
+              .toArray();
+            // Update the final projects query
+            const projectObjectQuery = {
+              'metadata.REFERENCES': { $in: results },
+            };
+            if (!finder.$and) finder.$and = [];
+            finder.$and.push(projectObjectQuery);
+          }
+        }
         // Set the projection object for the mongo query
         const projector = {};
         // Handle when it is a mongo projection itself
