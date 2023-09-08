@@ -22,6 +22,9 @@ const {
 
 const projectRouter = Router();
 
+// Set a header for queried fields to be queried in the references collection instead of projects
+const referencesHeader = 'references.';
+
 // This function renames the "_id" attributes from the project and from their pdbInfo attribute as "identifier"
 // In addition, it removes the "_id" and other 2 attributes from the files
 const projectObjectCleaner = project => {
@@ -170,40 +173,46 @@ const escapeRegExp = input => {
           // In case there is a single query it would be a string, not an array, so adapt it
           if (typeof query === 'string') query = [query];
           for (const q of query) {
-            // Parse the string into a json object
-            const objectQuery = parseJSON(q);
-            if (!objectQuery) return { error: BAD_REQUEST };
+            // Parse the string into an object
+            const projectsQuery = parseJSON(q);
+            if (!projectsQuery) return { error: BAD_REQUEST };
             // At this point the query object should correspond to a mongo query itself
-            if (!finder.$and) finder.$and = [];
-            finder.$and.push(objectQuery);
-          }
-        }
-        // Handle when it is a reference mongo query
-        // This allows querying projects by field of their uniprot references (e.g. organism, gene, etc.)
-        let referenceQuery = request.query.ref;
-        if (referenceQuery) {
-          // In case there is a single query it would be a string, not an array, so adapt it
-          if (typeof referenceQuery === 'string')
-            referenceQuery = [referenceQuery];
-          // Perform all queries individually and keep only those uniprot ids which are found in all queries
-          for (const q of referenceQuery) {
-            // Parse the string into a json object
-            const objectQuery = parseJSON(q);
-            if (!objectQuery) return { error: BAD_REQUEST };
-            // Query the references
-            // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
-            const referencesCursor = await model.references
-              .find(objectQuery)
-              .project({ uniprot: true, _id: false });
-            const results = await referencesCursor
-              .map(ref => ref.uniprot)
-              .toArray();
-            // Update the final projects query
-            const projectObjectQuery = {
-              'metadata.REFERENCES': { $in: results },
+            // Find fields which start with 'references'
+            // These fields are actually intended to query the references collections
+            // If we found references fields then we must query the references collection
+            // Then each references field will be replaced by a query to 'metadata.REFERENCES' in the projects query
+            // The value of 'metadata.REFERENCES' to be queried will be the matching uniprot ids
+            const parseReferencesQuery = async original_query => {
+              // Iterate over the original query fields
+              for (const [field, value] of Object.entries(original_query)) {
+                // If the field is actually a list of fields then run the parsing function recursively
+                if (field === '$and' || field === '$or') {
+                  await parseReferencesQuery(value);
+                  return;
+                }
+                // If the field does not start with the references header then skip it
+                if (!field.startsWith(referencesHeader)) return;
+                // Get the name of the field after substracting the symbolic header
+                const referencesField = field.replace(referencesHeader, '');
+                const referencesQuery = {};
+                referencesQuery[referencesField] = value;
+                // Query the references collection
+                // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
+                const referencesCursor = await model.references
+                  .find(referencesQuery)
+                  .project({ uniprot: true, _id: false });
+                const results = await referencesCursor
+                  .map(ref => ref.uniprot)
+                  .toArray();
+                // Update the original query by removing the original field and adding the parsed one
+                delete original_query[field];
+                original_query['metadata.REFERENCES'] = { $in: results };
+              }
             };
+            // Start the parsing function
+            await parseReferencesQuery(projectsQuery);
             if (!finder.$and) finder.$and = [];
-            finder.$and.push(projectObjectQuery);
+            finder.$and.push(projectsQuery);
           }
         }
         // Set the projection object for the mongo query
@@ -289,12 +298,14 @@ const escapeRegExp = input => {
           response.status(error);
           return;
         }
-        if (!filteredCount) response.status(NO_CONTENT);
+        // This header makes the response behave strangely sometimes
+        // I prefere the response showing a clear 0 count and the empty projects list
+        //if (filteredCount === 0) response.status(NO_CONTENT);
       },
       // Else, the projects list and the two counts are sent in the body
       body(response, retrieved) {
         // 'response.json' sends data in json format and ends the response
-        if (retrieved.filteredCount) response.json(retrieved);
+        if (retrieved) response.json(retrieved);
         else response.end();
       },
     }),

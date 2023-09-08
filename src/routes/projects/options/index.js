@@ -6,6 +6,9 @@ const { INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
 // Mongo DB filter that only returns published results when the environment is set as "production"
 const getBaseFilter = require('../../../utils/base-filter');
 
+// Set a header for queried fields to be queried in the references collection instead of projects
+const referencesHeader = 'references.';
+
 const analysisRouter = Router({ mergeParams: true });
 
 // This endpoint returns some options of data contained in the projects collection
@@ -18,15 +21,29 @@ module.exports = (_, { projects, references }) => {
         let projection = request.query.projection;
         if (!projection) return { error: 'Missing projection' };
         if (typeof projection === 'string') projection = [projection];
-        // Set the projection object for the mongo query
-        const projector = { _id: false, uniprot: true };
-        projection.forEach(p => (projector[p] = true));
         // Set the options object to be returned
         // Then all mined data will be written into it
         const options = {};
-        // Options may be querying the projects collection (default) or the references collection
-        // If the 'ref' flag is passed (even empty) then do the query against references
-        if (request.query.ref !== undefined) {
+        // Options may be fields both from projects or references collections
+        // Fields in references are headed with the 'references.' label and they are handled separately
+        // Start with options from references
+        // In case there is any reference we must query the projects collections first
+        // First separate projections according to which collection they are focused in
+        // Also remove references headers to match the original field names
+        const projectsProjections = [];
+        const referencesProjections = [];
+        projection.forEach(p => {
+          // If there is no header then add it to the projects projections list
+          if (!p.startsWith(referencesHeader)) {
+            projectsProjections.push(p);
+            return;
+          }
+          // Otherwise remove the header and add it to the references projections list
+          const referencesField = p.replace(referencesHeader, '');
+          referencesProjections.push(referencesField);
+        });
+        // Now start handling references options
+        if (referencesProjections.length !== 0) {
           // Get all project references to be used further
           const projectsCursor = await projects.find(
             getBaseFilter(request),
@@ -37,16 +54,21 @@ module.exports = (_, { projects, references }) => {
           const projectReferences = await projectsCursor
             .map(project => project.metadata.REFERENCES)
             .toArray();
-          // Get all references
+          // Now set the projector with references fields only
+          // Get also the uniprot ids to associate values further
+          const referencesProjector = { _id: false, uniprot: true };
+          referencesProjections.forEach(p => (referencesProjector[p] = true));
+          // Get all references using the custom projector
           const referencesCursor = await references.find(
             getBaseFilter(request),
             // Discard the heaviest fields we do not need anyway
-            { projection: projector },
+            { projection: referencesProjector },
           );
           // Consume the references cursor
-          const data = await referencesCursor.toArray();
-          // For each projected field, get the different available values and the uniprot ids of references which contain them
-          projection.forEach(field => {
+          const referencesData = await referencesCursor.toArray();
+          // Now for each field, get the different available values and the uniprot ids on each value
+          // Then count how many times any of those uniprots is in the project references list
+          referencesProjections.forEach(field => {
             const values = {};
             // Set a function to mine values
             const getValues = (object, steps, uniprot_id) => {
@@ -72,7 +94,7 @@ module.exports = (_, { projects, references }) => {
             };
             // Run the actual values mining
             const fieldSteps = field.split('.');
-            data.forEach(reference =>
+            referencesData.forEach(reference =>
               getValues(reference, fieldSteps, reference.uniprot),
             );
             // Now, for each value, convert the uniprot ids list in the count of projects including any of these uniprot ids
@@ -91,47 +113,48 @@ module.exports = (_, { projects, references }) => {
               if (count !== 0) counts[value] = count;
             });
             // Add current field counts to the options object to be returned
+            options[referencesHeader + field] = counts;
+          });
+        }
+        // Now handle references options
+        if (projectsProjections.length !== 0) {
+          // Set the projection object for the mongo query
+          const projector = { _id: false };
+          projectsProjections.forEach(p => (projector[p] = true));
+          // In case we are querying the projects collection
+          // Get all projects
+          const cursor = await projects.find(
+            getBaseFilter(request),
+            // Discard the heaviest fields we do not need anyway
+            { projection: projector },
+          );
+          // Consume the cursor
+          const data = await cursor.toArray();
+          // For each projected field, get the counts
+          projectsProjections.forEach(field => {
+            const values = [];
+            const getValues = (object, steps) => {
+              let value = object;
+              for (const [index, step] of steps.entries()) {
+                value = value[step];
+                if (value === undefined) return;
+                // In case it is an array search for the remaining steps on each element
+                if (Array.isArray(value)) {
+                  const remainingSteps = steps.slice(index + 1);
+                  value.forEach(element => getValues(element, remainingSteps));
+                  return;
+                }
+              }
+              values.push(value);
+            };
+            const fieldSteps = field.split('.');
+            data.forEach(project => getValues(project, fieldSteps));
+            // Count how many times is repeated each value and save the number with the fieldname key
+            const counts = {};
+            values.forEach(v => (counts[v] = (counts[v] || 0) + 1));
             options[field] = counts;
           });
-          return options;
         }
-        // In case we are querying the projects collection
-        // Get all projects
-        const cursor = await projects.find(
-          getBaseFilter(request),
-          // Discard the heaviest fields we do not need anyway
-          { projection: projector },
-        );
-        // Consume the cursor
-        const data = await cursor.toArray();
-        // For each projected field, get the counts
-        projection.forEach(field => {
-          const values = [];
-          const getValues = (object, steps) => {
-            let value = object;
-            for (const [index, step] of steps.entries()) {
-              value = value[step];
-              if (value === undefined) return;
-              // In case it is an array search for the remaining steps on each element
-              if (Array.isArray(value)) {
-                const remainingSteps = steps.slice(index + 1);
-                value.forEach(element => getValues(element, remainingSteps));
-                return;
-              }
-            }
-            values.push(value);
-          };
-          const fieldSteps = field.split('.');
-          data.forEach(project => getValues(project, fieldSteps));
-          // Count how many times is repeated each value and save the number with the fieldname key
-          const counts = {};
-          values.forEach(v => (counts[v] = (counts[v] || 0) + 1));
-          options[field] = counts;
-        });
-
-        // Get the count of each 'unit' in all simulations
-        // const units = data.map(object => object.metadata.UNIT);
-        // getCounts(units, options);
         // Send all mined data
         return options;
       },
