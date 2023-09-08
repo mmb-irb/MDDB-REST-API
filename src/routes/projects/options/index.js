@@ -86,7 +86,9 @@ module.exports = (_, { projects, references }) => {
                 )
                   count += 1;
               }
-              counts[value] = count;
+              // Add the count only if it is not 0
+              // This may happen when a reference is orphan (i.e. its associated projects were deleted)
+              if (count !== 0) counts[value] = count;
             });
             // Add current field counts to the options object to be returned
             options[field] = counts;
