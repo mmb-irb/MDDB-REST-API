@@ -187,7 +187,9 @@ const escapeRegExp = input => {
               for (const [field, value] of Object.entries(original_query)) {
                 // If the field is actually a list of fields then run the parsing function recursively
                 if (field === '$and' || field === '$or') {
-                  await parseReferencesQuery(value);
+                  for (const subquery of value) {
+                    await parseReferencesQuery(subquery);
+                  }
                   return;
                 }
                 // If the field does not start with the references header then skip it
