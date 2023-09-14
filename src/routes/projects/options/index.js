@@ -60,7 +60,7 @@ module.exports = (_, { projects, references }) => {
           referencesProjections.forEach(p => (referencesProjector[p] = true));
           // Get all references using the custom projector
           const referencesCursor = await references.find(
-            getBaseFilter(request),
+            {}, // Get all references, independently from the request origin
             // Discard the heaviest fields we do not need anyway
             { projection: referencesProjector },
           );
