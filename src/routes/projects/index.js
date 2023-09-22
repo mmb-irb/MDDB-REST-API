@@ -13,6 +13,7 @@ const handler = require('../../utils/generic-handler');
 const {
   getProjectQuery,
   getBaseFilter,
+  getMdIndex,
 } = require('../../utils/get-project-query');
 
 const {
@@ -26,22 +27,80 @@ const projectRouter = Router();
 // Set a header for queried fields to be queried in the references collection instead of projects
 const referencesHeader = 'references.';
 
+// This function is runed only in old-formatted projects
 // This function renames the "_id" attributes from the project and from their pdbInfo attribute as "identifier"
-// In addition, it removes the "_id" and other 2 attributes from the files
-const projectObjectCleaner = project => {
-  // Add all attributes from project but the "_id"
-  // Add the project "_id" in a new attribute called "identifier"
-  const output = omit(project, ['_id']);
-  output.identifier = project._id;
-  // If the project has files then, in each file, remove the "_id", the "chunkSize" and the "uploadDate" attributes
-  if (project.files) {
-    output.files = project.files.map(file =>
-      omit(file, ['_id', 'chunkSize', 'uploadDate']),
-    );
+// In addition, it removes the "_id" and other 2 attributes from files
+// Note that the input object is modified
+const projectCleaner = projectData => {
+  // Rename the project "_id" as "identifier"
+  // Add the project "_id" in a new attribute called
+  projectData.identifier = projectData._id;
+  delete projectData._id;
+  // Reduce the files list to a list of filenames
+  if (projectData.files) {
+    projectData.files = projectData.files.map(file => file.filename);
   }
-
-  return output;
+  // Return the modified object just for the map function to work properly
+  return projectData;
 };
+
+// This function filters project data to a single MD
+// Note that the input object is modified
+const projectFormatter = (projectData, requestedMdIndex = null) => {
+  // If the project has not the 'mds' field then it means it has the old format
+  // Return it as it is
+  if (!projectData.mds) return projectCleaner(projectData);
+  // Get the index of the MD to remain
+  const mdIndex =
+    requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
+  // Set the corresponding MD data as the project data
+  const mdData = projectData.mds[mdIndex];
+  // If the corresponding index does not exist then return an error
+  if (!mdData)
+    return {
+      error:
+        'The requested MD does not exists. Try with numbers 1-' +
+        projectData.mds.length,
+    };
+  const { name, metadata, analyses, files, ...rest } = mdData;
+  // Add the mdIndex to the project itself
+  // Note that this value has the same usage and importance than the accession
+  projectData.mdNumber = mdIndex + 1;
+  // Add the MD name without overwritting the project name  to project metadata
+  projectData.metadata.mdName = name;
+  // Add MD metadata to project metadata
+  // Note that MD metadata does not always exist since most metadata is in the project
+  // Note that project metadata values will be overwritten by MD metadata values
+  Object.assign(projectData.metadata, metadata);
+  // Add analyses and files to the project
+  // Instead of a list of objects return a list of names
+  projectData.analyses = analyses.map(analysis => analysis.name);
+  projectData.files = files.map(file => file.name);
+  // Add the rest of values
+  // Note that project values will be overwritten by MD values
+  Object.assign(projectData, rest);
+  // Reduce the list of mds to heir names
+  projectData.mds = projectData.mds.map(md => md.name);
+  // Return the modified object just for the map function to work properly
+  return projectData;
+};
+
+// // This function renames the "_id" attributes from the project and from their pdbInfo attribute as "identifier"
+// // In addition, it removes the "_id" and other 2 attributes from the files
+// const projectObjectCleaner = project => {
+//   // Add all attributes from project but the "_id"
+//   // Add the project "_id" in a new attribute called "identifier"
+//   const output = omit(project, ['_id']);
+//   output.identifier = project._id;
+//   // If the project has files then, in each file, remove the "_id", the "chunkSize" and the "uploadDate" attributes
+//   if (project.files) {
+//     output.files = project.files.map(file =>
+//       omit(file, ['_id', 'chunkSize', 'uploadDate']),
+//     );
+//   }
+
+//   return output;
+// };
 
 // Convert a string input into int, float or boolean type if possible
 const parseType = input => {
@@ -76,6 +135,7 @@ const escapeRegExp = input => {
     // Get the desried collections from the database
     projects: db.collection('projects'),
     analyses: db.collection('analyses'),
+    files: db.collection('fs.files'),
     chains: db.collection('chains'),
     references: db.collection('references'),
     topologies: db.collection('topologies'),
@@ -288,7 +348,7 @@ const escapeRegExp = input => {
                 // Avoid the last results when a limit is provided in the request query (URL)
                 .limit(limit)
                 // Each project is cleaned (some attributes are renamed or removed)
-                .map(projectObjectCleaner)
+                .map(projectFormatter)
                 // Changes the type from Cursor into Array, then saving data in memory
                 .toArray()
             : [],
@@ -324,12 +384,27 @@ const escapeRegExp = input => {
   // It is expected to be a project ID (e.g. .../projects/MCNS00001)
   projectRouter.route('/:project').get(
     handler({
-      retriever(request) {
+      async retriever(request) {
         // Set the project filter
         const projectFilter = getProjectQuery(request);
-        // Get the
+        // Do the query
+        const projectData = await model.projects.findOne(projectFilter);
+        if (!projectData) return;
+        // Get the md number from the request
+        const requestedMdIndex = getMdIndex(request);
+        // If project data does not contain the 'mds' field then it means it is in the old format
+        // Make sure no md was requested or raise an error to avoid silent problems
+        // User may think each md returns different data otherwise
+        if (!projectData.mds && requestedMdIndex !== null)
+          return {
+            error:
+              'This project has no MDs. Please use the accession or id alone.',
+          };
+        // Filter project data according to the requested MD index
+        projectFormatter(projectData, requestedMdIndex);
+        if (projectData.error) return projectData;
         // Return the project which matches the request project ID (accession)
-        return model.projects.findOne(projectFilter);
+        return projectData;
       },
       // If no project is found, a NOT_FOUND status is sent in the header
       headers(response, retrieved) {
@@ -337,7 +412,7 @@ const escapeRegExp = input => {
       },
       // Else, the project object is cleaned (some attributes are renamed or removed) and sent in the body
       body(response, retrieved) {
-        if (retrieved) response.json(projectObjectCleaner(retrieved));
+        if (retrieved) response.json(retrieved);
         else response.end();
       },
     }),

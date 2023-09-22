@@ -14,7 +14,10 @@ const handleRange = require('../../../utils/handle-range');
 // Returns an internally managed stream when asking for specific ranges
 const combineDownloadStreams = require('../../../utils/combine-download-streams');
 // Get an automatic mongo query parser based on environment and request
-const { getProjectQuery } = require('../../../utils/get-project-query');
+const {
+  getProjectQuery,
+  getMdIndex,
+} = require('../../../utils/get-project-query');
 // Returns the selected atom indices as a string ("i1-i1,i2-i2,i3-i3..."")
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 // Returns a pdb filtered according to an NGL selection
@@ -32,9 +35,6 @@ const {
   NOT_FOUND,
   REQUEST_RANGE_NOT_SATISFIABLE,
 } = require('../../../utils/status-codes');
-
-// Esto no sirve para nada aparentemente
-//var crypto = require('crypto');
 
 // Trajectory exporting supported formats
 const trajectoryFormats = {
@@ -70,6 +70,7 @@ const trajectoryFormats = {
 
 // Set the standard name of the structure and trajectory files
 const STANDARD_STRUCTURE_FILENAME = 'md.imaged.rot.dry.pdb';
+const STANDARD_TRAJECTORY_FILENAME = 'trajectory.bin';
 
 // Set a function to ckeck if a string is a mongo id
 // WARNING: Do not use the builtin 'ObjectId.isValid'
@@ -103,79 +104,135 @@ const fileRouter = Router({ mergeParams: true });
 
 // The reference to the mongo data base here is passed through the properties (db)
 // The connection to the data base is made and comes from the projects index.js script
-module.exports = (db, { projects }) => {
+module.exports = (db, { projects, files }) => {
   // Root
   fileRouter.route('/').get(
     handler({
-      retriever(request) {
+      async retriever(request) {
         // Return the project which matches the request accession
-        return projects.findOne(
+        const projectData = await projects.findOne(
           getProjectQuery(request),
-          // But return only the "files" attribute
-          { projection: { _id: false, files: true } },
+          // Retrieve only the fields which may include files data
+          { projection: { files: true, 'mds.files': true, mdref: true } },
         );
+        // If we did not found the project then we stop here
+        if (!projectData) return;
+        // Check if the request is only for the descriptor
+        const descriptorRequested =
+          request.body.descriptor !== undefined ||
+          request.query.descriptor !== undefined;
+        // Get the md index from the request or use the reference MD id in case it is missing
+        const requestedMdIndex = getMdIndex(request);
+        // If project data does not contain the 'mds' field then it means it is in the old format
+        if (!projectData.mds) {
+          // Make sure no md was requested or raise an error to avoid silent problems
+          // User may think each md returns different data otherwise
+          if (requestedMdIndex !== null)
+            return {
+              error:
+                'This project has no MDs. Please use the accession or id alone.',
+            };
+          // If the description was requested then send all file descriptions
+          if (descriptorRequested) {
+            const filesQuery = { 'metadata.project': projectData._id };
+            const filesCursor = await files.find(filesQuery, { _id: false });
+            const filesData = await filesCursor.toArray();
+            return filesData;
+          } else return projectData.files.map(file => file.filename);
+        }
+        // Get the MD index, which is the requested index or, if none, the reference index
+        const mdIndex =
+          requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
+        // If the description was requested then send all file descriptions
+        if (descriptorRequested) {
+          const filesQuery = {
+            'metadata.project': projectData._id,
+            'metadata.md': mdIndex,
+          };
+          const filesCursor = await files.find(filesQuery, { _id: false });
+          const filesData = await filesCursor.toArray();
+          return filesData;
+        }
+        // Get the corresponding MD data and return its analysis names
+        const mdData = projectData.mds[mdIndex];
+        return mdData.files.map(file => file.name);
       },
       // If there is nothing retrieved or the retrieved has no files, send a NOT_FOUND status in the header
       headers(response, retrieved) {
-        if (!(retrieved && retrieved.files)) response.sendStatus(NOT_FOUND);
+        if (!retrieved) response.sendStatus(NOT_FOUND);
       },
       // If there is retrieved and the retrieved has files, send the files in the body
       body(response, retrieved) {
-        if (retrieved && retrieved.files) {
-          response.json(
-            // Remove the "chunkSize" and the "uploadDate" attributes from each file
-            retrieved.files.map(file =>
-              omit(file, ['chunkSize', 'uploadDate', 'dbConnection_id']),
-            ),
-          );
-        } else response.end();
+        if (retrieved) response.json(retrieved);
+        else response.end();
       },
     }),
   );
-  // This function finds the project which matches the request accession
-  // When found, saves the project object ID, accession and files
-  const getProject = request =>
-    projects.findOne(
-      // Returns a filter with the base filter attributes and the project ObjectID
-      getProjectQuery(request),
-      // Declare that we only want the id and files to be returned from findOne()
-      { projection: { _id: true, accession: true, files: true } },
-    );
 
   // When structure is requested (i.e. .../files/structure)
   // Note that structure may be requested both trough GET and POST methods
   // POST method was implemented to allow long atom selections
   const structureHandler = handler({
     async retriever(request) {
+      // Set the bucket, which allows downloading big files from the database
       const bucket = new GridFSBucket(db);
-      // Finds the project by the accession
-      const projectDoc = await getProject(request);
-      if (!projectDoc) return; // If there is no projectDoc stop here
-      const accessionOrId = projectDoc.accession
-        ? projectDoc.accession.toLowerCase()
-        : projectDoc._id;
-      // Get the object id of the project structure
-      const oid = ObjectId(
-        (
-          projectDoc.files.find(
-            file => file.filename === STANDARD_STRUCTURE_FILENAME,
-          ) || {}
-        )._id,
+      // Return the project which matches the request accession
+      const projectData = await projects.findOne(
+        getProjectQuery(request),
+        // Retrieve only the fields which may include files data
+        {
+          projection: {
+            _id: true,
+            accession: true,
+            files: true,
+            'mds.files': true,
+            mdref: true,
+          },
+        },
       );
-      // If there is no oid at this point it means there is no structure file
-      if (!oid) return;
-      // Save the corresponding file
-      const descriptor = await db.collection('fs.files').findOne(oid);
+      // If we did not found the project then we stop here
+      if (!projectData) return;
+      // Set the file descriptor to be found
+      let fileId;
+      // Get the md index from the request or use the reference MD id in case it is missing
+      const requestedMdIndex = getMdIndex(request);
+      // If the project has the 'mds' field then it means it has the new format
+      // Find the file among the corresponding MD files list
+      if (projectData.mds) {
+        // Get the MD index, which is the requested index or, if none, the reference index
+        const mdIndex =
+          requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
+        // Get the corresponding MD data and return its analysis names
+        const mdData = projectData.mds[mdIndex];
+        const file = mdData.files.find(
+          file => file.name === STANDARD_STRUCTURE_FILENAME,
+        );
+        if (file) fileId = file.id;
+      }
+      // If the project has not the 'mds' field then it means it has the old format
+      // Return its analyses, as before
+      else {
+        // Make sure no md was requested or raise an error to avoid silent problems
+        // User may think each md returns different data otherwise
+        if (requestedMdIndex !== null) return { noContent: true };
+        const file = projectData.files.find(
+          file => file.filename === STANDARD_STRUCTURE_FILENAME,
+        );
+        if (file) fileId = file._id;
+      }
+      // If the project has no trajectory, stop here
+      if (!fileId) return { noContent: true };
+      // Save the corresponding file, which is found by object id
+      const descriptor = await files.findOne({ _id: fileId });
       // If the object ID is not found in the data base, return here
-      if (!descriptor) return;
-
+      if (!descriptor) return { noContent: true };
       // Open a stream with the corresponding ID
-      let stream = bucket.openDownloadStream(oid);
+      let stream = bucket.openDownloadStream(fileId);
       const selection = request.body.selection || request.query.selection;
       // In case of selection query
       if (selection) {
         // Open a stream and save it completely into memory
-        const pdbFile = await consumeStream(bucket.openDownloadStream(oid));
+        const pdbFile = await consumeStream(bucket.openDownloadStream(fileId));
         // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
         const selectedPdb = await getSelectedPdb(pdbFile, selection);
         // Selected pdb will be never null, since an empty pdb file would have header and end
@@ -186,9 +243,12 @@ module.exports = (db, { projects }) => {
         // Modify the original length
         descriptor.length = bufferPdb.length;
       } else {
-        stream = bucket.openDownloadStream(oid);
+        stream = bucket.openDownloadStream(fileId);
       }
-
+      // Get the accession, if exists, or get the id
+      const accessionOrId = projectData.accession
+        ? projectData.accession.toLowerCase()
+        : projectData._id;
       return { descriptor, stream, accessionOrId };
     },
     // If there is an active stream, send range and length content
@@ -236,6 +296,8 @@ module.exports = (db, { projects }) => {
       request.on('close', () => retrieved.stream.destroy());
     },
   });
+
+  // Support both the http GET and POST methods
   fileRouter.route('/structure').get(structureHandler);
   fileRouter.route('/structure').post(structureHandler);
 
@@ -244,24 +306,58 @@ module.exports = (db, { projects }) => {
   // POST method was implemented to allow long atom/frame selections
   const trajectoryHandler = handler({
     async retriever(request) {
-      // The bucket is used to process files splitting them in 4 Mb fragments
+      // Set the bucket, which allows downloading big files from the database
       const bucket = new GridFSBucket(db);
-      let projectDoc;
-      // Find the project from the request and, inside this project, find the file 'trajectory.bin'
-      // Get the ID from the previously found file and save the file through the ID
-      projectDoc = await getProject(request); // Finds the project by the accession
-      if (!projectDoc) return NOT_FOUND; // If there is no projectDoc stop here
-      const accessionOrId = projectDoc.accession
-        ? projectDoc.accession.toLowerCase()
-        : projectDoc._id;
-      const cursor = projectDoc.files.find(
-        file => file.filename === 'trajectory.bin',
+      // Return the project which matches the request accession
+      const projectData = await projects.findOne(
+        getProjectQuery(request),
+        // Retrieve only the fields which may include files data
+        {
+          projection: {
+            _id: true,
+            accession: true,
+            files: true,
+            'mds.files': true,
+            mdref: true,
+          },
+        },
       );
-      if (!cursor) return { noContent: true }; // If the project has no trajectory, stop here
-      const oid = ObjectId(cursor._id);
-
+      // If we did not found the project then stop here
+      if (!projectData) return NOT_FOUND;
+      // Set the file descriptor to be found
+      let fileId;
+      // Get the md index from the request or use the reference MD id in case it is missing
+      const requestedMdIndex = getMdIndex(request);
+      // If the project has the 'mds' field then it means it has the new format
+      // Find the file among the corresponding MD files list
+      if (projectData.mds) {
+        // Get the MD index, which is the requested index or, if none, the reference index
+        const mdIndex =
+          requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
+        // Get the corresponding MD data and return its analysis names
+        const mdData = projectData.mds[mdIndex];
+        const file = mdData.files.find(
+          file => file.name === STANDARD_TRAJECTORY_FILENAME,
+        );
+        if (file) fileId = file.id;
+      }
+      // If the project has not the 'mds' field then it means it has the old format
+      // Return its analyses, as before
+      else {
+        // Make sure no md was requested or raise an error to avoid silent problems
+        // User may think each md returns different data otherwise
+        if (requestedMdIndex !== null) return { noContent: true };
+        const file = projectData.files.find(
+          file => file.filename === STANDARD_TRAJECTORY_FILENAME,
+        );
+        if (file) fileId = file._id;
+      }
+      // If the project has no trajectory, stop here
+      if (!fileId) return { noContent: true };
       // Save the corresponding file, which is found by object id
-      const descriptor = await db.collection('fs.files').findOne(oid);
+      const descriptor = await files.findOne({ _id: fileId });
+      // If the object ID is not found in the data base, return here
+      if (!descriptor) return { noContent: true };
       // Set the format in which data will be sent
       // Format is requested through the query
       const transformFormat = acceptTransformFormat(request.query.format);
@@ -287,18 +383,36 @@ module.exports = (db, { projects }) => {
         let rangeString = '';
         // In case of selection query
         if (selection) {
-          // Save the project from the request if it is not saved yet
-          // DANI: Esto no tiene sentido ¿no? ya deberíamos tener el proyecto de arriba
-          if (!projectDoc) projectDoc = await getProject(request);
-          if (!projectDoc) return; // If there is no project stop here
-          // Get the ID from the structure file and save it through the ID
-          const oid = ObjectId(
-            projectDoc.files.find(
+          // Find the structure file and save its id
+          let structureFileId;
+          // If the project has the 'mds' field then it means it has the new format
+          // Find the file among the corresponding MD files list
+          if (projectData.mds) {
+            // Get the MD index, which is the requested index or, if none, the reference index
+            const mdIndex =
+              requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
+            // Get the corresponding MD data and return its analysis names
+            const mdData = projectData.mds[mdIndex];
+            const file = mdData.files.find(
+              file => file.name === STANDARD_STRUCTURE_FILENAME,
+            );
+            if (file) structureFileId = file.id;
+          }
+          // If the project has not the 'mds' field then it means it has the old format
+          // Return its analyses, as before
+          else {
+            // Make sure no md was requested or raise an error to avoid silent problems
+            // User may think each md returns different data otherwise
+            if (requestedMdIndex !== null) return { noContent: true };
+            const file = projectData.files.find(
               file => file.filename === STANDARD_STRUCTURE_FILENAME,
-            )._id,
-          );
+            );
+            if (file) structureFileId = file._id;
+          }
           // Open a stream and save it completely into memory
-          const pdbFile = await consumeStream(bucket.openDownloadStream(oid));
+          const pdbFile = await consumeStream(
+            bucket.openDownloadStream(structureFileId),
+          );
           // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
           const atoms = await getAtomIndices(pdbFile, selection);
           // If no atoms where found, then return here and set the header to NOT_FOUND
@@ -332,7 +446,7 @@ module.exports = (db, { projects }) => {
       let stream;
       // Return a simple stream when asking for the whole file (i.e. range is not iterable)
       // Return an internally managed stream when asking for specific ranges
-      const rangedStream = combineDownloadStreams(bucket, oid, range);
+      const rangedStream = combineDownloadStreams(bucket, fileId, range);
       // Get the output format name
       const transformFormatName = transformFormat.name;
       // When user requests "crd" or "mdcrd" files
@@ -395,6 +509,10 @@ module.exports = (db, { projects }) => {
       } else {
         throw new Error('Missing instructions to export format');
       }
+      // Get the accession, if exists, or get the id
+      const accessionOrId = projectData.accession
+        ? projectData.accession.toLowerCase()
+        : projectData._id;
       return {
         stream,
         descriptor,
@@ -525,52 +643,98 @@ module.exports = (db, { projects }) => {
       request.on('close', () => stream.destroy());
     },
   });
+
+  // Support both the http GET and POST methods
   fileRouter.route('/trajectory').get(trajectoryHandler);
   fileRouter.route('/trajectory').post(trajectoryHandler);
 
-  // When there is a file parameter (e.g. .../files/5d08c0d8174bf85a17e00861)
+  // When there is a file parameter
+  // e.g. .../files/md.imaged.rot.dry.pdb
+  // e.g. .../files/5d08c0d8174bf85a17e00861
   fileRouter.route('/:file').get(
     handler({
       async retriever(request) {
+        // Set the bucket, which allows downloading big files from the database
         const bucket = new GridFSBucket(db);
-
-        let oid;
+        // Find the object id of the file to be downloaded
+        let fileId;
+        // If the query is an object id itself then just parse it
         if (isObjectId(request.params.file)) {
-          // If using mongo ID in the request (URL)
-          // Saves the mongo ID corresponding file
-          oid = ObjectId(request.params.file);
-        } else {
-          // If it was not a valid mongo ID, assume it was a file name
+          fileId = request.params.file;
+        }
+        // If the query is a filename then find the corresponding object id
+        else {
           // Find the project from the request and, inside this project, find the file named as the request
           // Get the ID from the previously found file and save the file through the ID
-          const projectDoc = await getProject(request); // Finds the project by the accession
-          if (!projectDoc) return; // If there is no projectDoc stop here
-          oid = ObjectId(
-            (
-              projectDoc.files.find(
-                file => file.filename === request.params.file,
-              ) || {}
-            )._id,
+          // Return the project which matches the request accession
+          const projectData = await projects.findOne(
+            getProjectQuery(request),
+            // Retrieve only the fields which may include files data
+            {
+              projection: {
+                _id: false,
+                files: true,
+                'mds.files': true,
+                mdref: true,
+              },
+            },
           );
+          // If we did not found the project then stop here
+          if (!projectData) return;
+          // Get the md index from the request or use the reference MD id in case it is missing
+          const requestedMdIndex = getMdIndex(request);
+          // If the project has the 'mds' field then it means it has the new format
+          // Find the file among the corresponding MD files list
+          if (projectData.mds) {
+            // Get the MD index, which is the requested index or, if none, the reference index
+            const mdIndex =
+              requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
+            // Get the corresponding MD data and return its analysis names
+            const mdData = projectData.mds[mdIndex];
+            const file = mdData.files.find(
+              file => file.name === request.params.file,
+            );
+            if (file) fileId = file.id;
+          }
+          // If the project has not the 'mds' field then it means it has the old format
+          // Return its analyses, as before
+          else {
+            // Make sure no md was requested or raise an error to avoid silent problems
+            // User may think each md returns different data otherwise
+            if (requestedMdIndex !== null) return;
+            const file = projectData.files.find(
+              file => file.filename === request.params.file,
+            );
+            if (file) fileId = file._id;
+          }
         }
         // If arrived to that point we still have no oid, assume file doesn't exist
-        if (!oid) return;
+        if (!fileId) return;
 
         // Save the corresponding file
-        const descriptor = await db.collection('fs.files').findOne(oid);
+        const descriptor = await files.findOne({ _id: fileId });
         // If the object ID is not found in the data base, return here
         if (!descriptor) return;
 
-        // Open a stream with the corresponding ID
-        const stream = bucket.openDownloadStream(oid);
+        // Check if the request is only for the descriptor
+        const descriptorRequested =
+          request.body.descriptor !== undefined ||
+          request.query.descriptor !== undefined;
 
-        return { descriptor, stream };
+        // Open a stream with the corresponding id only if the descriptr flag was not passed
+        const stream =
+          !descriptorRequested && bucket.openDownloadStream(fileId);
+
+        return { descriptor, stream, descriptorRequested };
       },
       // If there is an active stream, send range and length content
       headers(response, retrieved) {
+        // If we retrieved nothing or we are missing the descriptor then set the 'not found' header
         if (!retrieved || !retrieved.descriptor) {
           return response.sendStatus(NOT_FOUND);
         }
+        // If the request is only for the descriptor then there is nothing to do in the header
+        if (retrieved.descriptorRequested) return;
         const contentRanges = [`bytes=*/${retrieved.descriptor.length}`];
         if (retrieved.descriptor.metadata.frames) {
           contentRanges.push(
@@ -596,8 +760,13 @@ module.exports = (db, { projects }) => {
       },
       // If there is a retrieved stream, start sending data through the stream
       body(response, retrieved, request) {
-        // If there is not retreieved stream, return here
-        if (!retrieved || !retrieved.stream) return;
+        // If we retrieved nothing or we are missing the descriptor then there is nothing to do
+        if (!retrieved || !retrieved.descriptor) return;
+        // If the request is only for the descriptor then there is nothing to do in the header
+        if (retrieved.descriptorRequested)
+          return response.json(retrieved.descriptor);
+        // If there is not retreieved stream then return here
+        if (!retrieved.stream) return;
         // If the client has aborted the request before the streams starts, destroy the stream
         if (request.aborted) {
           retrieved.stream.destroy();

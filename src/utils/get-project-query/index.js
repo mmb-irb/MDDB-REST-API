@@ -51,17 +51,29 @@ const getProjectQuery = request => {
   // Add the base filter to the query
   const baseFilter = getBaseFilter(request);
   const query = { ...baseFilter };
-  // Add the actual project and md filters
+  // Get the project id or accession
   const idOrAccession = request.params.project;
+  const project = idOrAccession.split('.')[0];
   // Check if the idOrAccession is an id
-  if (isObjectId(idOrAccession)) query._id = ObjectId(idOrAccession);
+  if (isObjectId(project)) query._id = ObjectId(project);
   // otherwise we asume it is an accession
-  else query.accession = idOrAccession;
+  else query.accession = project;
   // Return the query
   return query;
+};
+
+// Find the md index from a request
+const getMdIndex = request => {
+  const idOrAccession = request.params.project;
+  const splits = idOrAccession.split('.');
+  if (splits.length < 2) return null;
+  const number = +splits[1];
+  const index = number - 1;
+  return index;
 };
 
 module.exports = {
   getBaseFilter,
   getProjectQuery,
+  getMdIndex,
 };
