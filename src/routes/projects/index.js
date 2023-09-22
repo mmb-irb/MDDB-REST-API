@@ -9,10 +9,11 @@ const dbConnection =
     ? require('../../../test-helpers/mongo/index')
     : require('../../models/index');
 const handler = require('../../utils/generic-handler');
-// Mongo DB filter that only returns published results when the environment is set as "production"
-const getBaseFilter = require('../../utils/base-filter');
-// Adds the project associated ID from mongo db to the provided object
-const augmentFilterWithIDOrAccession = require('../../utils/augment-filter-with-id-or-accession');
+// Get an automatic mongo query parser based on environment and request
+const {
+  getProjectQuery,
+  getBaseFilter,
+} = require('../../utils/get-project-query');
 
 const {
   BAD_REQUEST,
@@ -325,11 +326,9 @@ const escapeRegExp = input => {
     handler({
       retriever(request) {
         // Set the project filter
-        const projectFilter = augmentFilterWithIDOrAccession(
-          getBaseFilter(request),
-          request.params.project,
-        );
-        // Return the project which matches the request porject ID (accession)
+        const projectFilter = getProjectQuery(request);
+        // Get the
+        // Return the project which matches the request project ID (accession)
         return model.projects.findOne(projectFilter);
       },
       // If no project is found, a NOT_FOUND status is sent in the header

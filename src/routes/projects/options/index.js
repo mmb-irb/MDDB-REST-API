@@ -3,8 +3,9 @@ const Router = require('express').Router;
 const handler = require('../../../utils/generic-handler');
 
 const { INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
-// Mongo DB filter that only returns published results when the environment is set as "production"
-const getBaseFilter = require('../../../utils/base-filter');
+
+// Get an automatic mongo query parser based on environment and request
+const { getBaseFilter } = require('../../../utils/get-project-query');
 
 // Set a header for queried fields to be queried in the references collection instead of projects
 const referencesHeader = 'references.';

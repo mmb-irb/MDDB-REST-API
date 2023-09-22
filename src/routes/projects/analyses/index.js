@@ -3,10 +3,8 @@ const Router = require('express').Router;
 const handler = require('../../../utils/generic-handler');
 
 const { NOT_FOUND } = require('../../../utils/status-codes');
-// Mongo DB filter that only returns published results when the environment is set as "production"
-const getBaseFilter = require('../../../utils/base-filter');
-// Adds the project associated ID from mongo db to the provided object
-const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
+// Get an automatic mongo query parser based on environment and request
+const { getProjectQuery } = require('../../../utils/get-project-query');
 
 const analysisRouter = Router({ mergeParams: true });
 
@@ -17,10 +15,7 @@ module.exports = (_, { projects, analyses }) => {
       retriever(request) {
         // Return the project which matches the request accession
         return projects.findOne(
-          augmentFilterWithIDOrAccession(
-            getBaseFilter(request),
-            request.params.project,
-          ),
+          getProjectQuery(request),
           // But return only the "analyses" attribute
           { projection: { _id: false, analyses: true } },
         );
@@ -43,10 +38,7 @@ module.exports = (_, { projects, analyses }) => {
       async retriever(request) {
         // Find the project which matches the request accession
         const projectDoc = await projects.findOne(
-          augmentFilterWithIDOrAccession(
-            getBaseFilter(request),
-            request.params.project,
-          ),
+          getProjectQuery(request),
           // And get the "_id" attribute
           { projection: { _id: true } },
         );

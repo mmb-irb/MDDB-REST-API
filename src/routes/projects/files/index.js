@@ -13,10 +13,8 @@ const handleRange = require('../../../utils/handle-range');
 // Returns a simple stream when asking for the whole file
 // Returns an internally managed stream when asking for specific ranges
 const combineDownloadStreams = require('../../../utils/combine-download-streams');
-// Mongo DB filter that only returns published results when the environment is set as "production"
-const getBaseFilter = require('../../../utils/base-filter');
-// Adds the project associated ID from mongo db to the provided object
-const augmentFilterWithIDOrAccession = require('../../../utils/augment-filter-with-id-or-accession');
+// Get an automatic mongo query parser based on environment and request
+const { getProjectQuery } = require('../../../utils/get-project-query');
 // Returns the selected atom indices as a string ("i1-i1,i2-i2,i3-i3..."")
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 // Returns a pdb filtered according to an NGL selection
@@ -112,10 +110,7 @@ module.exports = (db, { projects }) => {
       retriever(request) {
         // Return the project which matches the request accession
         return projects.findOne(
-          augmentFilterWithIDOrAccession(
-            getBaseFilter(request),
-            request.params.project,
-          ),
+          getProjectQuery(request),
           // But return only the "files" attribute
           { projection: { _id: false, files: true } },
         );
@@ -142,10 +137,7 @@ module.exports = (db, { projects }) => {
   const getProject = request =>
     projects.findOne(
       // Returns a filter with the base filter attributes and the project ObjectID
-      augmentFilterWithIDOrAccession(
-        getBaseFilter(request),
-        request.params.project,
-      ),
+      getProjectQuery(request),
       // Declare that we only want the id and files to be returned from findOne()
       { projection: { _id: true, accession: true, files: true } },
     );
