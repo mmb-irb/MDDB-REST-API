@@ -68,6 +68,10 @@ const getMdIndex = request => {
   const splits = idOrAccession.split('.');
   if (splits.length < 2) return null;
   const number = +splits[1];
+  // If the second split is not parsable to a number then the request is wrong
+  if (isNaN(number)) return new Error('MD number must be numeric');
+  // The MD number is 1-based, so if it is 0 then the request is wrong
+  if (number <= 0) return new Error('MD number must be greater than 0');
   const index = number - 1;
   return index;
 };

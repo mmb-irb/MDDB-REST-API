@@ -18,7 +18,6 @@ const {
 
 const {
   BAD_REQUEST,
-  NO_CONTENT,
   NOT_FOUND,
 } = require('../../utils/status-codes');
 
@@ -56,12 +55,12 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   // Set the corresponding MD data as the project data
   const mdData = projectData.mds[mdIndex];
   // If the corresponding index does not exist then return an error
-  if (!mdData)
-    return {
-      error:
-        'The requested MD does not exists. Try with numbers 1-' +
-        projectData.mds.length,
-    };
+  if (!mdData) {
+    const error = 'The requested MD does not exists. Try with numbers 1-' + projectData.mds.length;
+    projectData.headerError = NOT_FOUND;
+    projectData.error = error;
+    return { headerError: NOT_FOUND, error: error };
+  }
   const { name, metadata, analyses, files, ...rest } = mdData;
   // Add the mdIndex to the project itself
   // Note that this value has the same usage and importance than the accession
@@ -84,23 +83,6 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   // Return the modified object just for the map function to work properly
   return projectData;
 };
-
-// // This function renames the "_id" attributes from the project and from their pdbInfo attribute as "identifier"
-// // In addition, it removes the "_id" and other 2 attributes from the files
-// const projectObjectCleaner = project => {
-//   // Add all attributes from project but the "_id"
-//   // Add the project "_id" in a new attribute called "identifier"
-//   const output = omit(project, ['_id']);
-//   output.identifier = project._id;
-//   // If the project has files then, in each file, remove the "_id", the "chunkSize" and the "uploadDate" attributes
-//   if (project.files) {
-//     output.files = project.files.map(file =>
-//       omit(file, ['_id', 'chunkSize', 'uploadDate']),
-//     );
-//   }
-
-//   return output;
-// };
 
 // Convert a string input into int, float or boolean type if possible
 const parseType = input => {
@@ -392,28 +374,40 @@ const escapeRegExp = input => {
         if (!projectData) return;
         // Get the md number from the request
         const requestedMdIndex = getMdIndex(request);
+        // If something went wrong with the MD request then return the error
+        if (requestedMdIndex instanceof Error) return {
+          headerError: BAD_REQUEST,
+          error: requestedMdIndex.message
+        };
         // If project data does not contain the 'mds' field then it means it is in the old format
         // Make sure no md was requested or raise an error to avoid silent problems
         // User may think each md returns different data otherwise
-        if (!projectData.mds && requestedMdIndex !== null)
-          return {
-            error:
-              'This project has no MDs. Please use the accession or id alone.',
-          };
+        if (!projectData.mds && requestedMdIndex !== null) return {
+          headerError: BAD_REQUEST,
+          error: 'This project has no MDs. Please use the accession or id alone.'
+        };
         // Filter project data according to the requested MD index
+        // Note that this function may include errors in the project
         projectFormatter(projectData, requestedMdIndex);
-        if (projectData.error) return projectData;
         // Return the project which matches the request project ID (accession)
         return projectData;
       },
-      // If no project is found, a NOT_FOUND status is sent in the header
+      // Handle the response header
       headers(response, retrieved) {
-        if (!retrieved) response.sendStatus(NOT_FOUND);
+        // If nothing is retrieved then send a NOT_FOUND header and end the response
+        if (!retrieved) return response.sendStatus(NOT_FOUND);
+        // If there is any specific header error in the retrieved then send it
+        if (retrieved.headerError) response.status(retrieved.headerError);
       },
-      // Else, the project object is cleaned (some attributes are renamed or removed) and sent in the body
+      // Handle the response body
       body(response, retrieved) {
-        if (retrieved) response.json(retrieved);
-        else response.end();
+        // If nothing is retrieved then end the response
+        // Note that the header 'sendStatus' function should end the response already, but just in case
+        if (!retrieved) return response.end();
+        // If there is any error in the body then just send the error
+        if (retrieved.error) return response.json(retrieved.error);
+        // Send the response
+        response.json(retrieved);
       },
     }),
   );
