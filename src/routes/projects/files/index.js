@@ -17,6 +17,7 @@ const combineDownloadStreams = require('../../../utils/combine-download-streams'
 const {
   getProjectQuery,
   getMdIndex,
+  isObjectId
 } = require('../../../utils/get-project-query');
 // Returns the selected atom indices as a string ("i1-i1,i2-i2,i3-i3..."")
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
@@ -71,11 +72,6 @@ const trajectoryFormats = {
 // Set the standard name of the structure and trajectory files
 const STANDARD_STRUCTURE_FILENAME = 'md.imaged.rot.dry.pdb';
 const STANDARD_TRAJECTORY_FILENAME = 'trajectory.bin';
-
-// Set a function to ckeck if a string is a mongo id
-// WARNING: Do not use the builtin 'ObjectId.isValid'
-// WARNING: It returns true with whatever string 12 characters long
-const isObjectId = string => /[a-z0-9]{24}/.test(string);
 
 // Check if the requested files meet the accepted formats, which are provided by the request header
 // If so, send the format name. Else, send null

@@ -8,7 +8,7 @@ const { ObjectId } = require('mongodb');
 // Set a function to ckeck if a string is a mongo id
 // WARNING: Do not use the builtin 'ObjectId.isValid'
 // WARNING: It returns true with whatever string 12 characters long
-const isObjectId = string => /[a-z0-9]{24}/.test(string);
+const isObjectId = string => /^[a-z0-9]{24}$/.test(string);
 
 // Configure which collections are returned according to the host (client) who is asking
 const hostConfigs = require('../../../config.js').hosts;
@@ -62,6 +62,13 @@ const getProjectQuery = request => {
   return query;
 };
 
+// Find the id or accession from a request (without the MD number)
+const getIdOrAccession = request => {
+  const idOrAccession = request.params.project;
+  const splits = idOrAccession.split('.');
+  return splits[0];
+};
+
 // Find the md index from a request
 const getMdIndex = request => {
   const idOrAccession = request.params.project;
@@ -77,7 +84,9 @@ const getMdIndex = request => {
 };
 
 module.exports = {
+  isObjectId,
   getBaseFilter,
   getProjectQuery,
+  getIdOrAccession,
   getMdIndex,
 };

@@ -2,10 +2,6 @@ const Router = require('express').Router;
 
 // Funtion to conver string ids to mongo object ids
 const { ObjectId } = require('mongodb');
-// Set a function to ckeck if a string is a mongo id
-// WARNING: Do not use the builtin 'ObjectId.isValid'
-// WARNING: It returns true with whatever string 12 characters long
-const isObjectId = string => /[a-z0-9]{24}/.test(string);
 
 // Function to remove keys from objects
 const omit = require('lodash').omit;
@@ -14,7 +10,7 @@ const handler = require('../../../utils/generic-handler');
 
 const { NOT_FOUND } = require('../../../utils/status-codes');
 // Get an automatic mongo query parser based on environment and request
-const { getProjectQuery } = require('../../../utils/get-project-query');
+const { getProjectQuery, getIdOrAccession, isObjectId } = require('../../../utils/get-project-query');
 
 const topologyRouter = Router({ mergeParams: true });
 
@@ -26,7 +22,7 @@ module.exports = (_, { projects, topologies }) => {
       async retriever(request) {
         // If the project id is a mongo id then we can directly ask for the topology
         // If the project id is an accession we must find the project first in order to know the internal mongo id
-        let projectId = request.params.project;
+        let projectId = getIdOrAccession(request);
         if (!isObjectId(projectId)) {
           // Find the project which matches the request accession
           const projectDoc = await projects.findOne(
@@ -49,15 +45,23 @@ module.exports = (_, { projects, topologies }) => {
         output.identifier = topology._id;
         return output;
       },
-      // If there is nothing retrieved send a INTERNAL_SERVER_ERROR status in the header
+      // Handle the response header
       headers(response, retrieved) {
-        if (!retrieved) response.sendStatus(NOT_FOUND);
+        // If nothing is retrieved then send a NOT_FOUND header and end the response
+        if (!retrieved) return response.sendStatus(NOT_FOUND);
+        // If there is any specific header error in the retrieved then send it
+        if (retrieved.headerError) response.status(retrieved.headerError);
       },
-      // If there is retrieved and the retrieved then send it
+      // Handle the response body
       body(response, retrieved) {
-        if (retrieved) response.json(retrieved);
-        else response.end();
-      },
+        // If nothing is retrieved then end the response
+        // Note that the header 'sendStatus' function should end the response already, but just in case
+        if (!retrieved) return response.end();
+        // If there is any error in the body then just send the error
+        if (retrieved.error) return response.json(retrieved.error);
+        // Send the response
+        response.json(retrieved);
+      }
     }),
   );
 

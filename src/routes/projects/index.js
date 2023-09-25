@@ -32,7 +32,6 @@ const referencesHeader = 'references.';
 // Note that the input object is modified
 const projectCleaner = projectData => {
   // Rename the project "_id" as "identifier"
-  // Add the project "_id" in a new attribute called
   projectData.identifier = projectData._id;
   delete projectData._id;
   // Reduce the files list to a list of filenames
@@ -78,8 +77,11 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   // Add the rest of values
   // Note that project values will be overwritten by MD values
   Object.assign(projectData, rest);
-  // Reduce the list of mds to heir names
+  // Reduce the list of mds to their names
   projectData.mds = projectData.mds.map(md => md.name);
+  // Rename the project "_id" as "identifier"
+  projectData.identifier = projectData._id;
+  delete projectData._id;
   // Return the modified object just for the map function to work properly
   return projectData;
 };
