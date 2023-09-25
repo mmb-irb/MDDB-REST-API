@@ -55,7 +55,6 @@
   "devDependencies": {
     "eslint": "6.6.0",
     "eslint-config-prettier": "6.5.0",
-    "husky": "3.0.9",
     "jest": "24.9.0",
     "lint-staged": "9.4.3",
     "mongodb-memory-server": "^8.5.0",
@@ -84,11 +83,5 @@
     "collectCoverageFrom": [
       "src/**/*.js"
     ]
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged",
-      "pre-push": "CI=true npm test -- --coverage"
-    }
   }
 }
