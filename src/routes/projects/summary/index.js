@@ -24,6 +24,8 @@ module.exports = (_, { projects }) => {
               'metadata.pdbInfo': false,
               'metadata.INTERACTIONS': false,
               'metadata.CHARGES': false,
+              'metadata.SEQUENCES': false,
+              'metadata.DOMAINS': false,
             },
           },
         );
@@ -32,20 +34,44 @@ module.exports = (_, { projects }) => {
         // Set the summary object to be returned
         // Then all mined data will be written into it
         const summary = {};
-        // Get the number of simulations
+        // Get the number of projects
         summary['projectsCount'] = data.length;
-        // Get the total simulation time
+        // Count the number of MDs
+        let mdCount = 0;
+        data.forEach(project => {
+          // If it is the old format then it only counts as 1 MD
+          if (!project.mds) return mdCount += 1;
+          // Otherwise, count the number of MDs
+          mdCount += project.mds.length;
+        });
+        summary['mdCount'] = mdCount;
+        // Get the total MD time
         const totalTime = data
-          .map(object => object.metadata && +object.metadata.LENGTH)
+          .map(project => {
+            const metadata = project.metadata;
+            if (!metadata) return 0;
+            const length = +metadata.LENGTH;
+            const mds = project.mds;
+            if (!mds) return length;
+            // DANI: Esto no es del todo preciso, pues podrían haber réplicas con menos frames (e.g. las moonshot)
+            // DANI: Esto se solucionará al reemplazar el campo de LENGTH for el de FRAMESTEP
+            return length * mds.length;
+          })
           .reduce((acc, curr) => {
             if (curr) {
               return acc + curr;
             } else return acc;
           }, 0);
         summary['totalTime'] = totalTime;
-        // Get the total number of frames
+        // Get the total MD number of frames
         const totalFrames = data
-          .map(object => object.metadata && +object.metadata.SNAPSHOTS)
+          .map(project => {
+            const metadata = project.metadata;
+            if (!metadata) return 0;
+            const mds = project.mds;
+            if (!mds) return +metadata.SNAPSHOTS;
+            return mds.reduce((acc, curr) => (acc + curr.frames), 0);
+          })
           .reduce((acc, curr) => {
             if (curr) {
               return acc + curr;
@@ -54,7 +80,15 @@ module.exports = (_, { projects }) => {
         summary['totalFrames'] = totalFrames;
         // Get the total number of files
         const totalFiles = data
-          .map(object => object.files && object.files.length)
+          .map(project => {
+            const mds = project.mds;
+            if (!mds) {
+              const files = project.files;
+              if (!files) return 0;
+              return files.length;
+            }
+            return mds.reduce((acc, curr) => (acc + curr.files.length), 0);
+          })
           .reduce((acc, curr) => {
             if (curr) {
               return acc + curr;
@@ -63,7 +97,15 @@ module.exports = (_, { projects }) => {
         summary['totalFiles'] = totalFiles;
         // Get the total number of analyses
         const totalAnalyses = data
-          .map(object => object.analyses && object.analyses.length)
+          .map(project => {
+            const mds = project.mds;
+            if (!mds) {
+              const analyses = project.analyses;
+              if (!analyses) return 0;
+              return analyses.length;
+            }
+            return mds.reduce((acc, curr) => (acc + curr.analyses.length), 0);
+          })
           .reduce((acc, curr) => {
             if (curr) {
               return acc + curr;
