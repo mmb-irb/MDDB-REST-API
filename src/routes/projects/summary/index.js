@@ -122,7 +122,10 @@ module.exports = (_, { projects }) => {
             const length = +metadata.LENGTH;
             const mds = project.mds;
             if (!mds) return length;
-            // DANI: Esto no es del todo preciso, pues podrían haber réplicas con menos frames (e.g. las moonshot)
+            // Calculate the time based in the framestep and the number of frames of each MD
+            if (metadata.FRAMESTEP) return mds.reduce((acc, curr) => acc + curr.frames * metadata.FRAMESTEP, 0);
+            // If we are missing the framestep then use the length, but here we assume some error
+            // DANI: Esto no es preciso, pues podrían haber réplicas con menos frames (e.g. las moonshot)
             // DANI: Esto se solucionará al reemplazar el campo de LENGTH for el de FRAMESTEP
             return length * mds.length;
           })
