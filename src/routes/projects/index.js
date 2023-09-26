@@ -332,7 +332,9 @@ const escapeRegExp = input => {
                 // Avoid the last results when a limit is provided in the request query (URL)
                 .limit(limit)
                 // Each project is cleaned (some attributes are renamed or removed)
-                .map(projectFormatter)
+                // WARNING: Do not leave this line as 'map(projectFormatter)' or you will have a bug
+                // WARNING: The map function index is passed as requested MD index to the projectFormatter function
+                .map(project => projectFormatter(project))
                 // Changes the type from Cursor into Array, then saving data in memory
                 .toArray()
             : [],
