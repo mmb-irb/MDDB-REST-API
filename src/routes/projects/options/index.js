@@ -2,7 +2,7 @@ const Router = require('express').Router;
 
 const handler = require('../../../utils/generic-handler');
 
-const { INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
+const { BAD_REQUEST } = require('../../../utils/status-codes');
 
 // Get an automatic mongo query parser based on environment and request
 const { getBaseFilter } = require('../../../utils/get-project-query');
@@ -12,15 +12,84 @@ const referencesHeader = 'references.';
 
 const analysisRouter = Router({ mergeParams: true });
 
+// Try to parse JSON and return the bad request error in case it fails
+const parseJSON = string => {
+  try {
+    const parse = JSON.parse(string);
+    if (parse && typeof parse === 'object') return parse;
+  } catch (e) {
+    return false;
+  }
+};
+
 // This endpoint returns some options of data contained in the projects collection
 module.exports = (_, { projects, references }) => {
   // Root
   analysisRouter.route('/').get(
     handler({
       async retriever(request) {
+        // Set an object with all the parameters to performe the mongo query
+        // Start filtering by published projects only if we are in production environment
+        const finder = getBaseFilter(request);
+        // Handle when there is a mongo query
+        let query = request.query.query;
+        if (query) {
+          // In case there is a single query it would be a string, not an array, so adapt it
+          if (typeof query === 'string') query = [query];
+          for (const q of query) {
+            // Parse the string into an object
+            const projectsQuery = parseJSON(q);
+            if (!projectsQuery) return {
+              headerError: BAD_REQUEST,
+              error: 'Wrong query syntax: ' + q
+            };
+            // At this point the query object should correspond to a mongo query itself
+            // Find fields which start with 'references'
+            // These fields are actually intended to query the references collections
+            // If we found references fields then we must query the references collection
+            // Then each references field will be replaced by a query to 'metadata.REFERENCES' in the projects query
+            // The value of 'metadata.REFERENCES' to be queried will be the matching uniprot ids
+            const parseReferencesQuery = async original_query => {
+              // Iterate over the original query fields
+              for (const [field, value] of Object.entries(original_query)) {
+                // If the field is actually a list of fields then run the parsing function recursively
+                if (field === '$and' || field === '$or') {
+                  for (const subquery of value) {
+                    await parseReferencesQuery(subquery);
+                  }
+                  return;
+                }
+                // If the field does not start with the references header then skip it
+                if (!field.startsWith(referencesHeader)) return;
+                // Get the name of the field after substracting the symbolic header
+                const referencesField = field.replace(referencesHeader, '');
+                const referencesQuery = {};
+                referencesQuery[referencesField] = value;
+                // Query the references collection
+                // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
+                const referencesCursor = await model.references
+                  .find(referencesQuery)
+                  .project({ uniprot: true, _id: false });
+                const results = await referencesCursor
+                  .map(ref => ref.uniprot)
+                  .toArray();
+                // Update the original query by removing the original field and adding the parsed one
+                delete original_query[field];
+                original_query['metadata.REFERENCES'] = { $in: results };
+              }
+            };
+            // Start the parsing function
+            await parseReferencesQuery(projectsQuery);
+            if (!finder.$and) finder.$and = [];
+            finder.$and.push(projectsQuery);
+          }
+        }
         // Get the requested projection
         let projection = request.query.projection;
-        if (!projection) return { error: 'Missing projection' };
+        if (!projection) return {
+          headerError: BAD_REQUEST,
+          error: 'Missing projection'
+        };
         if (typeof projection === 'string') projection = [projection];
         // Set the options object to be returned
         // Then all mined data will be written into it
@@ -47,7 +116,7 @@ module.exports = (_, { projects, references }) => {
         if (referencesProjections.length !== 0) {
           // Get all project references to be used further
           const projectsCursor = await projects.find(
-            getBaseFilter(request),
+            finder,
             // Discard the heaviest fields we do not need anyway
             { projection: { 'metadata.REFERENCES': true, _id: false } },
           );
@@ -125,8 +194,8 @@ module.exports = (_, { projects, references }) => {
           // In case we are querying the projects collection
           // Get all projects
           const cursor = await projects.find(
-            getBaseFilter(request),
-            // Discard the heaviest fields we do not need anyway
+            finder,
+            // Get only the projected values
             { projection: projector },
           );
           // Consume the cursor
@@ -159,13 +228,21 @@ module.exports = (_, { projects, references }) => {
         // Send all mined data
         return options;
       },
-      // If there is nothing retrieved send a INTERNAL_SERVER_ERROR status in the header
+      // Handle the response header
       headers(response, retrieved) {
-        if (!retrieved) response.sendStatus(INTERNAL_SERVER_ERROR);
+        // If nothing is retrieved then send a NOT_FOUND header and end the response
+        if (!retrieved) return response.sendStatus(NOT_FOUND);
+        // If there is any specific header error in the retrieved then send it
+        if (retrieved.headerError) response.status(retrieved.headerError);
       },
-      // If there is retrieved and the retrieved then send it
+      // Handle the response body
       body(response, retrieved) {
-        if (!retrieved) response.end();
+        // If nothing is retrieved then end the response
+        // Note that the header 'sendStatus' function should end the response already, but just in case
+        if (!retrieved) return response.end();
+        // If there is any error in the body then just send the error
+        if (retrieved.error) return response.json(retrieved.error);
+        // Send the response
         response.json(retrieved);
       },
     }),
