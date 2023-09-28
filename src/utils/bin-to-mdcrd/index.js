@@ -105,14 +105,19 @@ module.exports = function(atomCount) {
       const safeOutputBuffer = Buffer.alloc(outputBuffer.length);
       outputBuffer.copy(safeOutputBuffer);
 
-      // Push data out, and see if we can continue or not
-      const canContinue = this.push(safeOutputBuffer);
-      if (canContinue) {
-        next();
-      } else {
-        // If not, execute the stream drain once
-        this._readableState.pipes.once('drain', next);
-      }
+      // Send processed data as we call the next data chunk
+      // DANI: No estoy seguro de que esto sea a prueva de back pressure
+      next(null, safeOutputBuffer);
+      // DANI: Esto controlaba el back pressure pero un buen día dejó de funcionar
+      // DANI: Fa pinta que fué una actualización de node y los streams
+      // // Push data out, and see if we can continue or not
+      // const canContinue = this.push(safeOutputBuffer);
+      // if (canContinue) {
+      //   next();
+      // } else {
+      //   // If not, execute the stream drain once
+      //   this._readableState.pipes.once('drain', next);
+      // }
     },
   });
 
