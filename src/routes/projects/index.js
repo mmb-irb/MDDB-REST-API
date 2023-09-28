@@ -60,12 +60,15 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
     projectData.error = error;
     return { headerError: NOT_FOUND, error: error };
   }
-  const { name, metadata, analyses, files, ...rest } = mdData;
+  const { name, frames, atoms, metadata, analyses, files, ...rest } = mdData;
   // Add the mdIndex to the project itself
   // Note that this value has the same usage and importance than the accession
   projectData.mdNumber = mdIndex + 1;
-  // Add the MD name without overwritting the project name  to project metadata
+  // Add the MD name to project metadata without overwritting the project name
   projectData.metadata.mdName = name;
+  // Add also the atom and frames count
+  projectData.metadata.mdAtoms = atoms;
+  projectData.metadata.mdFrames = frames;
   // Add MD metadata to project metadata
   // Note that MD metadata does not always exist since most metadata is in the project
   // Note that project metadata values will be overwritten by MD metadata values
