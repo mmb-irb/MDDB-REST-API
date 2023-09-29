@@ -421,6 +421,10 @@ const escapeRegExp = input => {
 
   // Children routes (e.g. .../projects/MCNS00001/files)
 
+  // The structure
+  projectRouter.use('/:project/structure', require('./structure')(db, model));
+  // The trajectory
+  projectRouter.use('/:project/trajectory', require('./trajectory')(db, model));
   // Files
   projectRouter.use('/:project/files', require('./files')(db, model));
   // Chains

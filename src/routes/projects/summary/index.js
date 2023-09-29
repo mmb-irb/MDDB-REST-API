@@ -2,7 +2,8 @@ const Router = require('express').Router;
 
 const handler = require('../../../utils/generic-handler');
 
-const { INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
+// Standard HTTP response status codes
+const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
 // Get an automatic mongo query parser based on environment and request
 const { getBaseFilter } = require('../../../utils/get-project-query');
 
@@ -38,6 +39,8 @@ module.exports = (_, { projects }) => {
           for (const q of query) {
             // Parse the string into an object
             const projectsQuery = parseJSON(q);
+            // If something went wrong with the parsing then it means the query is wrong
+            // Send an error
             if (!projectsQuery) return {
               headerError: BAD_REQUEST,
               error: 'Wrong query syntax: ' + q
@@ -187,13 +190,21 @@ module.exports = (_, { projects }) => {
         // Send all mined data
         return summary;
       },
-      // If there is nothing retrieved send a INTERNAL_SERVER_ERROR status in the header
+      // Handle the response header
       headers(response, retrieved) {
-        if (!retrieved) response.sendStatus(INTERNAL_SERVER_ERROR);
+        // There should always be a retrieved object
+        if (!retrieved) return response.sendStatus(INTERNAL_SERVER_ERROR);
+        // If there is any specific header error in the retrieved then send it
+        if (retrieved.headerError) response.status(retrieved.headerError);
       },
-      // If there is retrieved and the retrieved then send it
+      // Handle the response body
       body(response, retrieved) {
-        if (!retrieved) response.end();
+        // If nothing is retrieved then end the response
+        // Note that the header 'sendStatus' function should end the response already, but just in case
+        if (!retrieved) return response.end();
+        // If there is any error in the body then just send the error
+        if (retrieved.error) return response.json(retrieved.error);
+        // Send the response
         response.json(retrieved);
       },
     }),

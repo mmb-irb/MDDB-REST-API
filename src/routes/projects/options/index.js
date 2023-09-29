@@ -2,8 +2,8 @@ const Router = require('express').Router;
 
 const handler = require('../../../utils/generic-handler');
 
-const { BAD_REQUEST } = require('../../../utils/status-codes');
-
+// Standard HTTP response status codes
+const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
 // Get an automatic mongo query parser based on environment and request
 const { getBaseFilter } = require('../../../utils/get-project-query');
 
@@ -230,8 +230,8 @@ module.exports = (_, { projects, references }) => {
       },
       // Handle the response header
       headers(response, retrieved) {
-        // If nothing is retrieved then send a NOT_FOUND header and end the response
-        if (!retrieved) return response.sendStatus(NOT_FOUND);
+        // There should always be a retrieved object
+        if (!retrieved) return response.sendStatus(INTERNAL_SERVER_ERROR);
         // If there is any specific header error in the retrieved then send it
         if (retrieved.headerError) response.status(retrieved.headerError);
       },
