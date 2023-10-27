@@ -75,10 +75,14 @@ module.exports = (_, { projects }) => {
           customs: metadata.CUSTOMS,
           orientation: metadata.ORIENTATION,
           collections: metadata.COLLECTIONS,
+          multimeric: metadata.MULTIMERIC
         };
         // Add collection specific fields
         if (metadata.COLLECTIONS == 'cv19') {
           inputs.cv19_unit = metadata.CV19_UNIT;
+          inputs.cv19_startconf = metadata.CV19_STARTCONF;
+          inputs.cv19_abs = metadata.CV19_ABS;
+          inputs.cv19_nanobs = metadata.CV19_NANOBS;
         }
         // WARNING: Note that parsing to json makes disappear all fields set as 'undefined'
         response.json(inputs);
