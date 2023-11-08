@@ -18,7 +18,7 @@ module.exports = (_, { projects }) => {
         return projects.findOne(
           getProjectQuery(request),
           // But return only the "metadata" attribute
-          { projection: { _id: false, metadata: true } },
+          { projection: { _id: false, metadata: true, mds: true, mdref: true } },
         );
       },
       // If there is nothing retrieved send a NOT_FOUND status in the header
@@ -40,6 +40,13 @@ module.exports = (_, { projects }) => {
             delete interaction.interface_2;
           }
         }
+        // Set the input mds by removing all generated fields on each MD
+        retrieved.mds.forEach(md => {
+          delete md.atoms;
+          delete md.frames;
+          delete md.analyses;
+          delete md.files;
+        })
         // Prepare the inputs json file to be sent
         const inputs = {
           chainnames: metadata.CHAINNAMES,
@@ -75,7 +82,9 @@ module.exports = (_, { projects }) => {
           customs: metadata.CUSTOMS,
           orientation: metadata.ORIENTATION,
           collections: metadata.COLLECTIONS,
-          multimeric: metadata.MULTIMERIC
+          multimeric: metadata.MULTIMERIC,
+          mds: retrieved.mds,
+          mdref: retrieved.mdref
         };
         // Add collection specific fields
         if (metadata.COLLECTIONS == 'cv19') {
