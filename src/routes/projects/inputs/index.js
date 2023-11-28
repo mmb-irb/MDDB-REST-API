@@ -84,7 +84,12 @@ module.exports = (_, { projects }) => {
           collections: metadata.COLLECTIONS,
           multimeric: metadata.MULTIMERIC,
           mds: retrieved.mds,
-          mdref: retrieved.mdref
+          mdref: retrieved.mdref,
+          // Input file paths are written to the json file for coherence
+          // However they are left as none since the workflow will use defaults
+          input_structure_filepath: null,
+          input_trajectory_filepaths: null,
+          input_topology_filepath: null
         };
         // Add collection specific fields
         if (metadata.COLLECTIONS == 'cv19') {
