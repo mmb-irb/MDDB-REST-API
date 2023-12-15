@@ -49,7 +49,7 @@ module.exports = (db, { projects, files }) => {
       // This is our fault, since a file id coming from a project must exist
       if (!descriptor) return {
         headerError: INTERNAL_SERVER_ERROR,
-        error: 'The structure file was not found in the files collections'
+        error: 'The structure file was not found in the files collection'
       };
       // Open a stream with the corresponding ID
       let stream = bucket.openDownloadStream(fileId);
