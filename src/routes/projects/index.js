@@ -71,7 +71,8 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   projectData.metadata.mdFrames = frames;
   // Project warnings and MD warnings are joined
   const projectWarnings = projectData.metadata.WARNINGS || [];
-  projectData.metadata.WARNINGS = projectWarnings.concat(warnings);
+  const mdWarnings = warnings || [];
+  projectData.metadata.WARNINGS = projectWarnings.concat(mdWarnings);
   // Add MD metadata to project metadata
   // Note that MD metadata does not always exist since most metadata is in the project
   // Note that project metadata values will be overwritten by MD metadata values
