@@ -16,8 +16,8 @@ const {
   INTERNAL_SERVER_ERROR,
 } = require('../../../utils/status-codes');
 
-// Set the standard name of the structure file
-const STANDARD_STRUCTURE_FILENAME = 'md.imaged.rot.dry.pdb';
+// Get the standard name of the structure file
+const { STANDARD_STRUCTURE_FILENAME } = require('../../../utils/constants');
 
 const structureRouter = Router({ mergeParams: true });
 

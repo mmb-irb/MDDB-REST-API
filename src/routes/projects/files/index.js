@@ -106,7 +106,7 @@ module.exports = (db, { projects, files }) => {
   fileRouter.use('/trajectory', require('../trajectory')(db, { projects, files }));
 
   // When there is a file parameter
-  // e.g. .../files/md.imaged.rot.dry.pdb
+  // e.g. .../files/structure.pdb
   // e.g. .../files/5d08c0d8174bf85a17e00861
   fileRouter.route('/:file').get(
     handler({

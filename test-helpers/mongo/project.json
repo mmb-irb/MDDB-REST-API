@@ -147,23 +147,16 @@
       "contentType": "chemical/x-pdb"
     },
     {
-      "length": 967420,
-      "chunkSize": 4194304,
-      "filename": "md.imaged.rot.100.xtc",
-      "md5": "b4d81bc7d97f3a8d367b832d204155ec",
-      "contentType": "application/octet-stream"
-    },
-    {
       "length": 1144153,
       "chunkSize": 4194304,
-      "filename": "md.imaged.rot.dry.pdb",
+      "filename": "structure.pdb",
       "md5": "f52b607593a28ebef7bf8c191d3617a8",
       "contentType": "chemical/x-pdb"
     },
     {
       "length": 94957788,
       "chunkSize": 4194304,
-      "filename": "md.imaged.rot.xtc",
+      "filename": "trajectory.xtc",
       "md5": "6f548fddd7ca5960ddaa9c43c55e1beb",
       "contentType": "application/octet-stream"
     },

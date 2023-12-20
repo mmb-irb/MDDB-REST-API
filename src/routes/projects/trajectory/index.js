@@ -21,6 +21,11 @@ const consumeStream = require('../../../utils/consume-stream');
 const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
 // Get the configuration parameters for the different requesting hosts
 const hostConfig = require('../../../../config.js').hosts;
+// Get the standard name of both structure and trajectory files
+const {
+  STANDARD_STRUCTURE_FILENAME,
+  STANDARD_TRAJECTORY_FILENAME
+} = require('../../../utils/constants');
 
 // Standard HTTP response status codes
 const {
@@ -62,10 +67,6 @@ const trajectoryFormats = {
   //   chemfilesName: 'Amber NetCDF'
   // },
 };
-
-// Set the standard name of the structure and trajectory files
-const STANDARD_TRAJECTORY_FILENAME = 'trajectory.bin';
-const STANDARD_STRUCTURE_FILENAME = 'md.imaged.rot.dry.pdb';
 
 // Check if the requested files meet the accepted formats, which are provided by the request header
 // If so, send the format name. Else, send null
