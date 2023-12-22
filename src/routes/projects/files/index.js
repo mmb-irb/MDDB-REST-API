@@ -43,22 +43,11 @@ module.exports = (db, { projects, files }) => {
         const { projectData, requestedMdIndex } = projectDataRequest;
         // Check if the request is only for the descriptor
         const descriptorRequested = isDescriptorRequested(request);
-        // If project data does not contain the 'mds' field then it means it is in the old format
-        if (!projectData.mds) {
-          // Make sure no md was requested or raise an error to avoid silent problems
-          // User may think each md returns different data otherwise
-          if (requestedMdIndex !== null) return {
-            headerError: BAD_REQUEST,
-            error: 'This project has no MDs. Please use the accession or id alone.'
-          };
-          // If the description was requested then send all file descriptions
-          if (descriptorRequested) {
-            const filesQuery = { 'metadata.project': projectData._id };
-            const filesCursor = await files.find(filesQuery, { _id: false });
-            const filesData = await filesCursor.toArray();
-            return filesData;
-          } else return projectData.files.map(file => file.filename);
-        }
+        // If project data does not contain the 'mds' field then it may mean it is in the old format
+        if (!projectData.mds) return {
+          headerError: INTERNAL_SERVER_ERROR,
+          error: 'Project is missing mds. Is it in an old format?'
+        };
         // Get the MD index, which is the requested index or, if none, the reference index
         const mdIndex = requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
         // If the description was requested then send all file descriptions
@@ -79,7 +68,9 @@ module.exports = (db, { projects, files }) => {
           error: 'The requested MD does not exists. Try with numbers 1-' + projectData.mds.length
         };
         // Return just a list with the filenames
-        return mdData.files.map(file => file.name);
+        const projectFiles = projectData.files
+        const mdFiles = mdData.files
+        return projectFiles.concat(mdFiles).map(file => file.name);
       },
       // Handle the response header
       headers(response, retrieved) {

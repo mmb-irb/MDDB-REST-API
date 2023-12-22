@@ -1,7 +1,5 @@
 const Router = require('express').Router;
 const { ObjectId } = require('mongodb');
-// This function returns an object without the selected omitted attributes
-const omit = require('lodash').omit;
 // Connect to the mongo database and return the connection
 // Alternatively, in 'test' context, connect to a local fake mongo database and return the connection
 const dbConnection =
@@ -26,31 +24,16 @@ const projectRouter = Router();
 // Set a header for queried fields to be queried in the references collection instead of projects
 const referencesHeader = 'references.';
 
-// This function is runed only in old-formatted projects
-// This function renames the "_id" attributes from the project and from their pdbInfo attribute as "identifier"
-// In addition, it removes the "_id" and other 2 attributes from files
-// Note that the input object is modified
-const projectCleaner = projectData => {
-  // Rename the project "_id" as "identifier"
-  projectData.identifier = projectData._id;
-  delete projectData._id;
-  // Reduce the files list to a list of filenames
-  if (projectData.files) {
-    projectData.files = projectData.files.map(file => file.filename);
-  }
-  // Return the modified object just for the map function to work properly
-  return projectData;
-};
-
 // This function filters project data to a single MD
 // Note that the input object is modified
 const projectFormatter = (projectData, requestedMdIndex = null) => {
-  // If the project has not the 'mds' field then it means it has the old format
-  // Return it as it is
-  if (!projectData.mds) return projectCleaner(projectData);
+  // If the project has not the 'mds' field then it is wrong
+  if (!projectData.mds) return {
+    headerError: INTERNAL_SERVER_ERROR,
+    error: 'Project is missing mds. Is it in an old format?'
+  };
   // Get the index of the MD to remain
-  const mdIndex =
-    requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
+  const mdIndex = requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
   // Set the corresponding MD data as the project data
   const mdData = projectData.mds[mdIndex];
   // If the corresponding index does not exist then return an error
@@ -77,10 +60,14 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   // Note that MD metadata does not always exist since most metadata is in the project
   // Note that project metadata values will be overwritten by MD metadata values
   Object.assign(projectData.metadata, metadata);
-  // Add analyses and files to the project
-  // Instead of a list of objects return a list of names
-  projectData.analyses = analyses.map(analysis => analysis.name);
-  projectData.files = files.map(file => file.name);
+  // Merge project and MD analyses and return their names
+  const projectAnalyses = projectData.analyses || [];
+  const mdAnalyses = analyses || [];
+  projectData.analyses = projectAnalyses.concat(mdAnalyses).map(analysis => analysis.name);
+  // Merge project and MD files and return their names
+  const projectFiles = projectData.files || [];
+  const mdFiles = files || [];
+  projectData.files = projectFiles.concat(mdFiles).map(file => file.name);
   // Add the rest of values
   // Note that project values will be overwritten by MD values
   Object.assign(projectData, rest);
@@ -389,13 +376,6 @@ const escapeRegExp = input => {
         if (requestedMdIndex instanceof Error) return {
           headerError: BAD_REQUEST,
           error: requestedMdIndex.message
-        };
-        // If project data does not contain the 'mds' field then it means it is in the old format
-        // Make sure no md was requested or raise an error to avoid silent problems
-        // User may think each md returns different data otherwise
-        if (!projectData.mds && requestedMdIndex !== null) return {
-          headerError: BAD_REQUEST,
-          error: 'This project has no MDs. Please use the accession or id alone.'
         };
         // Filter project data according to the requested MD index
         // Note that this function may include errors in the project

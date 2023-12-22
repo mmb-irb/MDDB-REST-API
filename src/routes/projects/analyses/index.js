@@ -32,16 +32,10 @@ module.exports = (_, { projects, analyses }) => {
           error: requestedMdIndex.message
         };
         // If the project has not the 'mds' field then it means it has the old format
-        // Return its analyses, as before
-        if (!projectData.mds) {
-          // Make sure no md was requested or raise an error to avoid silent problems
-          // User may think each md returns different data otherwise
-          if (requestedMdIndex !== null) return {
-            headerError: BAD_REQUEST,
-            error: 'This project has no MDs. Please use the accession or id alone.',
-          };
-          return projectData.analyses;
-        }
+        if (!projectData.mds) return {
+          headerError: INTERNAL_SERVER_ERROR,
+          error: 'Project is missing mds. Is it in an old format?'
+        };
         // Get the MD index, which is the requested index or, if none, the reference index
         const mdIndex = requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
         // Get the corresponding MD data
@@ -52,7 +46,9 @@ module.exports = (_, { projects, analyses }) => {
           error: 'The requested MD does not exists. Try with numbers 1-' + projectData.mds.length
         };
         // Return only a list with the analysis names
-        return mdData.analyses.map(analysis => analysis.name);
+        const projectAnalyses = projectData.analyses || [];
+        const mdAnalyses = mdData.analyses || [];
+        return projectAnalyses.concat(mdAnalyses).map(analysis => analysis.name);
       },
       // Handle the response header
       headers(response, retrieved) {
@@ -100,25 +96,20 @@ module.exports = (_, { projects, analyses }) => {
           error: requestedMdIndex.message
         };
         // If the project has not the 'mdref' field then it means it has the old format
-        // In this case there is no need to add the md index to the query
-        // Othewise, add the md index to the query
-        if ('mdref' in projectData) {
-          // Get the MD index, which is the requested index or, if none, the reference index
-          const mdIndex = requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
-          // Check the mdIndex to be in range of the available MDs
-          if (mdIndex >= projectData.mds.length) return {
-            headerError: NOT_FOUND,
-            error: 'The requested MD does not exists. Try with numbers 1-' + projectData.mds.length
-          };
-          // Add the MD index to the query
-          query.md = mdIndex;
-        }
-        // If this is the old format then make sure no md was requested or raise an error to avoid silent problems
-        // User may think each md returns different data otherwise
-        else if (requestedMdIndex !== null) return {
-          headerError: BAD_REQUEST,
-          error: 'This project has no MDs. Please use the accession or id alone.',
-        }
+        if (!'mdref' in projectData ) return {
+          headerError: INTERNAL_SERVER_ERROR,
+          error: 'Project is missing mds. Is it in an old format?'
+        };
+        // Add the md index to the query
+        // Get the MD index, which is the requested index or, if none, the reference index
+        const mdIndex = requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
+        // Check the mdIndex to be in range of the available MDs
+        if (mdIndex >= projectData.mds.length) return {
+          headerError: NOT_FOUND,
+          error: 'The requested MD does not exists. Try with numbers 1-' + projectData.mds.length
+        };
+        // Add the MD index to the query
+        query.md = mdIndex;
         // Query the database and retrieve the requested analysis
         const analysisData = await analyses.findOne(
           query,
