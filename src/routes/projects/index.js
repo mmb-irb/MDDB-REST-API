@@ -13,72 +13,15 @@ const {
   getBaseFilter,
   getMdIndex,
 } = require('../../utils/get-project-query');
+// Get the project formatter
+const { projectFormatter } = require('../../utils/get-project-data');
 
-const {
-  BAD_REQUEST,
-  NOT_FOUND,
-} = require('../../utils/status-codes');
+const { BAD_REQUEST, NOT_FOUND } = require('../../utils/status-codes');
 
 const projectRouter = Router();
 
 // Set a header for queried fields to be queried in the references collection instead of projects
 const referencesHeader = 'references.';
-
-// This function filters project data to a single MD
-// Note that the input object is modified
-const projectFormatter = (projectData, requestedMdIndex = null) => {
-  // If the project has not the 'mds' field then it is wrong
-  if (!projectData.mds) return {
-    headerError: INTERNAL_SERVER_ERROR,
-    error: 'Project is missing mds. Is it in an old format?'
-  };
-  // Get the index of the MD to remain
-  const mdIndex = requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
-  // Set the corresponding MD data as the project data
-  const mdData = projectData.mds[mdIndex];
-  // If the corresponding index does not exist then return an error
-  if (!mdData) {
-    const error = 'The requested MD does not exists. Try with numbers 1-' + projectData.mds.length;
-    projectData.headerError = NOT_FOUND;
-    projectData.error = error;
-    return { headerError: NOT_FOUND, error: error };
-  }
-  const { name, frames, atoms, warnings, metadata, analyses, files, ...rest } = mdData;
-  // Add the mdIndex to the project itself
-  // Note that this value has the same usage and importance than the accession
-  projectData.mdNumber = mdIndex + 1;
-  // Add the MD name to project metadata without overwritting the project name
-  projectData.metadata.mdName = name;
-  // Add also the atom and frames count
-  projectData.metadata.mdAtoms = atoms;
-  projectData.metadata.mdFrames = frames;
-  // Project warnings and MD warnings are joined
-  const projectWarnings = projectData.metadata.WARNINGS || [];
-  const mdWarnings = warnings || [];
-  projectData.metadata.WARNINGS = projectWarnings.concat(mdWarnings);
-  // Add MD metadata to project metadata
-  // Note that MD metadata does not always exist since most metadata is in the project
-  // Note that project metadata values will be overwritten by MD metadata values
-  Object.assign(projectData.metadata, metadata);
-  // Merge project and MD analyses and return their names
-  const projectAnalyses = projectData.analyses || [];
-  const mdAnalyses = analyses || [];
-  projectData.analyses = projectAnalyses.concat(mdAnalyses).map(analysis => analysis.name);
-  // Merge project and MD files and return their names
-  const projectFiles = projectData.files || [];
-  const mdFiles = files || [];
-  projectData.files = projectFiles.concat(mdFiles).map(file => file.name);
-  // Add the rest of values
-  // Note that project values will be overwritten by MD values
-  Object.assign(projectData, rest);
-  // Reduce the list of mds to their names
-  projectData.mds = projectData.mds.map(md => md.name);
-  // Rename the project "_id" as "identifier"
-  projectData.identifier = projectData._id;
-  delete projectData._id;
-  // Return the modified object just for the map function to work properly
-  return projectData;
-};
 
 // Convert a string input into int, float or boolean type if possible
 const parseType = input => {

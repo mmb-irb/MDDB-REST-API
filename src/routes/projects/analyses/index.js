@@ -2,12 +2,9 @@ const Router = require('express').Router;
 
 const handler = require('../../../utils/generic-handler');
 
-const { NOT_FOUND, BAD_REQUEST } = require('../../../utils/status-codes');
-// Get an automatic mongo query parser based on environment and request
-const {
-  getProjectQuery,
-  getMdIndex,
-} = require('../../../utils/get-project-query');
+const { NOT_FOUND } = require('../../../utils/status-codes');
+// Functions to retrieve project data and get a given file id
+const { getProjectData } = require('../../../utils/get-project-data');
 
 const analysisRouter = Router({ mergeParams: true });
 
@@ -16,39 +13,12 @@ module.exports = (_, { projects, analyses }) => {
   analysisRouter.route('/').get(
     handler({
       async retriever(request) {
-        // Return the project which matches the request accession
-        const projectData = await projects.findOne(
-          getProjectQuery(request),
-          // But return only the "analyses" attribute
-          { projection: { _id: false, analyses: true, mds: true, mdref: true } },
-        );
-        // If we did not find it then there is nothing to do here
-        if (!projectData) return;
-        // Get the md index from the request or use the reference MD id in case it is missing
-        const requestedMdIndex = getMdIndex(request);
-        // If something went wrong with the MD request then return the error
-        if (requestedMdIndex instanceof Error) return {
-          headerError: BAD_REQUEST,
-          error: requestedMdIndex.message
-        };
-        // If the project has not the 'mds' field then it means it has the old format
-        if (!projectData.mds) return {
-          headerError: INTERNAL_SERVER_ERROR,
-          error: 'Project is missing mds. Is it in an old format?'
-        };
-        // Get the MD index, which is the requested index or, if none, the reference index
-        const mdIndex = requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
-        // Get the corresponding MD data
-        const mdData = projectData.mds[mdIndex];
-        // If the corresponding index does not exist then return an error
-        if (!mdData) return {
-          headerError: NOT_FOUND,
-          error: 'The requested MD does not exists. Try with numbers 1-' + projectData.mds.length
-        };
-        // Return only a list with the analysis names
-        const projectAnalyses = projectData.analyses || [];
-        const mdAnalyses = mdData.analyses || [];
-        return projectAnalyses.concat(mdAnalyses).map(analysis => analysis.name);
+        // Get the requested project data
+        const projectData = await getProjectData(projects, request);
+        // If there was any problem then return the errors
+        if (projectData.error) return projectData;
+        // Return analysis names only
+        return projectData.analyses;
       },
       // Handle the response header
       headers(response, retrieved) {
@@ -74,45 +44,18 @@ module.exports = (_, { projects, analyses }) => {
   analysisRouter.route('/:analysis').get(
     handler({
       async retriever(request) {
-        // Find the project which matches the request accession
-        const projectData = await projects.findOne(
-          getProjectQuery(request),
-          // Get only the id and the reference md index
-          { projection: { _id: true, mds: true, mdref: true } },
-        );
-        // If there is no project we return here
-        if (!projectData) return;
-        // Now set the analysis query from the project id and the analysis name
-        // Note that the MD index is added further
-        const query = {
-          project: projectData._id,
-          name: request.params.analysis.toLowerCase(),
-        };
-        // Get the md index from the request or use the reference MD id in case it is missing
-        const requestedMdIndex = getMdIndex(request);
-        // If something went wrong with the MD request then return the error
-        if (requestedMdIndex instanceof Error) return {
-          headerError: BAD_REQUEST,
-          error: requestedMdIndex.message
-        };
-        // If the project has not the 'mdref' field then it means it has the old format
-        if (!'mdref' in projectData ) return {
-          headerError: INTERNAL_SERVER_ERROR,
-          error: 'Project is missing mds. Is it in an old format?'
-        };
-        // Add the md index to the query
-        // Get the MD index, which is the requested index or, if none, the reference index
-        const mdIndex = requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
-        // Check the mdIndex to be in range of the available MDs
-        if (mdIndex >= projectData.mds.length) return {
-          headerError: NOT_FOUND,
-          error: 'The requested MD does not exists. Try with numbers 1-' + projectData.mds.length
-        };
-        // Add the MD index to the query
-        query.md = mdIndex;
+        // Get the requested project data
+        const projectData = await getProjectData(projects, request);
+        // If there was any problem then return the errors
+        if (projectData.error) return projectData;
         // Query the database and retrieve the requested analysis
         const analysisData = await analyses.findOne(
-          query,
+          // Set the query
+          {
+            project: projectData.identifier,
+            md: projectData.mdIndex,
+            name: request.params.analysis.toLowerCase(),
+          },
           // Skip some useless values
           { projection: { _id: false, name: false, project: false, md: false } },
         );

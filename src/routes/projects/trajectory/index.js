@@ -12,7 +12,7 @@ const handleRange = require('../../../utils/handle-range');
 // Returns an internally managed stream when asking for specific ranges
 const combineDownloadStreams = require('../../../utils/combine-download-streams');
 // Functions to retrieve project data and get a given file id
-const { getProjectData, getFileId } = require('../../../utils/get-project-data');
+const { getProjectData } = require('../../../utils/get-project-data');
 // Returns the selected atom indices as a string ("i1-i1,i2-i2,i3-i3..."")
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 // Translates the frames query string format into a explicit frame selection in string format
@@ -29,10 +29,7 @@ const {
 
 // Standard HTTP response status codes
 const {
-  NO_CONTENT,
   BAD_REQUEST,
-  NOT_FOUND,
-  REQUEST_RANGE_NOT_SATISFIABLE,
   INTERNAL_SERVER_ERROR,
 } = require('../../../utils/status-codes');
 
@@ -104,19 +101,18 @@ module.exports = (db, { projects, files }) => {
       // Set the bucket, which allows downloading big files from the database
       const bucket = new GridFSBucket(db);
       // Find the requested project data
-      const projectDataRequest = await getProjectData(projects, request);
+      const projectData = await getProjectData(projects, request);
       // If there was any problem then return the errors
-      if (projectDataRequest.error) return projectDataRequest;
-      // Get the actual project data
-      const { projectData, requestedMdIndex } = projectDataRequest;
-      // Now find the structure file id in the project data
-      const trajectoryFileIdRequest = getFileId(projectData, requestedMdIndex, STANDARD_TRAJECTORY_FILENAME);
-      // If there was any problem then return the errors
-      if (trajectoryFileIdRequest.error) return trajectoryFileIdRequest;
-      // Get the actual structure file id
-      const { fileId: trajectoryFileId } = trajectoryFileIdRequest;
-      // Save the corresponding file, which is found by object id
-      const descriptor = await files.findOne({ _id: trajectoryFileId });
+      if (projectData.error) return projectData;
+      // Set the file query
+      // Note that we target files with the current MD index (MD files) or null MD index (project files)
+      const fileQuery = {
+        'filename': STANDARD_TRAJECTORY_FILENAME,
+        'metadata.project': projectData.identifier,
+        'metadata.md': { $in: [projectData.mdIndex, null] }
+      }
+      // Download the corresponding file
+      const descriptor = await files.findOne(fileQuery);
       // If the object ID is not found in the data base, return here
       if (!descriptor) return {
         headerError: INTERNAL_SERVER_ERROR,
@@ -143,15 +139,23 @@ module.exports = (db, { projects, files }) => {
         let rangeString = '';
         // In case of selection query
         if (selection) {
-          // Now find the structure file id in the project data
-          const structureFileIdRequest = getFileId(projectData, requestedMdIndex, STANDARD_STRUCTURE_FILENAME);
-          // If there was any problem then return the errors
-          if (structureFileIdRequest.error) return structureFileIdRequest;
-          // Get the actual structure file id
-          const { fileId: structureFileId } = structureFileIdRequest;
+          // Set the file query
+          // Note that we target files with the current MD index (MD files) or null MD index (project files)
+          const structureFileQuery = {
+            'filename': STANDARD_STRUCTURE_FILENAME,
+            'metadata.project': projectData.identifier,
+            'metadata.md': { $in: [projectData.mdIndex, null] }
+          }
+          // Download the corresponding file
+          const structureDescriptor = await files.findOne(structureFileQuery);
+          // If the object ID is not found in the data base, return here
+          if (!structureDescriptor) return {
+            headerError: INTERNAL_SERVER_ERROR,
+            error: 'The structure file was not found in the files collections'
+          };
           // Open a stream and save it completely into memory
           const pdbFile = await consumeStream(
-            bucket.openDownloadStream(structureFileId),
+            bucket.openDownloadStream(structureDescriptor._id),
           );
           // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
           const atoms = await getAtomIndices(pdbFile, selection);
@@ -192,7 +196,7 @@ module.exports = (db, { projects, files }) => {
       let stream;
       // Return a simple stream when asking for the whole file (i.e. range is not iterable)
       // Return an internally managed stream when asking for specific ranges
-      const rangedStream = combineDownloadStreams(bucket, trajectoryFileId, range);
+      const rangedStream = combineDownloadStreams(bucket, descriptor._id, range);
       // Get the output format name
       const transformFormatName = transformFormat.name;
       // When user requests "crd" or "mdcrd" files

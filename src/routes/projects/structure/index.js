@@ -8,7 +8,7 @@ const handler = require('../../../utils/generic-handler');
 const getSelectedPdb = require('../../../utils/get-selection-pdb-through-ngl');
 const consumeStream = require('../../../utils/consume-stream');
 // Functions to retrieve project data and get a given file id
-const { getProjectData, getFileId } = require('../../../utils/get-project-data');
+const { getProjectData } = require('../../../utils/get-project-data');
 
 // Standard HTTP response status codes
 const {
@@ -32,25 +32,26 @@ module.exports = (db, { projects, files }) => {
       // Set the bucket, which allows downloading big files from the database
       const bucket = new GridFSBucket(db);
       // Find the requested project data
-      const projectDataRequest = await getProjectData(projects, request);
+      const projectData = await getProjectData(projects, request);
       // If there was any problem then return the errors
-      if (projectDataRequest.error) return projectDataRequest;
-      // Get the actual project data
-      const { projectData, requestedMdIndex } = projectDataRequest;
-      // Now find the structure file id in the project data
-      const fileIdRequest = getFileId(projectData, requestedMdIndex, STANDARD_STRUCTURE_FILENAME);
-      // If there was any problem then return the errors
-      if (fileIdRequest.error) return fileIdRequest;
-      // Get the actual structure file id
-      const { fileId } = fileIdRequest;
-      // Save the corresponding file, which is found by object id
-      const descriptor = await files.findOne({ _id: fileId });
+      if (projectData.error) return projectData;
+      // Set the file query
+      // Note that we target files with the current MD index (MD files) or null MD index (project files)
+      const fileQuery = {
+        'filename': STANDARD_STRUCTURE_FILENAME,
+        'metadata.project': projectData.identifier,
+        'metadata.md': { $in: [projectData.mdIndex, null] }
+      }
+      // Download the corresponding file
+      const descriptor = await files.findOne(fileQuery);
       // If the object ID is not found in the data base the we have a mess
       // This is our fault, since a file id coming from a project must exist
       if (!descriptor) return {
         headerError: INTERNAL_SERVER_ERROR,
         error: 'The structure file was not found in the files collection'
       };
+      // Get the file id
+      const fileId = descriptor._id;
       // Open a stream with the corresponding ID
       let stream = bucket.openDownloadStream(fileId);
       const selection = request.body.selection || request.query.selection;

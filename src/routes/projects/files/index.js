@@ -7,14 +7,10 @@ const handler = require('../../../utils/generic-handler');
 const { isObjectId } = require('../../../utils/get-project-query');
 
 // Functions to retrieve project data and get a given file id
-const { getProjectData, getFileId } = require('../../../utils/get-project-data');
+const { getProjectData } = require('../../../utils/get-project-data');
 
 // Standard HTTP response status codes
-const {
-  BAD_REQUEST,
-  NOT_FOUND,
-  INTERNAL_SERVER_ERROR,
-} = require('../../../utils/status-codes');
+const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-codes');
 
 // Set a function to find out if descriptors were requested
 const isDescriptorRequested = request => {
@@ -35,12 +31,10 @@ module.exports = (db, { projects, files }) => {
   fileRouter.route('/').get(
     handler({
       async retriever(request) {
-        // Find the requested project data
-        const projectDataRequest = await getProjectData(projects, request);
+        // Get the requested project data
+        const projectData = await getProjectData(projects, request);
         // If there was any problem then return the errors
-        if (projectDataRequest.error) return projectDataRequest;
-        // Get the actual project data
-        const { projectData, requestedMdIndex } = projectDataRequest;
+        if (projectData.error) return projectData;
         // Check if the request is only for the descriptor
         const descriptorRequested = isDescriptorRequested(request);
         // If project data does not contain the 'mds' field then it may mean it is in the old format
@@ -49,7 +43,7 @@ module.exports = (db, { projects, files }) => {
           error: 'Project is missing mds. Is it in an old format?'
         };
         // Get the MD index, which is the requested index or, if none, the reference index
-        const mdIndex = requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
+        const mdIndex = projectData.mdIndex;
         // If the description was requested then send all file descriptions
         if (descriptorRequested) {
           const filesQuery = {
@@ -60,17 +54,7 @@ module.exports = (db, { projects, files }) => {
           const filesData = await filesCursor.toArray();
           return filesData;
         }
-        // Get the corresponding MD data
-        const mdData = projectData.mds[mdIndex];
-        // If the corresponding index does not exist then return an error
-        if (!mdData) return {
-          headerError: NOT_FOUND,
-          error: 'The requested MD does not exists. Try with numbers 1-' + projectData.mds.length
-        };
-        // Return just a list with the filenames
-        const projectFiles = projectData.files
-        const mdFiles = mdData.files
-        return projectFiles.concat(mdFiles).map(file => file.name);
+        return projectData.files;
       },
       // Handle the response header
       headers(response, retrieved) {
@@ -102,31 +86,27 @@ module.exports = (db, { projects, files }) => {
   fileRouter.route('/:file').get(
     handler({
       async retriever(request) {
+        // If the query is an object id itself we refuse it
+        // This was before supported but never used
+        if (isObjectId(request.params.file)) return {
+          headerError: BAD_REQUEST,
+          error: 'Requesting a file by its internal ID is no longer supported'
+        };
         // Set the bucket, which allows downloading big files from the database
         const bucket = new GridFSBucket(db);
-        // Find the object id of the file to be downloaded
-        let fileId;
-        // If the query is an object id itself then just parse it
-        if (isObjectId(request.params.file)) {
-          fileId = request.params.file;
+        // Find the requested project data
+        const projectData = await getProjectData(projects, request);
+        // If there was any problem then return the errors
+        if (projectData.error) return projectData;
+        // Set the file query
+        // Note that we target files with the current MD index (MD files) or null MD index (project files)
+        const fileQuery = {
+          'filename': request.params.file,
+          'metadata.project': projectData.identifier,
+          'metadata.md': { $in: [projectData.mdIndex, null] }
         }
-        // If the query is a filename then find the corresponding object id
-        else {
-          // Find the requested project data
-          const projectDataRequest = await getProjectData(projects, request);
-          // If there was any problem then return the errors
-          if (projectDataRequest.error) return projectDataRequest;
-          // Get the actual project data
-          const { projectData, requestedMdIndex } = projectDataRequest;
-          // Now find the structure file id in the project data
-          const fileIdRequest = getFileId(projectData, requestedMdIndex, request.params.file);
-          // If there was any problem then return the errors
-          if (fileIdRequest.error) return fileIdRequest;
-          // Get the actual structure file id
-          fileId = fileIdRequest.fileId;
-        }
-        // Save the corresponding file
-        const descriptor = await files.findOne({ _id: fileId });
+        // Download the corresponding file
+        const descriptor = await files.findOne(fileQuery);
         // If the object ID is not found in the data base the we have a mess
         // This is our fault, since a file id coming from a project must exist
         if (!descriptor) return {
@@ -137,7 +117,7 @@ module.exports = (db, { projects, files }) => {
         const descriptorRequested = isDescriptorRequested(request);
         if (descriptorRequested) return { descriptor, stream: null, descriptorRequested };
         // Open a stream with the corresponding id only if the descriptor flag was not passed
-        const stream = bucket.openDownloadStream(fileId);
+        const stream = bucket.openDownloadStream(descriptor._id);
         // If we fail to stablish the stream then send an error
         if (!stream) return {
           headerError: INTERNAL_SERVER_ERROR,
