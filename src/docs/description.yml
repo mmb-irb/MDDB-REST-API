@@ -607,32 +607,27 @@ paths:
 
   /projects/{projectAccessionOrID}/files:
     get:
-      summary: Get the files for a project.
-      description: Get the list of files for a specific $DATABASE project.
+      summary: Get the list of available files associated to the current project MD.
+      description: Get the list of files for a specific $DATABASE project MD.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
-        - name: descriptor
-          in: query
-          schema:
-            type: boolean
-          description: Pass this argument to retrieve the complete file descriptors instead of a filenames list.
       tags:
         - files
       responses:
         200:
-          description: a list of files
+          description: the list of available files
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/FileDescription'
+                  type: string
 
   /projects/{projectAccessionOrID}/files/{filename}:
     get:
-      summary: Get a file for a project.
+      summary: Download a specific file.
       description: >
-        Get a specific file for a specific $DATABASE project by its name.
+        Download a specific file for a specific $DATABASE project MD by its file name.
       produces:
         - application/octet-stream
         - chemical/x-pdb
@@ -645,11 +640,7 @@ paths:
           required: true
           schema:
             type: string
-        - name: descriptor
-          in: query
-          schema:
-            type: boolean
-          description: Pass this argument to retrieve the complete file descriptors instead of a filenames list.
+          example: structure.pdb
       tags:
         - files
       responses:
@@ -660,6 +651,50 @@ paths:
               schema:
                 type: string
                 format: binary
+
+  /projects/{projectAccessionOrID}/filenotes:
+    get:
+      summary: Get file descriptors for every available file associated to the current project MD.
+      description: Get the list of file descriptors for a specific $DATABASE project MD.
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+      tags:
+        - filenotes
+      responses:
+        200:
+          description: a list of file descriptors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileDescription'
+
+  /projects/{projectAccessionOrID}/filenotes/{filename}:
+    get:
+      summary: Get a specific file descriptor.
+      description: >
+        Get a specific file descriptor for a specific $DATABASE project MD by its name.
+      produces:
+        - application/octet-stream
+        - chemical/x-pdb
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+        - name: filename
+          in: path
+          description: >
+            filename, as defined in the list of files included in a project
+          required: true
+          schema:
+            type: string
+          example: structure.pdb
+      tags:
+        - filenotes
+      responses:
+        200:
+          description: a file descriptor
+          content:
+            $ref: '#/components/schemas/FileDescription'
 
   /projects/{projectAccessionOrID}/analyses:
     get:

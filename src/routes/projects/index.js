@@ -354,6 +354,8 @@ const escapeRegExp = input => {
   projectRouter.use('/:project/trajectory', require('./trajectory')(db, model));
   // Files
   projectRouter.use('/:project/files', require('./files')(db, model));
+  // Filenotes
+  projectRouter.use('/:project/filenotes', require('./filenotes')(db, model));
   // Chains
   projectRouter.use('/:project/chains', require('./chains')(db, model));
   // Analyses
