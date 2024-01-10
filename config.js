@@ -44,5 +44,17 @@ module.exports = {
       prefix: 'MCNS',
       collection: 'mcns',
     },
+    'abc-dev.mddbr.eu': {
+      name: 'ABC',
+      description: 'The ABC server',
+      prefix: 'ABCMD',
+      collection: 'abc', // This could be null with the current implementation
+    },
+    'abc.mddbr.eu': {
+      name: 'ABC',
+      description: 'The ABC server',
+      prefix: 'ABCMD',
+      collection: 'abc', // This could be null with the current implementation
+    },
   },
 };
