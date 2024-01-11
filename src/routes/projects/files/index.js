@@ -95,7 +95,7 @@ module.exports = (db, { projects, files }) => {
           headerError: INTERNAL_SERVER_ERROR,
           error: 'Failed to set the bucket stream'
         };
-        return { descriptor, stream };
+        return { descriptor, stream, projectData };
       },
       // Handle the response header
       headers(response, retrieved) {
@@ -104,26 +104,27 @@ module.exports = (db, { projects, files }) => {
         // If there is any specific header error in the retrieved then send it
         if (retrieved.headerError) return response.status(retrieved.headerError);
         // If there is an active stream, send range and length content
-        const contentRanges = [`bytes=*/${retrieved.descriptor.length}`];
-        if (retrieved.descriptor.metadata.frames) {
-          contentRanges.push(`frames=*/${retrieved.descriptor.metadata.frames}`);
+        const descriptor = retrieved.descriptor;
+        const contentRanges = [`bytes=*/${descriptor.length}`];
+        if (descriptor.metadata.frames) {
+          contentRanges.push(`frames=*/${descriptor.metadata.frames}`);
         }
-        if (retrieved.descriptor.metadata.atoms) {
-          contentRanges.push(`atoms=*/${retrieved.descriptor.metadata.atoms}`);
+        if (descriptor.metadata.atoms) {
+          contentRanges.push(`atoms=*/${descriptor.metadata.atoms}`);
         }
         // NEVER FORGET: 'content-range' where disabled and now this data is got from project files
         // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
         //response.set('content-range', contentRanges);
-        response.set('content-length', retrieved.descriptor.length);
+        response.set('content-length', descriptor.length);
         // Send content type also if known
-        if (retrieved.descriptor.contentType) {
-          response.set('content-type', retrieved.descriptor.contentType);
+        if (descriptor.contentType) {
+          response.set('content-type', descriptor.contentType);
         }
-        // Set the output filename
-        response.setHeader(
-          'Content-disposition',
-          `attachment; filename=${retrieved.descriptor.filename}`,
-        );
+        // Set the output filename by adding the id or accession as prefix
+        let prefix = retrieved.projectData.accession || retrieved.projectData.identifier;
+        if (descriptor.metadata.md !== null) prefix += '.' + (descriptor.metadata.md + 1);
+        const filename = prefix + '_' + descriptor.filename;
+        response.setHeader('Content-disposition', `attachment; filename=${filename}`);
       },
       // Handle the response body
       body(response, retrieved, request) {
