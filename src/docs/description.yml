@@ -46,8 +46,16 @@ paths:
             A projection stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
             It is useful to reduce the amount of data in the response and thus the internet traffic.
             Note that this parameter is difficult to use if you have not experiencie with Mongo.
+            Note that when the projection parameter is passed the response becomes raw (i.e. data as it is stored in the database, not formatted).
           schema:
             type: string
+        - name: raw
+          in: query
+          description: >
+            Set if the response is not to be formatted, but sent as it is stored in the database.
+          schema:
+            type: boolean
+            default: false
         - name: limit
           in: query
           description: pagination, maximum number of projects per query

@@ -36,16 +36,6 @@ const parseType = input => {
   return input;
 };
 
-// Try to parse JSON and return the bad request error in case it fails
-const parseJSON = string => {
-  try {
-    const parse = JSON.parse(string);
-    if (parse && typeof parse === 'object') return parse;
-  } catch (e) {
-    return false;
-  }
-};
-
 // Escape all regex sensible characters
 const escapeRegExp = input => {
   return input.replace(/[-[/\]{}()*+?.,\\^$|#\s]/g, '\\$&');
@@ -204,6 +194,7 @@ const escapeRegExp = input => {
         // Set the projection object for the mongo query
         const projector = {};
         // Handle when it is a mongo projection itself
+        // Note that when a projection is requested the project data is not formatted
         let projection = request.query.projection;
         if (projection) {
           // In case there is a single query it would be a string, not an array, so adapt it
@@ -251,6 +242,15 @@ const escapeRegExp = input => {
         // If the limit is negative (which makes not sense) it is set to 0
         let limit = request.query.limit;
 
+        // Check if the raw flag has been passed
+        // Besides, we use the raw project data if a projection is passed
+        const raw = request.query.raw;
+        const isRaw = (raw !== undefined && raw !== 'false') || Boolean(projection);
+
+        // Set the project mapping function
+        // If it must be raw the the mapping function dos nothing
+        const projectMapping = isRaw ? project => project : projectFormatter;
+
         // 3 variables are declared at the same time
         const [filteredCount, projects] = await Promise.all([
           // filteredCount
@@ -273,7 +273,7 @@ const escapeRegExp = input => {
                 // Each project is cleaned (some attributes are renamed or removed)
                 // WARNING: Do not leave this line as 'map(projectFormatter)' or you will have a bug
                 // WARNING: The map function index is passed as requested MD index to the projectFormatter function
-                .map(project => projectFormatter(project))
+                .map(projectMapping)
                 // Changes the type from Cursor into Array, then saving data in memory
                 .toArray()
             : [],
