@@ -6,21 +6,14 @@ const handler = require('../../../utils/generic-handler');
 const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
 // Get an automatic mongo query parser based on environment and request
 const { getBaseFilter } = require('../../../utils/get-project-query');
+// Set a error-proof JSON parser
+const { parseJSON } = require('../../../utils/auxiliar-functions');
 
 // Set a header for queried fields to be queried in the references collection instead of projects
 const referencesHeader = 'references.';
 
 const analysisRouter = Router({ mergeParams: true });
 
-// Try to parse JSON and return the bad request error in case it fails
-const parseJSON = string => {
-  try {
-    const parse = JSON.parse(string);
-    if (parse && typeof parse === 'object') return parse;
-  } catch (e) {
-    return false;
-  }
-};
 
 // This endpoint returns some options of data contained in the projects collection
 module.exports = (_, { projects, references }) => {

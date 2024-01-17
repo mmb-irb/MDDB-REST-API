@@ -15,6 +15,8 @@ const {
 } = require('../../utils/get-project-query');
 // Get the project formatter
 const { projectFormatter } = require('../../utils/get-project-data');
+// Set a error-proof JSON parser
+const { parseJSON } = require('../../utils/auxiliar-functions');
 
 const { BAD_REQUEST, NOT_FOUND } = require('../../utils/status-codes');
 
@@ -53,7 +55,7 @@ const escapeRegExp = input => {
   const client = await dbConnection; // Save the mongo database connection
   const db = client.db(process.env.DB_NAME); // Access the database
   const model = {
-    // Get the desried collections from the database
+    // Get the desired collections from the database
     projects: db.collection('projects'),
     analyses: db.collection('analyses'),
     files: db.collection('fs.files'),
@@ -280,10 +282,7 @@ const escapeRegExp = input => {
       },
       // If there is not filteredCount (the search was not sucessful), a NO_CONTENT status is sent in the header
       headers(response, { error, filteredCount }) {
-        if (error) {
-          response.status(error);
-          return;
-        }
+        if (error) return response.status(error);
         // This header makes the response behave strangely sometimes
         // I prefere the response showing a clear 0 count and the empty projects list
         //if (filteredCount === 0) response.status(NO_CONTENT);
