@@ -74,20 +74,10 @@ const escapeRegExp = input => {
               $or: [
                 { accession: { $regex: tsearch, $options: 'i' } },
                 { 'metadata.NAME': { $regex: tsearch, $options: 'i' } },
-                {
-                  'metadata.DESCRIPTION': {
-                    $regex: tsearch,
-                    $options: 'i',
-                  },
-                },
-                {
-                  'metadata.AUTHORS': { $regex: tsearch, $options: 'i' },
-                },
+                { 'metadata.DESCRIPTION': { $regex: tsearch, $options: 'i' } },
+                { 'metadata.AUTHORS': { $regex: tsearch, $options: 'i' } },
                 { 'metadata.GROUPS': { $regex: tsearch, $options: 'i' } },
-                { 'pdbInfo._id': { $regex: tsearch, $options: 'i' } },
-                {
-                  'pdbInfo.compound': { $regex: tsearch, $options: 'i' },
-                },
+                { 'metadata.PDBIDS': { $regex: tsearch, $options: 'i' } }
               ],
             },
           ];
