@@ -2,10 +2,9 @@ const Router = require('express').Router;
 const { ObjectId } = require('mongodb');
 // Connect to the mongo database and return the connection
 // Alternatively, in 'test' context, connect to a local fake mongo database and return the connection
-const dbConnection =
-  process.env.NODE_ENV === 'test'
-    ? require('../../../test-helpers/mongo/index')
-    : require('../../models/index');
+const dbConnection = process.env.NODE_ENV === 'test'
+  ? require('../../../test-helpers/mongo/index')
+  : require('../../models/index');
 const handler = require('../../utils/generic-handler');
 // Get an automatic mongo query parser based on environment and request
 const {
@@ -18,7 +17,15 @@ const { projectFormatter } = require('../../utils/get-project-data');
 // Set a error-proof JSON parser
 const { parseJSON } = require('../../utils/auxiliar-functions');
 
-const { BAD_REQUEST, NOT_FOUND } = require('../../utils/status-codes');
+const { BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
+
+// Import the APIs to be queried
+const apis = require('../../../apis.json');
+
+// Set if it is a global or a federated API
+const isGlobal = process.env.DB_ROLE === 'global';
+const isFederated = process.env.DB_ROLE === 'federated';
+if (isGlobal === isFederated) throw new Error('API must be configured as global or federated (DB_ROLE)');
 
 const projectRouter = Router();
 
@@ -42,17 +49,26 @@ const escapeRegExp = input => {
 };
 
 (async () => {
-  const client = await dbConnection; // Save the mongo database connection
-  const db = client.db(process.env.DB_NAME); // Access the database
-  const model = {
-    // Get the desired collections from the database
-    projects: db.collection('projects'),
-    analyses: db.collection('analyses'),
-    files: db.collection('fs.files'),
-    chains: db.collection('chains'),
-    references: db.collection('references'),
-    topologies: db.collection('topologies'),
-  };
+  // Save the mongo database connection
+  const client = await dbConnection;
+  // Access the database
+  const db = client.db(process.env.DB_NAME);
+  // Get the desired collections from the database
+  const model = isGlobal
+    // Collections for the global API
+    ? {
+      projects: db.collection('global.projects'),
+      references: db.collection('global.references'),
+    }
+    // Collections for the federated API
+    : {
+      projects: db.collection('projects'),
+      analyses: db.collection('analyses'),
+      files: db.collection('fs.files'),
+      chains: db.collection('chains'),
+      references: db.collection('references'),
+      topologies: db.collection('topologies'),
+    };
 
   // Root
   projectRouter.route('/').get(
@@ -301,7 +317,10 @@ const escapeRegExp = input => {
         const projectFilter = getProjectQuery(request);
         // Do the query
         const projectData = await model.projects.findOne(projectFilter);
-        if (!projectData) return;
+        if (!projectData) return {
+          headerError: NOT_FOUND,
+          error: `Project ${request.params.project} not found`
+        };
         // Get the md number from the request
         const requestedMdIndex = getMdIndex(request);
         // If something went wrong with the MD request then return the error
@@ -317,8 +336,8 @@ const escapeRegExp = input => {
       },
       // Handle the response header
       headers(response, retrieved) {
-        // If nothing is retrieved then send a NOT_FOUND header and end the response
-        if (!retrieved) return response.sendStatus(NOT_FOUND);
+        // There should always be a retrieved object
+        if (!retrieved) return response.sendStatus(INTERNAL_SERVER_ERROR);
         // If there is any specific header error in the retrieved then send it
         if (retrieved.headerError) response.status(retrieved.headerError);
       },
@@ -337,24 +356,75 @@ const escapeRegExp = input => {
 
   // Children routes (e.g. .../projects/MCNS00001/files)
 
-  // The structure
-  projectRouter.use('/:project/structure', require('./structure')(db, model));
-  // The trajectory
-  projectRouter.use('/:project/trajectory', require('./trajectory')(db, model));
-  // Files
-  projectRouter.use('/:project/files', require('./files')(db, model));
-  // Filenotes
-  projectRouter.use('/:project/filenotes', require('./filenotes')(db, model));
-  // Chains
-  projectRouter.use('/:project/chains', require('./chains')(db, model));
-  // Analyses
-  projectRouter.use('/:project/analyses', require('./analyses')(db, model));
-  // References
-  projectRouter.use('/:project/references', require('./references')(db, model));
-  // Inputs
-  projectRouter.use('/:project/inputs', require('./inputs')(db, model));
-  // Topology
-  projectRouter.use('/:project/topology', require('./topology')(db, model));
+  // If we are using the global API then any further query is mapped to the corresponding database
+  if (isGlobal) {
+    projectRouter.route('/:project/*').get(
+      handler({
+        async retriever(request) {
+          // Set the project filter
+          const projectFilter = getProjectQuery(request);
+          // Do the query
+          const projectData = await model.projects.findOne(projectFilter);
+          if (!projectData) return {
+            headerError: NOT_FOUND,
+            error: `Project ${request.params.project} not found`
+          };
+          // Find the database thes project belongs to
+          const database = projectData.db;
+          // Get the corresponding api
+          const api = apis[database];
+          if (!api) return {
+            headerError: INTERNAL_SERVER_ERROR,
+            error: `Database ${database} not found`
+          };
+          // Get url path removing the first slash
+          const urlPath = request.originalUrl.substring(1);
+          // Build the new forwarded URL using the corresponding api url
+          const forwardedRef = api.url + urlPath;
+          //console.log(forwardedRef);
+          return forwardedRef;
+        },
+        // Handle the response header
+        headers(response, retrieved) {
+          // There should always be a retrieved object
+          if (!retrieved) return response.sendStatus(INTERNAL_SERVER_ERROR);
+          // If there is any specific header error in the retrieved then send it
+          if (retrieved.headerError) response.status(retrieved.headerError);
+        },
+        // Handle the response body
+        body(response, retrieved) {
+          // If nothing is retrieved then end the response
+          // Note that the header 'sendStatus' function should end the response already, but just in case
+          if (!retrieved) return response.end();
+          // If there is any error in the body then just send the error
+          if (retrieved.error) return response.json(retrieved.error);
+          // Send the response
+          response.redirect(retrieved);
+        },
+      }),
+    );
+  }
+  // If it is a federated API then process the actual query
+  else if (isFederated) {
+    // The structure
+    projectRouter.use('/:project/structure', require('./structure')(db, model));
+    // The trajectory
+    projectRouter.use('/:project/trajectory', require('./trajectory')(db, model));
+    // Files
+    projectRouter.use('/:project/files', require('./files')(db, model));
+    // Filenotes
+    projectRouter.use('/:project/filenotes', require('./filenotes')(db, model));
+    // Chains
+    projectRouter.use('/:project/chains', require('./chains')(db, model));
+    // Analyses
+    projectRouter.use('/:project/analyses', require('./analyses')(db, model));
+    // References
+    projectRouter.use('/:project/references', require('./references')(db, model));
+    // Inputs
+    projectRouter.use('/:project/inputs', require('./inputs')(db, model));
+    // Topology
+    projectRouter.use('/:project/topology', require('./topology')(db, model));
+  }
 })();
 
 module.exports = projectRouter;

@@ -55,9 +55,12 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   Object.assign(projectData, rest);
   // Reduce the list of mds to their names
   projectData.mds = projectData.mds.map(md => md.name);
-  // Rename the project "_id" as "identifier"
-  projectData.identifier = projectData._id;
+  // Rename the project "_id" as "internalId"
+  projectData.internalId = projectData._id;
   delete projectData._id;
+  // Rename the project "bid" as "identifier"
+  projectData.identifier = projectData.bid;
+  delete projectData.bid;
   // Return the modified object just for the map function to work properly
   return projectData;
 };

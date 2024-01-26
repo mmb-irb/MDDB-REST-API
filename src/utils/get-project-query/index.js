@@ -5,16 +5,22 @@
 
 const { ObjectId } = require('mongodb');
 
-// Set a function to ckeck if a string is a mongo id
+// Set a function to ckeck if a string is a mongo internal id
 // WARNING: Do not use the builtin 'ObjectId.isValid'
 // WARNING: It returns true with whatever string 12 characters long
 const isObjectId = string => /^[a-z0-9]{24}$/.test(string);
+
+// Set a function to check if it is a base identifier
+const isBaseId = string => /^[a-z]*_[a-z0-9]{24}$/.test(string);
 
 // Configure which collections are returned according to the host (client) who is asking
 const hostConfigs = require('../../../config.js').hosts;
 
 // Read the property "NODE_ENV" from the global ".env" file
 const env = process.env.NODE_ENV.toLowerCase();
+
+// Check if it is a global API
+const isGlobal = process.env.DB_ROLE === 'global';
 
 // Set the published filter according to the enviornment (.env file)
 // If the environment is tagged as "production" only published projects are returned from mongo
@@ -54,9 +60,14 @@ const getProjectQuery = request => {
   // Get the project id or accession
   const idOrAccession = request.params.project;
   const project = idOrAccession.split('.')[0];
-  // Check if the idOrAccession is an id
-  if (isObjectId(project)) query._id = ObjectId(project);
-  // otherwise we asume it is an accession
+  // Check if the idOrAccession is a mongo internal object id
+  if (isObjectId(project)) {
+    if (isGlobal) return new Error('Internal identifiers are not supported by the global API');
+    query._id = ObjectId(project);
+  }
+  // Check if it is a base id
+  else if (isBaseId(project)) query.bid = project;
+  // Otherwise we asume it is an accession
   else query.accession = project;
   // Return the query
   return query;

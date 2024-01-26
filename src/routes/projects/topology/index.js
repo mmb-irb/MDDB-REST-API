@@ -42,7 +42,7 @@ module.exports = (_, { projects, topologies }) => {
         // If no topology was found then return here
         if (!topology) return;
         const output = omit(topology, ['_id']);
-        output.identifier = topology._id;
+        output.internalId = topology._id;
         return output;
       },
       // Handle the response header

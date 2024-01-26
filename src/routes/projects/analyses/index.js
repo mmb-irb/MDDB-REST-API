@@ -52,7 +52,7 @@ module.exports = (_, { projects, analyses }) => {
         const analysisData = await analyses.findOne(
           // Set the query
           {
-            project: projectData.identifier,
+            project: projectData.internalId,
             md: projectData.mdIndex,
             name: request.params.analysis.toLowerCase(),
           },

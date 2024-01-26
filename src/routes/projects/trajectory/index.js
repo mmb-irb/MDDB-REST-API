@@ -108,7 +108,7 @@ module.exports = (db, { projects, files }) => {
       // Note that we target files with the current MD index (MD files) or null MD index (project files)
       const fileQuery = {
         'filename': STANDARD_TRAJECTORY_FILENAME,
-        'metadata.project': projectData.identifier,
+        'metadata.project': projectData.internalId,
         'metadata.md': { $in: [projectData.mdIndex, null] }
       }
       // Download the corresponding file
@@ -143,7 +143,7 @@ module.exports = (db, { projects, files }) => {
           // Note that we target files with the current MD index (MD files) or null MD index (project files)
           const structureFileQuery = {
             'filename': STANDARD_STRUCTURE_FILENAME,
-            'metadata.project': projectData.identifier,
+            'metadata.project': projectData.internalId,
             'metadata.md': { $in: [projectData.mdIndex, null] }
           }
           // Download the corresponding file

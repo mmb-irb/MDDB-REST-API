@@ -10,9 +10,9 @@ const { getProjectData } = require('../../../utils/get-project-data');
 // Standard HTTP response status codes
 const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-codes');
 
-// Set a function to clean file descriptors by renaming the field '_id' as 'identifier'
+// Set a function to clean file descriptors by renaming the field '_id' as 'internalId'
 const cleanFileDescriptor = descriptor => {
-  descriptor.identifier = descriptor._id;
+  descriptor.internalId = descriptor._id;
   delete descriptor._id;
   return descriptor;
 }
@@ -37,7 +37,7 @@ module.exports = (db, { projects, files }) => {
         };
         // Send all file descriptions
         const filesQuery = {
-          'metadata.project': projectData.identifier,
+          'metadata.project': projectData.internalId,
           'metadata.md': { $in: [projectData.mdIndex, null] },
         };
         const filesCursor = await files.find(filesQuery, { _id: false });
@@ -83,7 +83,7 @@ module.exports = (db, { projects, files }) => {
         // Note that we target files with the current MD index (MD files) or null MD index (project files)
         const fileQuery = {
           'filename': request.params.file,
-          'metadata.project': projectData.identifier,
+          'metadata.project': projectData.internalId,
           'metadata.md': { $in: [projectData.mdIndex, null] }
         }
         // Download the corresponding file

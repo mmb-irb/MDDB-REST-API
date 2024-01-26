@@ -77,7 +77,7 @@ module.exports = (db, { projects, files }) => {
         // Note that we target files with the current MD index (MD files) or null MD index (project files)
         const fileQuery = {
           'filename': request.params.file,
-          'metadata.project': projectData.identifier,
+          'metadata.project': projectData.internalId,
           'metadata.md': { $in: [projectData.mdIndex, null] }
         }
         // Download the corresponding file
@@ -121,7 +121,7 @@ module.exports = (db, { projects, files }) => {
           response.set('content-type', descriptor.contentType);
         }
         // Set the output filename by adding the id or accession as prefix
-        let prefix = retrieved.projectData.accession || retrieved.projectData.identifier;
+        let prefix = retrieved.projectData.accession || retrieved.projectData.internalId;
         if (descriptor.metadata.md !== null) prefix += '.' + (descriptor.metadata.md + 1);
         const filename = prefix + '_' + descriptor.filename;
         response.setHeader('Content-disposition', `attachment; filename=${filename}`);
