@@ -19,9 +19,6 @@ const { parseJSON } = require('../../utils/auxiliar-functions');
 
 const { BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 
-// Import the APIs to be queried
-const apis = require('../../../apis.json');
-
 // Set if it is a global or a federated API
 const isGlobal = process.env.DB_ROLE === 'global';
 const isFederated = process.env.DB_ROLE === 'federated';
@@ -59,6 +56,7 @@ const escapeRegExp = input => {
     ? {
       projects: db.collection('global.projects'),
       references: db.collection('global.references'),
+      apis: db.collection('global.apis')
     }
     // Collections for the federated API
     : {
@@ -372,7 +370,7 @@ const escapeRegExp = input => {
           // Find the database thes project belongs to
           const database = projectData.db;
           // Get the corresponding api
-          const api = apis[database];
+          const api = await model.apis.findOne({ alias: database });
           if (!api) return {
             headerError: INTERNAL_SERVER_ERROR,
             error: `Database ${database} not found`
