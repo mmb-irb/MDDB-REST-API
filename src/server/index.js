@@ -24,13 +24,14 @@ const app = express();
 app.disable('x-powered-by');
 
 // custom timeout middleware
-app.use(
-  getCustomTimeout({
-    general: 5 * MINUTE,
-    stale: 1 * MINUTE,
-    extended: 1 * HOUR,
-  }),
-);
+// DANI: He quitado esto porque si no sabes que está aquí te mata las descargas largas silenciosamente
+// app.use(
+//   getCustomTimeout({
+//     general: 5 * MINUTE,
+//     stale: 1 * MINUTE,
+//     extended: 1 * HOUR,
+//   }),
+// );
 
 // Add CORS headers
 app.use(
