@@ -121,7 +121,7 @@ module.exports = (db, { projects, files }) => {
           response.set('content-type', descriptor.contentType);
         }
         // Set the output filename by adding the id or accession as prefix
-        let prefix = retrieved.projectData.accession || retrieved.projectData.internalId;
+        let prefix = retrieved.projectData.accession || retrieved.projectData.identifier;
         if (descriptor.metadata.md !== null) prefix += '.' + (descriptor.metadata.md + 1);
         const filename = prefix + '_' + descriptor.filename;
         response.setHeader('Content-disposition', `attachment; filename=${filename}`);

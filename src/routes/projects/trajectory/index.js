@@ -262,7 +262,7 @@ module.exports = (db, { projects, files }) => {
       // Get the accession, if exists, or get the id
       const accessionOrId = projectData.accession
         ? projectData.accession.toLowerCase()
-        : projectData._id;
+        : projectData.identifier;
       return {
         stream,
         descriptor,
