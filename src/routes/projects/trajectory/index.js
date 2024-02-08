@@ -10,7 +10,7 @@ const BinToMdcrdStream = require('../../../utils/bin-to-mdcrd');
 const handleRange = require('../../../utils/handle-range');
 // Returns a simple stream when asking for the whole file
 // Returns an internally managed stream when asking for specific ranges
-const combineDownloadStreams = require('../../../utils/combine-download-streams');
+const getRangedStream = require('../../../utils/get-ranged-stream');
 // Functions to retrieve project data and get a given file id
 const { getProjectData } = require('../../../utils/get-project-data');
 // Returns the selected atom indices as a string ("i1-i1,i2-i2,i3-i3..."")
@@ -196,7 +196,7 @@ module.exports = (db, { projects, files }) => {
       let stream;
       // Return a simple stream when asking for the whole file (i.e. range is not iterable)
       // Return an internally managed stream when asking for specific ranges
-      const rangedStream = combineDownloadStreams(bucket, descriptor._id, range);
+      const rangedStream = getRangedStream(bucket, descriptor._id, range);
       // Get the output format name
       const transformFormatName = transformFormat.name;
       // When user requests "crd" or "mdcrd" files

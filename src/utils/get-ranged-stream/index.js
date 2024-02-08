@@ -9,8 +9,12 @@ const isIterable = obj => {
 // Found experimentally
 const chunkSize = 4194304;
 
-const combine = async (outputStream, bucket, objectId, range) => {
-  const rangeArray = [...range];
+// Stream only specific ranges of bytes from a file
+const getRangedStream = (bucket, objectId, range) => {
+  // If there is not range or range is not iterable then just return the whole stream
+  if (!range || !isIterable(range)) return bucket.openDownloadStream(objectId);
+  // If range is iterable it means we have to return only specific chunks of the input stream
+  const outputStream = new PassThrough();
   // Group ranges which may fit in one single chunk according to chunkSize
   const rangeGroups = [];
   let currentGroup;
@@ -116,33 +120,25 @@ const combine = async (outputStream, bucket, objectId, range) => {
         outputStream.once('drain', () => rangedStream.resume());
       }
       // When all ranges have been filled close the read stream
-      if (nrange === rangeArray.length) {
+      if (nrange === range.length) {
         rangedStream.destroy();
       }
     });
-    try {
-      // wait for the end of the ranged stream
-      await streamEnd;
-    } catch (error) {
-      outputStream.emit('error', error);
-    }
+    (async () => {
+      try {
+        // wait for the end of the ranged stream
+        await streamEnd;
+      } catch (error) {
+        outputStream.emit('error', error);
+      }
+      // finished looping through range parts, we can end the combined stream now
+      // WARNING: Do not use outputStream.emit('end') here!!
+      // This could trigger the 'end' event before all data has been consumed by the next stream
+      outputStream.end();
+    })();
   }
-  // finished looping through range parts, we can end the combined stream now
-  // WARNING: Do not use outputStream.emit('end') here!!
-  // This could trigger the 'end' event before all data has been consumed by the next stream
-  outputStream.end();
+  // Return the ranged stream
+  return outputStream;
 };
 
-const combineDownloadStreams = (bucket, objectId, range) => {
-  // If range is iterable it means we have to return only specific chunks of the input stream
-  if (range && isIterable(range)) {
-    const outputStream = new PassThrough();
-    combine(outputStream, bucket, objectId, range);
-    // Return the ranged stream
-    return outputStream;
-  }
-  // Otherwise, return a readable stream of the whole file
-  return bucket.openDownloadStream(objectId);
-};
-
-module.exports = combineDownloadStreams;
+module.exports = getRangedStream;
