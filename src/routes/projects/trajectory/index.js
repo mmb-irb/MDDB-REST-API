@@ -7,7 +7,7 @@ const handler = require('../../../utils/generic-handler');
 // Converts the stored file (.bin) into human friendly format (chemical/mdcrd)
 const BinToMdcrdStream = require('../../../utils/bin-to-mdcrd');
 // Converts ranges of different types (e.g. frames or atoms) into a single summarized range of bytes
-const handleRange = require('../../../utils/handle-range');
+const handleTrajectoryRanges = require('../../../utils/handle-trajectory-ranges');
 // Returns a simple stream when asking for the whole file
 // Returns an internally managed stream when asking for specific ranges
 const getRangedStream = require('../../../utils/get-ranged-stream');
@@ -16,7 +16,7 @@ const { getProjectData } = require('../../../utils/get-project-data');
 // Returns the selected atom indices as a string ("i1-i1,i2-i2,i3-i3..."")
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 // Translates the frames query string format into a explicit frame selection in string format
-const parseQuerystringFrameRange = require('../../../utils/parse-querystring-frame-range');
+const parseQueryRange = require('../../../utils/parse-query-range');
 const consumeStream = require('../../../utils/consume-stream');
 const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
 // Get the configuration parameters for the different requesting hosts
@@ -172,7 +172,7 @@ module.exports = (db, { projects, files }) => {
           // If data is already saved in the rangeString variable because there was a selection query
           if (rangeString) rangeString += ', '; // Add coma and space to separate the new incoming data
           // Translates the frames query string format into a explicit frame selection in string format
-          const parsed = parseQuerystringFrameRange(frames);
+          const parsed = parseQueryRange(frames);
           if (!parsed) return {
             headerError: BAD_REQUEST,
             error: 'Frames selection is wrong'
@@ -180,17 +180,17 @@ module.exports = (db, { projects, files }) => {
           rangeString += `frames=${parsed}`;
         }
         // Get the bytes ranges
-        range = handleRange(rangeString, descriptor);
+        range = handleTrajectoryRanges(rangeString, descriptor);
       }
       // It is also able to obtain ranges through the header, when there are no queries
       // This was the default way to receive ranges time ago
       else if (request.headers.range) {
         // Get the bytes ranges
-        range = handleRange(request.headers.range, descriptor);
+        range = handleTrajectoryRanges(request.headers.range, descriptor);
       }
       // In case there is no selection range is no iterable
       else {
-        range = handleRange(null, descriptor);
+        range = handleTrajectoryRanges(null, descriptor);
       }
       // Set the final stream to be returned
       let stream;
