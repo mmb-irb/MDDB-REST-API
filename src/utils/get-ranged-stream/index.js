@@ -67,22 +67,18 @@ const getRangedStream = (bucket, objectId, range) => {
     const rangedStream = bucket.openDownloadStream(objectId);
     rangedStream.start(rangeGroup.start);
     rangedStream.end(rangeGroup.end + 1);
-    // create a promise which will resolve when the ranged stream ends
-    const streamEnd = new Promise((resolve, reject) => {
-      rangedStream.once('error', reject);
-      rangedStream.once('close', resolve);
-      rangedStream.once('end', resolve);
-    });
+    // Set a promise to be resolved when the ranged stream data has been fully consumed
+    let resolveStreamConsumed;
+    const streamConsumed = new Promise(resolve => { resolveStreamConsumed = resolve });
     // The byte length of data already read
     let progress = rangeGroup.start;
     // The current range number (iteration)
     let nrange = 0;
     // transfer data from one stream to the other
-    rangedStream.on('data', data => {
+    // WARNING: Since this event is async, the stream is closed as soon as this event is emitted
+    rangedStream.on('data', async data => {
       // If the stream was destroyed, just bail
       if (outputStream.destroyed) return;
-      // Set the data to be written in the output stream
-      let outputData = new Buffer.alloc(0);
       // Get current data chunk limits and length
       // They are converted to absolute bytes (i.e. in reference to the whole data stream)
       const dataStart = progress;
@@ -95,39 +91,35 @@ const getRangedStream = (bucket, objectId, range) => {
         // They come in absolute bytes (i.e. in reference to the whole data stream)
         const currentRange = rangeGroup.ranges[r];
         const { start: rangeStart, end: rangeEnd } = currentRange;
-        //console.log('range: ' + r + ' (' + rangeStart + ' - ' + rangeEnd + ')');
         // If the start range byte is beyond the data end byte then skip the whole data chunk
         if (rangeStart > dataEnd) break;
         // Get the start and end byte relative to the current data chunk (i.e. from 0 to dataLength)
         const start = Math.max(rangeStart - dataStart, 0);
         const end = Math.min(rangeEnd - dataStart, dataLength) + 1;
-        //console.log('range MATCH: (' + start + ' - ' + end + ')');
         // Add the current ranged data to the output data
-        outputData = Buffer.concat([outputData, data.slice(start, end)]);
+        const shouldContinue = outputStream.write(data.slice(start, end));
+        if (!shouldContinue) {
+          rangedStream.pause();
+          const drain = new Promise(resolve => outputStream.once('drain', resolve));
+          await drain;
+          rangedStream.resume();
+        }
         // If the data chunk has been fully consumed then break the loop
         if (end === dataLength + 1) break;
         nrange = r + 1;
       }
-      // Write the current data output
-      const shouldContinue = outputStream.write(outputData);
-      //console.log('output: ' + outputData.length);
-      //console.log(outputData.length + ' / ' + range.size);
       // Add byte lengths to the counter
       progress += data.length;
-      // In case of overload stop the stream and wait for it to drain before resuming the load
-      if (!shouldContinue) {
-        rangedStream.pause();
-        outputStream.once('drain', () => rangedStream.resume());
-      }
       // When all ranges have been filled close the read stream
-      if (nrange === range.length) {
+      if (nrange === rangeGroup.ranges.length) {
         rangedStream.destroy();
+        resolveStreamConsumed();
       }
     });
     (async () => {
       try {
         // wait for the end of the ranged stream
-        await streamEnd;
+        await streamConsumed;
       } catch (error) {
         outputStream.emit('error', error);
       }

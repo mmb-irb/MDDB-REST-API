@@ -6,8 +6,9 @@ const { Readable, PassThrough } = require('stream');
 const handler = require('../../../utils/generic-handler');
 // Converts the stored file (.bin) into human friendly format (chemical/mdcrd)
 const BinToMdcrdStream = require('../../../utils/bin-to-mdcrd');
-// Converts ranges of different types (e.g. frames or atoms) into a single summarized range of bytes
-const handleTrajectoryRanges = require('../../../utils/handle-trajectory-ranges');
+// Get tools to handle range queries
+const handleRanges = require('../../../utils/handle-ranges');
+const { rangeIndices } = require('../../../utils/parse-query-range');
 // Returns a simple stream when asking for the whole file
 // Returns an internally managed stream when asking for specific ranges
 const getRangedStream = require('../../../utils/get-ranged-stream');
@@ -16,7 +17,6 @@ const { getProjectData } = require('../../../utils/get-project-data');
 // Returns the selected atom indices as a string ("i1-i1,i2-i2,i3-i3..."")
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 // Translates the frames query string format into a explicit frame selection in string format
-const parseQueryRange = require('../../../utils/parse-query-range');
 const consumeStream = require('../../../utils/consume-stream');
 const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
 // Get the configuration parameters for the different requesting hosts
@@ -118,6 +118,12 @@ module.exports = (db, { projects, files }) => {
         headerError: INTERNAL_SERVER_ERROR,
         error: 'The trajectory file was not found in the files collections'
       };
+      // Adapt the descriptor to the dimensions format
+      const fileMetadata = descriptor.metadata;
+      fileMetadata.x = { name: 'coords', length: 3 };
+      fileMetadata.y = { name: 'atoms', length: fileMetadata.atoms };
+      fileMetadata.z = { name: 'frames', length: fileMetadata.frames };
+      fileMetadata.bitsize = 32;
       // Set the format in which data will be sent
       // Format is requested through the query
       const transformFormat = acceptTransformFormat(request.query.format);
@@ -127,71 +133,52 @@ module.exports = (db, { projects, files }) => {
           Object.keys(trajectoryFormats).join(', ')
       };
 
-      // range handling
-      // range in querystring > range in headers
-      // but we do transform the querystring format into the headers format
-
+      // In case we have a selection we must parse it to atoms
+      let rangedAtoms;
+      const selectionRequest = request.body.selection || request.query.selection;
+      if (selectionRequest) {
+        // Make sure atoms were not requested as well
+        const atomsRequest = request.body.atoms || request.query.atoms;
+        if (atomsRequest) return {
+          headerError: BAD_REQUEST,
+          error: 'Cannot request "selection" and "atoms" at the same time'
+        };
+        // Set the file query
+        // Note that we target files with the current MD index (MD files) or null MD index (project files)
+        const structureFileQuery = {
+          'filename': STANDARD_STRUCTURE_FILENAME,
+          'metadata.project': projectData.internalId,
+          'metadata.md': { $in: [projectData.mdIndex, null] }
+        }
+        // Download the corresponding file
+        const structureDescriptor = await files.findOne(structureFileQuery);
+        // If the object ID is not found in the data base, return here
+        if (!structureDescriptor) return {
+          headerError: INTERNAL_SERVER_ERROR,
+          error: 'The structure file was not found in the files collections'
+        };
+        // Open a stream and save it completely into memory
+        const pdbFile = await consumeStream(
+          bucket.openDownloadStream(structureDescriptor._id),
+        );
+        // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
+        const atomIndices = await getAtomIndices(pdbFile, selectionRequest);
+        // If no atoms where found, then return here and set the header to NOT_FOUND
+        if (!atomIndices) return {
+          headerError: BAD_REQUEST,
+          error: 'Atoms selection is empty or wrong'
+        };
+        // Get arnged atom indices
+        rangedAtoms = rangeIndices(atomIndices);
+      }
       // When there is a selection or frame query (e.g. .../files/trajectory?selection=x)
-      let range;
-      const selection = request.body.selection || request.query.selection;
-      const frames = request.body.frames || request.query.frames;
-      if (selection || frames) {
-        let rangeString = '';
-        // In case of selection query
-        if (selection) {
-          // Set the file query
-          // Note that we target files with the current MD index (MD files) or null MD index (project files)
-          const structureFileQuery = {
-            'filename': STANDARD_STRUCTURE_FILENAME,
-            'metadata.project': projectData.internalId,
-            'metadata.md': { $in: [projectData.mdIndex, null] }
-          }
-          // Download the corresponding file
-          const structureDescriptor = await files.findOne(structureFileQuery);
-          // If the object ID is not found in the data base, return here
-          if (!structureDescriptor) return {
-            headerError: INTERNAL_SERVER_ERROR,
-            error: 'The structure file was not found in the files collections'
-          };
-          // Open a stream and save it completely into memory
-          const pdbFile = await consumeStream(
-            bucket.openDownloadStream(structureDescriptor._id),
-          );
-          // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
-          const atoms = await getAtomIndices(pdbFile, selection);
-          // If no atoms where found, then return here and set the header to NOT_FOUND
-          if (!atoms) return {
-            headerError: BAD_REQUEST,
-            error: 'Atoms selection is empty or wrong'
-          };
-          // Else, save the atoms indices with the "atoms=" head
-          rangeString = `atoms=${atoms}`;
-        }
-        // In case of frame query
-        if (frames) {
-          // If data is already saved in the rangeString variable because there was a selection query
-          if (rangeString) rangeString += ', '; // Add coma and space to separate the new incoming data
-          // Translates the frames query string format into a explicit frame selection in string format
-          const parsed = parseQueryRange(frames);
-          if (!parsed) return {
-            headerError: BAD_REQUEST,
-            error: 'Frames selection is wrong'
-          };
-          rangeString += `frames=${parsed}`;
-        }
-        // Get the bytes ranges
-        range = handleTrajectoryRanges(rangeString, descriptor);
-      }
-      // It is also able to obtain ranges through the header, when there are no queries
-      // This was the default way to receive ranges time ago
-      else if (request.headers.range) {
-        // Get the bytes ranges
-        range = handleTrajectoryRanges(request.headers.range, descriptor);
-      }
-      // In case there is no selection range is no iterable
-      else {
-        range = handleTrajectoryRanges(null, descriptor);
-      }
+      const parsedRanges = rangedAtoms ? { y: rangedAtoms } : {}
+      const range = handleRanges(request, parsedRanges, descriptor);
+      // If something is wrong with ranges then return the error
+      if (range.error) return range;
+      // Get the number of atoms and frames
+      const atomCount = range.y.size;
+      const frameCount = range.z.size;
       // Set the final stream to be returned
       let stream;
       // Return a simple stream when asking for the whole file (i.e. range is not iterable)
@@ -205,24 +192,18 @@ module.exports = (db, { projects, files }) => {
         const host = request.get('host');
         const config = hostConfig[host];
         let title = config.name + ' - ' + request.params.project;
-        if (frames) title += ' - frames: ' + frames;
-        if (selection) title += ' - selection: ' + selection;
         title += '\n';
         // Add an extra chunk with the title
         // WARNING: This is important for the correct parsing of this format
         // e.g. VMD skips the first line when reading this format
         const titleStream = Readable.from([title]);
-        // Get the atoms per frames count. It is required to add the breakline between frames at the mdcrd format
-        // If this data is missing we cannot convert .bin to .mdcrd
-        const atomCount = range.atomCount;
-        if (!atomCount) return;
         // Start a process to convert the original .bin file to .mdcrd format
+        // Atom count is required to add the breakline between frames at the mdcrd format
         const transformStream = BinToMdcrdStream(atomCount);
         const lengthConverter = BinToMdcrdStream.CONVERTER;
         // Calculate the bytes length in the new format
         // WARNING: The size of the title must be included in the range (and then content-length)
-        range.size =
-          lengthConverter(range.size, atomCount) + Buffer.byteLength(title);
+        range.size = lengthConverter(range.size, atomCount) + Buffer.byteLength(title);
         // Set a new stream which is ready to be destroyed
         // It is destroyed when the .bin to .mdcrd process or the client request are over
         rangedStream.pipe(transformStream);
@@ -242,9 +223,6 @@ module.exports = (db, { projects, files }) => {
         transformFormatName === 'trr' ||
         transformFormatName === 'nc'
       ) {
-        // Get the number of atoms and frames
-        const atomCount = range.atomCount;
-        const frameCount = range.frameCount;
         // Use chemfiles to convert the trajectory from .bin to the requested format
         stream = chemfilesConverter(
           rangedStream,
@@ -287,21 +265,13 @@ module.exports = (db, { projects, files }) => {
       if (headerError) return response.status(headerError);
       // Something went wrong here
       if (!stream) return response.sendStatus(INTERNAL_SERVER_ERROR);
-      if (range) {
-        // complete potentially missing range info
-        if (!range.responseHeaders.find(h => h.startsWith('atoms'))) {
-          range.responseHeaders.push(`atoms=*/${descriptor.metadata.atoms}`);
-        }
-        if (!range.responseHeaders.find(h => h.startsWith('frames'))) {
-          range.responseHeaders.push(`frames=*/${descriptor.metadata.frames}`);
-        }
-        // NEVER FORGET: 'content-range' were disabled and now this data is got from project files
-        // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
-        //response.set('content-range', range.responseHeaders);
+      
+      // NEVER FORGET: 'content-range' were disabled and now this data is got from project files
+      // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
+      //response.set('content-range', range.responseHeaders);
 
-        // NEVER FORGET: This partial content (i.e. 206) makes Chrome fail when downloading data directly from API
-        //response.status(PARTIAL_CONTENT);
-      }
+      // NEVER FORGET: This partial content (i.e. 206) makes Chrome fail when downloading data directly from API
+      //response.status(PARTIAL_CONTENT);
 
       // Send the expected bytes length of the file
       // WARNING: If sent bytes are less than specified the download will fail with error signal

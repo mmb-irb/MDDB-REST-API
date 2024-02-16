@@ -40,13 +40,11 @@ const main = async (pdbFile, selection) => {
   const sel = new ngl.Selection(selection);
   // Save the data from structure which corresponds to the selection atoms
   const view = structure.getView(sel);
-  // Get an array with all the atoms indexes as strings
-  // Indexes are saveds as "i-i", since this is the form to select a single atom as a range of atoms
-  // Many indexes could be grouped in wide ranges, but this process is performed later
+  // Get an array with all the atoms indexes
   const indices = [];
-  view.eachAtom(({ index }) => indices.push(`${index}-${index}`));
+  view.eachAtom(({ index }) => indices.push(index));
   // Joins all indexes form the array into a single string separated by comas
-  return indices.join(',');
+  return indices;
 };
 
 // Main thread <=> worker thread communication

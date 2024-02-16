@@ -12,6 +12,10 @@ const { getProjectData } = require('../../../utils/get-project-data');
 // Standard HTTP response status codes
 const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-codes');
 
+// Handle query ranges
+const handleRanges = require('../../../utils/handle-ranges');
+const getRangedStream = require('../../../utils/get-ranged-stream');
+
 const fileRouter = Router({ mergeParams: true });
 
 // The reference to the mongo data base here is passed through the properties (db)
@@ -88,14 +92,21 @@ module.exports = (db, { projects, files }) => {
           headerError: INTERNAL_SERVER_ERROR,
           error: 'File was not found in the files collection'
         };
-        // Open a stream with the corresponding id only if the descriptor flag was not passed
-        const stream = bucket.openDownloadStream(descriptor._id);
-        // If we fail to stablish the stream then send an error
-        if (!stream) return {
-          headerError: INTERNAL_SERVER_ERROR,
-          error: 'Failed to set the bucket stream'
-        };
-        return { descriptor, stream, projectData };
+        // Find range parameters in the request and parse them
+        const range = handleRanges(request, {}, descriptor);
+        // If something is wrong with ranges then return the error
+        if (range.error) return range;
+        // Return a simple stream when asking for the whole file (i.e. range is not iterable)
+        // Return an internally managed stream when asking for specific ranges
+        const rangedStream = getRangedStream(bucket, descriptor._id, range);
+        // // Open a stream with the corresponding id only if the descriptor flag was not passed
+        // const stream = bucket.openDownloadStream(descriptor._id);
+        // // If we fail to stablish the stream then send an error
+        // if (!stream) return {
+        //   headerError: INTERNAL_SERVER_ERROR,
+        //   error: 'Failed to set the bucket stream'
+        // };
+        return { descriptor, stream: rangedStream, byteSize: range.size, projectData };
       },
       // Handle the response header
       headers(response, retrieved) {
@@ -115,7 +126,7 @@ module.exports = (db, { projects, files }) => {
         // NEVER FORGET: 'content-range' where disabled and now this data is got from project files
         // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
         //response.set('content-range', contentRanges);
-        response.set('content-length', descriptor.length);
+        response.set('content-length', retrieved.byteSize);
         // Send content type also if known
         if (descriptor.contentType) {
           response.set('content-type', descriptor.contentType);
