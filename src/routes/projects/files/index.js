@@ -99,13 +99,11 @@ module.exports = (db, { projects, files }) => {
         // Return a simple stream when asking for the whole file (i.e. range is not iterable)
         // Return an internally managed stream when asking for specific ranges
         const rangedStream = getRangedStream(bucket, descriptor._id, range);
-        // // Open a stream with the corresponding id only if the descriptor flag was not passed
-        // const stream = bucket.openDownloadStream(descriptor._id);
-        // // If we fail to stablish the stream then send an error
-        // if (!stream) return {
-        //   headerError: INTERNAL_SERVER_ERROR,
-        //   error: 'Failed to set the bucket stream'
-        // };
+        // If we fail to stablish the stream then send an error
+        if (!rangedStream) return {
+          headerError: INTERNAL_SERVER_ERROR,
+          error: 'Failed to set the stream'
+        };
         return { descriptor, stream: rangedStream, byteSize: range.size, projectData };
       },
       // Handle the response header

@@ -1,5 +1,4 @@
 // Translates the frames query string format into a explicit frame selection in string format
-const { every } = require('lodash');
 const { parseQueryRange } = require('../parse-query-range');
 
 // Set the supported dimensions in a .bin file
