@@ -6,18 +6,19 @@
   "private": true,
   "scripts": {
     "start": "npm-run-all --silent --print-label --parallel asbuild:watch server:watch",
-    "build": "npm run asbuild:optimized; npm run asbuild:chemfiles",
+    "build": "npm run asbuild:crdparse; npm run asbuild:binparse; npm run asbuild:chemfiles",
     "server:watch": "nodemon --inspect --ext js,json,yml index.js",
     "serve": "node index.js",
     "lint": "eslint '**/*.js'",
     "test": "jest",
     "prettier": "prettier --write",
     "coverage": "npm run test -- --coverage --collectCoverageFrom='**/*.js' --collectCoverageFrom='!coverage/**'",
-    "asbuild:untouched": "asc assembly/index.ts -b build/untouched.wasm -t build/untouched.wat --sourceMap --validate --importMemory --debug",
-    "asbuild:optimized": "asc assembly/index.ts -b build/optimized.wasm -t build/optimized.wat --sourceMap --validate --importMemory --optimize",
-    "asbuild": "npm run asbuild:untouched && npm run asbuild:optimized",
+    "asbuild:untouched": "asc assembly/crd_parser.ts -b build/untouched.wasm -t build/untouched.wat --sourceMap --validate --importMemory --debug",
+    "asbuild:crdparse": "asc assembly/crd_parser.ts -b build/crd_parser.wasm -t build/crd_parser.wat --sourceMap --validate --importMemory --optimize",
+    "asbuild": "npm run asbuild:untouched && npm run asbuild:crdparse",
     "asbuild:watch": "nodemon --watch assembly --ext ts --exec \"npm run asbuild\"",
-    "asbuild:chemfiles": "g++ -o build/chemfiles_bin_converter assembly/chemfiles_bin_converter.cpp -L /usr/local/lib -lchemfiles"
+    "asbuild:chemfiles": "g++ -o build/chemfiles_bin_converter assembly/chemfiles_bin_converter.cpp -L /usr/local/lib -lchemfiles",
+    "asbuild:binparse": "asc assembly/binary_parser.ts -b build/binary_parser.wasm -t build/binary_parser.wat --sourceMap --validate --importMemory --optimize"
   },
   "repository": {
     "type": "git",

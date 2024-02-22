@@ -82,6 +82,7 @@ const handleRanges = (request, parsedRanges, descriptor) => {
   }
 
   // If we have a range of bytes then handle it apart
+  // DANI: No se ha provado
   if (rangeStrings.bytes) {
     // Bytes range is not combinable with any other range and it must be passed alone
     if (Object.keys(rangeStrings).length !== 1) return {
@@ -95,6 +96,8 @@ const handleRanges = (request, parsedRanges, descriptor) => {
     range.responseHeaders = [  getResponseHeader('bytes', range, descriptor.length) ];
     // Calculate the bytes size
     range.size = range.reduce((size, { start, end }) => size + end - start + 1, 0);
+    // Tag it as a bytes request
+    range.byteRequest = true;
     // We return the range here since it is already in bytes
     return range;
   }
@@ -203,8 +206,9 @@ const handleRanges = (request, parsedRanges, descriptor) => {
   let byteRanger;
   if (handleBytes) byteRanger = ranger;
   else {
+    // We set the byte ranger for bytes to be downloaded from the database
+    // Note that byte ranges may overlap so we must merge them to improve efficiency during download
     byteRanger = function* () {
-      // Note that byte ranges may overlap so we must merge them to improve efficiency
       const bitRanges = ranger();
       const firstBitRange = bitRanges.next().value;
       let currentRange = { start: getBitByte(firstBitRange.start), end: getBitByte(firstBitRange.end) };
@@ -221,6 +225,23 @@ const handleRanges = (request, parsedRanges, descriptor) => {
         // Otherwise, we yield the current range an set a new one
         yield currentRange;
         currentRange = { start, end };
+      }
+      // There will always be a last range to be sent
+      yield currentRange;
+    }
+    // Now we set an additional ranger which will be useful for the parsing
+    // Keep as many byte ranges as bit ranges and include the bit offset for each range
+    // Include also the number of value per range
+    range.parseByteRanger = function* () {
+      const bitRanges = ranger();
+      for (const r of bitRanges) {
+        // Yield the current range
+        yield {
+          start: getBitByte(r.start),
+          end: getBitByte(r.end),
+          offset: r.start % 8,
+          progress: r.end - r.start
+        };
       }
       // There will always be a last range to be sent
       yield currentRange;

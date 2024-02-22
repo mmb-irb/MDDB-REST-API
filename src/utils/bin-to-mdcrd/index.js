@@ -31,9 +31,9 @@ module.exports = function(atomCount) {
   const skippedValuesPerFrame = nValuesPerFrame % VALUES_PER_LINE;
   // Set an instance of non JavaScript code which is runned in a deeper (closer to the CPU) module
   // This assembly allows a faster calculation
-  // The code for this functionallity is found at 'assembly/index.ts'
+  // The code for this functionallity is found at 'assembly/crd_parser.ts'
   // It must be previously compiled with 'sudo npm run build'
-  const wasmInstance = importWA('./build/optimized.wasm');
+  const wasmInstance = importWA('./build/crd_parser.wasm');
   // Set a transform, which is a kind of stream
   const transform = new Transform({
     transform(chunk, _encoding, next) {

@@ -16,6 +16,9 @@ const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-co
 const handleRanges = require('../../../utils/handle-ranges');
 const getRangedStream = require('../../../utils/get-ranged-stream');
 
+// Converts a binary file (.bin) into actual values
+const binToValues = require('../../../utils/bin-to-values');
+
 const fileRouter = Router({ mergeParams: true });
 
 // The reference to the mongo data base here is passed through the properties (db)
@@ -104,7 +107,22 @@ module.exports = (db, { projects, files }) => {
           headerError: INTERNAL_SERVER_ERROR,
           error: 'Failed to set the stream'
         };
-        return { descriptor, stream: rangedStream, byteSize: range.size, projectData };
+        // Check if the parse flag has been passed
+        const parse = request.query.parse;
+        const isParse = parse !== undefined && parse !== 'false';
+        // Parse the final stream if the flag is parse has been passed
+        let finalStream = rangedStream;
+        if (isParse) {
+          // Make sure it is not a byte request
+          // It is not possible to support the parsing if we do not know the actual desired values
+          if (range.byteRequest) return {
+            headerError: BAD_REQUEST,
+            error: 'Cannot parse a byte ranged request. Ask for dimensional ranges instead.'
+          };
+          finalStream = binToValues(descriptor, range);
+          rangedStream.pipe(finalStream);
+        }
+        return { descriptor, stream: finalStream, byteSize: range.size, projectData };
       },
       // Handle the response header
       headers(response, retrieved) {
