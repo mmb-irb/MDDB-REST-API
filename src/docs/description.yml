@@ -649,6 +649,42 @@ paths:
           schema:
             type: string
           example: structure.pdb
+        - name: x
+          in: query
+          schema:
+            type: string
+          description: >
+            This query parameter is only available in binary files (.bin).<br>
+            Here we define 'x' as an example but it is possible to query as many
+            dimensions as exist (x, y, z, w, ...).<br>
+            Instead of the dimension letter you may query the dimension name with
+            same results (e.g. instead of 'x' you can use 'bases' if the x dimensions
+            belongs to bases). Dimension names can be obtained at the filenotes
+            metadata.<br>
+            Specify a range of values for the returned file.<br>
+            The user can request only specific values instead of the whole file.<br>
+            Ranges are defined by dashes, and multiple ranges can be defined
+            separated by commas. It can also be defined as the start:end:step
+            format.<br>
+            1-based numbering.
+          examples:
+            firstFrame:
+              summary: content of the first value
+              value: 1
+            tenFrames:
+              summary: ten values, from two different ranges
+              value: 1-5,11-15
+            everyTwoFrames:
+              summary: every two values from value 10 to value 20
+              value: 10:20:2
+        - name: parse
+          in: query
+          description: >
+            This query parameter is only available in binary files (.bin).<br>
+            Set if the file content is to be parsed.
+          schema:
+            type: boolean
+            default: false
       tags:
         - files
       responses:
