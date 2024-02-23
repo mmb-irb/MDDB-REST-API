@@ -7,22 +7,22 @@
 // DANI: Tema u8 nos funciona porque el bitsize es menor que 8, pero hay que replantear para tamaños mayores
 
 // toString(2) is not working in assembly script so we have to do our own int to binary string function
-function int2binString (number : u8): string {
+function intToBinString (number : u8): string {
   let binaryString = '';
   let num = number;
   while (num > 0) {
-    binaryString += (num % 2).toString();
+    binaryString = (num % 2).toString() + binaryString;
     num = u8(num / 2); // We can truncate since we always use positive numbers
   }
-  return binaryString.padStart(8, "0");;
+  return binaryString.padStart(8, "0");
 }
 
 // Convert a numeric value to actual text
 const numberToASCII = (n: u8): u8 => n + 48;
 
 // Byte start and end are regarding the current data chunk and thus the WASM memory
-// Bit start and end are regarding the current fragment of the chunk
-// Output start stands for the byte index in the WASM memory
+// Bit start and end are regarding the previously mentioned byte range inside the data chunk
+// Output start stands for the byte in the WASM memory
 export function transform(
   byteStart: usize,
   byteEnd: usize,
@@ -38,7 +38,7 @@ export function transform(
     // Read data from input part of the memory
     const extracted = load<u8>(byte);
     // Parse the number to a binary string
-    binaryString += int2binString(extracted);
+    binaryString += intToBinString(extracted);
     byte++;
   }
   // Now extract values from the string using the specified bit size and start

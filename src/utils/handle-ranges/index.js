@@ -70,13 +70,15 @@ const handleRanges = (request, parsedRanges, descriptor) => {
   // This will make the trajectory stream not ranged at all
   const requestedRangesCount = Object.keys(rangeStrings).length + Object.keys(parsedRanges).length;
   if (requestedRangesCount === 0) {
-    const range = { size: descriptor.length, responseHeaders: [] };
+    const range = { byteSize: descriptor.length, responseHeaders: [] };
     // Set the whole range for every dimension
     dimensions.forEach(dimension => {
       const dimensionLength = fileMetadata[dimension].length;
       range[dimension] = [{ start: 0, end: dimensionLength - 1 }];
-      range[dimension].size = dimensionLength;
+      range[dimension].nvalues = dimensionLength;
     });
+    // Calculate the total number of values in the whole range and add it to the output object
+    range.nvalues = dimensions.reduce((acc, dim) => range[dim].nvalues * acc, 1);
     // We return the range here and since it is not iterable there will be no ranged stream further
     return range;
   }
@@ -95,7 +97,7 @@ const handleRanges = (request, parsedRanges, descriptor) => {
     // Set the header
     range.responseHeaders = [  getResponseHeader('bytes', range, descriptor.length) ];
     // Calculate the bytes size
-    range.size = range.reduce((size, { start, end }) => size + end - start + 1, 0);
+    range.byteSize = range.reduce((size, { start, end }) => size + end - start + 1, 0);
     // Tag it as a bytes request
     range.byteRequest = true;
     // We return the range here since it is already in bytes
@@ -138,9 +140,9 @@ const handleRanges = (request, parsedRanges, descriptor) => {
       range[dimension] = [{ start: 0, end: dimensionLength - 1 }];
     }
     // Calculate the size of the ranged dimension
-    range[dimension].size = range[dimension].reduce((size, { start, end }) => size + end - start + 1, 0);
+    range[dimension].nvalues = range[dimension].reduce((size, { start, end }) => size + end - start + 1, 0);
     // Set if the dimensions is whole or not
-    range[dimension].whole = range[dimension].size === dimensionLength;
+    range[dimension].whole = range[dimension].nvalues === dimensionLength;
     // Add range metadata to the header
     const header = getResponseHeader(dimensionName, range[dimension], dimensionLength);
     range.responseHeaders.push(header);
@@ -152,6 +154,9 @@ const handleRanges = (request, parsedRanges, descriptor) => {
     dimensionValueSizes[dimension] = dimensionValueSize;
     lastDimensionSize = dimensionValueSize * dimensionLength;
   }
+
+  // Calculate the total number of values in the whole range and add it to the output object
+  range.nvalues = dimensions.reduce((acc, dim) => range[dim].nvalues * acc, 1);
 
   // In case all ranges are whole we return the range now that it is not yet iterable
   // This will make the trajectory stream not ranged at all
@@ -243,8 +248,6 @@ const handleRanges = (request, parsedRanges, descriptor) => {
           progress: r.end - r.start
         };
       }
-      // There will always be a last range to be sent
-      yield currentRange;
     }
   }
 
@@ -256,12 +259,12 @@ const handleRanges = (request, parsedRanges, descriptor) => {
   // console.log(debugRanges.splice(debugRanges.length - 10));
   // console.log('LIMIT: ' + descriptor.length);
 
-  // Calculate the range size by reducing all values from the byte ranger
-  let size = 0;
+  // Calculate the total range byte size by reducing all values from the byte ranger
+  let byteSize = 0;
   for (const r of byteRanger()) {
-    size += r.end - r.start + 1;
+    byteSize += r.end - r.start + 1;
   }
-  range.size = size;
+  range.byteSize = byteSize;
 
   // By setting the symbol iterator we dfine what is to be returned when trying to iterate over the range object
   range[Symbol.iterator] = byteRanger;

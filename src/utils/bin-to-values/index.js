@@ -13,7 +13,6 @@ const importWA = require('../import-wasm');
 const OUTPUT_BYTES_PER_ELEMENT = Uint8Array.BYTES_PER_ELEMENT;
 
 module.exports = (descriptor, range) => {
-  testcount = 0;
   // Set an instance of non JavaScript code which is runned in a deeper (closer to the CPU) module
   // This assembly allows a faster calculation
   // The code for this functionallity is found at 'assembly/binary_parser.ts'
@@ -29,8 +28,6 @@ module.exports = (descriptor, range) => {
   // Set a transform, which is a kind of stream
   const transform = new Transform({
     transform(chunk, _encoding, next) {
-      testcount += 1;
-      //if (testcount >= 4) throw new Error('TAki');
       // First we must calculate the number of possible values in this chunk to allocate the necessary chunk
       const chunkByteSize = chunk.length;
       const chunkBitSize = chunkByteSize * 8;
@@ -66,7 +63,7 @@ module.exports = (descriptor, range) => {
       // Process ranges until we consume the whole chunk
       while (currentByte < chunkByteSize) {
         // Set the expected number of values in the current range
-        const nextValues = currentRange.progress / valuesBitSize;
+        const nextValues = (currentRange.progress + 1) / valuesBitSize;
         // Calculate the number of bytes we progress as we consume them
         // Take it as byte size - 1. A byte progress of 0 means we are still consuming 1 byte (or part of it)
         const byteProgress = currentRange.end - currentRange.start;
@@ -84,14 +81,15 @@ module.exports = (descriptor, range) => {
         // Get the next range
         currentRange = parseRanges.next().value;
         // In case the current range does not start at the last range end we must skip to the next byte
-        if (currentRange.start !== lastEnd) currentByte += 1;
+        if (!currentRange || currentRange.start !== lastEnd) currentByte += 1;
       }
       // Note that a byte range may contain multiple bit ranges
       // However a bit range will never be splitted along multiple byte ranges (data chunks)
       // For this reason there is no need to check if last bytes from each chunk belong to the next range
 
       // Set a memory buffer for the WASM to write its output
-      const outputBuffer = Buffer.from(wasmMemory, wasmMemoryOutputOffset, currentOutput);
+      const wasmMemoryOutputLength = currentOutput - wasmMemoryOutputOffset;
+      const outputBuffer = Buffer.from(wasmMemory, wasmMemoryOutputOffset, wasmMemoryOutputLength);
 
       // Send processed data as we call the next data chunk
       // DANI: No estoy seguro de que esto sea a prueba de back pressure

@@ -99,6 +99,9 @@ module.exports = (db, { projects, files }) => {
         const range = handleRanges(request, {}, descriptor);
         // If something is wrong with ranges then return the error
         if (range.error) return range;
+        // Set the output size
+        // Note this size will change if we parse the output
+        let byteSize = range.byteSize;
         // Return a simple stream when asking for the whole file (i.e. range is not iterable)
         // Return an internally managed stream when asking for specific ranges
         const rangedStream = getRangedStream(bucket, descriptor._id, range);
@@ -121,8 +124,12 @@ module.exports = (db, { projects, files }) => {
           };
           finalStream = binToValues(descriptor, range);
           rangedStream.pipe(finalStream);
+          // Update the output size
+          // DANI: Esto está hardcodeado, hay que definir el output type a parsear en el file metadata
+          const OUTPUT_BYTES_PER_ELEMENT = 1;
+          byteSize = range.nvalues * OUTPUT_BYTES_PER_ELEMENT;
         }
-        return { descriptor, stream: finalStream, byteSize: range.size, projectData };
+        return { descriptor, stream: finalStream, byteSize, projectData };
       },
       // Handle the response header
       headers(response, retrieved) {
