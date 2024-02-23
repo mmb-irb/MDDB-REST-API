@@ -10,6 +10,13 @@ const parseJSON = string => {
     }
 };
 
+// Set a function to check if an object is iterable
+const isIterable = obj => {
+    if (!obj) return false;
+    return typeof obj[Symbol.iterator] === 'function';
+};
+
 module.exports = {
-    parseJSON
+    parseJSON,
+    isIterable
 }

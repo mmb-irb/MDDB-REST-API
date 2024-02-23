@@ -27,7 +27,8 @@ const handleRanges = (request, parsedRanges, descriptor) => {
   // Get the available dimensions in the file
   const fileMetadata = descriptor.metadata;
   const dimensions = SUPPORTED_DIMENSIONS.filter(dimension => fileMetadata[dimension]);
-  if (!dimensions) throw new Error(`File ${descriptor.filename} has not `);
+  // If the file has not dimensions then there is nothing to do here
+  if (dimensions.length === 0) return {};
   // Search for query parameters with these names in the request
   const rangeLocations = [request.body, request.query];
   // Get all requested ranges in the query

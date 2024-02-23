@@ -18,6 +18,8 @@ const getRangedStream = require('../../../utils/get-ranged-stream');
 
 // Converts a binary file (.bin) into actual values
 const binToValues = require('../../../utils/bin-to-values');
+// Load a function to check if an object is iterable
+const { isIterable } = require('../../../utils/auxiliar-functions');
 
 const fileRouter = Router({ mergeParams: true });
 
@@ -95,6 +97,9 @@ module.exports = (db, { projects, files }) => {
           headerError: INTERNAL_SERVER_ERROR,
           error: 'File was not found in the files collection'
         };
+        // Check if the file is a binary file (.bin)
+        const filename = descriptor.filename;
+        const isBinary = filename.substring(filename.length - 4) === '.bin';
         // Find range parameters in the request and parse them
         const range = handleRanges(request, {}, descriptor);
         // If something is wrong with ranges then return the error
@@ -110,12 +115,18 @@ module.exports = (db, { projects, files }) => {
           headerError: INTERNAL_SERVER_ERROR,
           error: 'Failed to set the stream'
         };
+        // Parse the final stream if the flag is parse has been passed
+        let finalStream = rangedStream;
         // Check if the parse flag has been passed
         const parse = request.query.parse;
         const isParse = parse !== undefined && parse !== 'false';
-        // Parse the final stream if the flag is parse has been passed
-        let finalStream = rangedStream;
         if (isParse) {
+          // Make sure it is a binary file
+          // Otherwise parsing is not supported
+          if (!isBinary) return {
+            headerError: BAD_REQUEST,
+            error: 'This is not a binary file. Only ".bin" files may be queried to be parsed.'
+          };
           // Make sure it is not a byte request
           // It is not possible to support the parsing if we do not know the actual desired values
           if (range.byteRequest) return {

@@ -1,10 +1,7 @@
 const PassThrough = require('stream').PassThrough;
 
-// Set a function to check if an object is iterable
-const isIterable = obj => {
-  if (!obj) return false;
-  return typeof obj[Symbol.iterator] === 'function';
-};
+// Load a function to check if an object is iterable
+const { isIterable } = require('../auxiliar-functions');
 
 // Found experimentally
 const chunkSize = 4194304;
