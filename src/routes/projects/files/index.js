@@ -97,6 +97,9 @@ module.exports = (db, { projects, files }) => {
           headerError: INTERNAL_SERVER_ERROR,
           error: 'File was not found in the files collection'
         };
+        // Set the output size
+        // Note this size will change if the output is ranged or parsed
+        let byteSize = descriptor.length;
         // Check if the file is a binary file (.bin)
         const filename = descriptor.filename;
         const isBinary = filename.substring(filename.length - 4) === '.bin';
@@ -104,9 +107,10 @@ module.exports = (db, { projects, files }) => {
         const range = handleRanges(request, {}, descriptor);
         // If something is wrong with ranges then return the error
         if (range.error) return range;
-        // Set the output size
-        // Note this size will change if we parse the output
-        let byteSize = range.byteSize;
+        // Check if the request is ranged
+        const isRanged = isIterable(range);
+        // If it is a ranged query then update the byte size
+        if (isRanged) byteSize = range.byteSize;
         // Return a simple stream when asking for the whole file (i.e. range is not iterable)
         // Return an internally managed stream when asking for specific ranges
         const rangedStream = getRangedStream(bucket, descriptor._id, range);
