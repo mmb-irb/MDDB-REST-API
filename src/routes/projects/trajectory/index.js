@@ -177,8 +177,8 @@ module.exports = (db, { projects, files }) => {
       // If something is wrong with ranges then return the error
       if (range.error) return range;
       // Get the number of atoms and frames
-      const atomCount = range.y.size;
-      const frameCount = range.z.size;
+      const atomCount = range.y.nvalues;
+      const frameCount = range.z.nvalues;
       // Set the final stream to be returned
       let stream;
       // Return a simple stream when asking for the whole file (i.e. range is not iterable)
@@ -203,7 +203,7 @@ module.exports = (db, { projects, files }) => {
         const lengthConverter = BinToMdcrdStream.CONVERTER;
         // Calculate the bytes length in the new format
         // WARNING: The size of the title must be included in the range (and then content-length)
-        range.size = lengthConverter(range.size, atomCount) + Buffer.byteLength(title);
+        range.byteSize = lengthConverter(range.byteSize, atomCount) + Buffer.byteLength(title);
         // Set a new stream which is ready to be destroyed
         // It is destroyed when the .bin to .mdcrd process or the client request are over
         rangedStream.pipe(transformStream);
@@ -231,7 +231,7 @@ module.exports = (db, { projects, files }) => {
           transformFormat.chemfilesName,
         );
         // We can not predict the size of the resulting file (yet?)
-        range.size = null;
+        range.byteSize = null;
       } else if (transformFormatName === 'bin') {
         stream = rangedStream;
       } else {
@@ -278,9 +278,9 @@ module.exports = (db, { projects, files }) => {
       // WARNING: If sent bytes are more than specified the download will succed but it will be cutted
       // WARNING: If sent bytes are a decimal number or null then it will generate an error 502 (Bad Gateway)
       // If we dont send this header the download works anyway, but the user does not know how long it is going to take
-      if (range.size) {
-        if (range.size % 1 !== 0) console.error('ERROR: Size is not integer');
-        response.set('content-length', range.size);
+      if (range.byteSize) {
+        if (range.byteSize % 1 !== 0) console.error('ERROR: Size is not integer');
+        response.set('content-length', range.byteSize);
       }
       if (descriptor.contentType) {
         response.set(
