@@ -47,7 +47,7 @@ module.exports = (db, { projects, files }) => {
       // If the object ID is not found in the data base the we have a mess
       // This is our fault, since a file id coming from a project must exist
       if (!descriptor) return {
-        headerError: INTERNAL_SERVER_ERROR,
+        headerError: NOT_FOUND,
         error: 'The structure file was not found in the files collection'
       };
       // Get the file id

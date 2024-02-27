@@ -8,7 +8,7 @@ const { isObjectId } = require('../../../utils/get-project-query');
 const { getProjectData } = require('../../../utils/get-project-data');
 
 // Standard HTTP response status codes
-const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-codes');
+const { INTERNAL_SERVER_ERROR, BAD_REQUEST, NOT_FOUND } = require('../../../utils/status-codes');
 
 // Set a function to clean file descriptors by renaming the field '_id' as 'internalId'
 const cleanFileDescriptor = descriptor => {
@@ -91,7 +91,7 @@ module.exports = (db, { projects, files }) => {
         // If the object ID is not found in the data base the we have a mess
         // This is our fault, since a file id coming from a project must exist
         if (!descriptor) return {
-          headerError: INTERNAL_SERVER_ERROR,
+          headerError: NOT_FOUND,
           error: 'File was not found in the files collection'
         };
         return cleanFileDescriptor(descriptor);

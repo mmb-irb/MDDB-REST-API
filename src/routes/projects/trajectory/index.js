@@ -31,6 +31,7 @@ const {
 const {
   BAD_REQUEST,
   INTERNAL_SERVER_ERROR,
+  NOT_FOUND
 } = require('../../../utils/status-codes');
 
 // Trajectory exporting supported formats
@@ -115,7 +116,7 @@ module.exports = (db, { projects, files }) => {
       const descriptor = await files.findOne(fileQuery);
       // If the object ID is not found in the data base, return here
       if (!descriptor) return {
-        headerError: INTERNAL_SERVER_ERROR,
+        headerError: NOT_FOUND,
         error: 'The trajectory file was not found in the files collections'
       };
       // Adapt the descriptor to the dimensions format
@@ -154,7 +155,7 @@ module.exports = (db, { projects, files }) => {
         const structureDescriptor = await files.findOne(structureFileQuery);
         // If the object ID is not found in the data base, return here
         if (!structureDescriptor) return {
-          headerError: INTERNAL_SERVER_ERROR,
+          headerError: NOT_FOUND,
           error: 'The structure file was not found in the files collections'
         };
         // Open a stream and save it completely into memory
