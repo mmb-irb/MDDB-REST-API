@@ -100,8 +100,12 @@ module.exports = (db, { projects, files }) => {
         // Set the output size
         // Note this size will change if the output is ranged or parsed
         let byteSize = descriptor.length;
+        // Set the ouput filename
+        // Add the id or accession as prefix but replacing non filename-friendly characters
+        let prefix = (projectData.accession || projectData.identifier).replace(':','_');
+        if (descriptor.metadata.md !== null) prefix += '.' + (descriptor.metadata.md + 1);
+        let filename = prefix + '_' + descriptor.filename;
         // Check if the file is a binary file (.bin)
-        const filename = descriptor.filename;
         const isBinary = filename.substring(filename.length - 4) === '.bin';
         // Find range parameters in the request and parse them
         const range = handleRanges(request, {}, descriptor);
@@ -143,8 +147,10 @@ module.exports = (db, { projects, files }) => {
           // DANI: Esto está hardcodeado, hay que definir el output type a parsear en el file metadata
           const OUTPUT_BYTES_PER_ELEMENT = 1;
           byteSize = range.nvalues * OUTPUT_BYTES_PER_ELEMENT;
+          // Change the filename extension
+          filename = filename.substring(0, filename.length - 4) + '.txt';
         }
-        return { descriptor, stream: finalStream, byteSize, projectData };
+        return { filename, descriptor, stream: finalStream, byteSize };
       },
       // Handle the response header
       headers(response, retrieved) {
@@ -169,11 +175,8 @@ module.exports = (db, { projects, files }) => {
         if (descriptor.contentType) {
           response.set('content-type', descriptor.contentType);
         }
-        // Set the output filename by adding the id or accession as prefix
-        let prefix = retrieved.projectData.accession || retrieved.projectData.identifier;
-        if (descriptor.metadata.md !== null) prefix += '.' + (descriptor.metadata.md + 1);
-        const filename = prefix + '_' + descriptor.filename;
-        response.setHeader('Content-disposition', `attachment; filename=${filename}`);
+        // Set the output filename
+        response.setHeader('Content-disposition', `attachment; filename=${retrieved.filename}`);
       },
       // Handle the response body
       body(response, retrieved, request) {

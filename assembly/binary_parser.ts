@@ -31,25 +31,55 @@ export function transform(
   bitSize: usize,
   outputStart: usize
 ): void {
-  // First read the selected binary range and parse it to string
+  // Process the first byte apart since first bits may be discarded
+  // Read the selected binary range and parse it to string
   let byte = byteStart;
-  let binaryString = '';
-  while (byte <= byteEnd) {
+  let extracted = load<u8>(byte);
+  let binaryString = intToBinString(extracted).substring(bitStart);
+  byte++;
+  // Now iterate over the rest of bytes
+  let bit = usize(0);
+  let bitsToProcess = usize(0);
+  let outputByte = outputStart;
+  let currentBitString = '';
+  let currentValue = u8(0)
+  while (byte < byteEnd) {
+    //if (byte % 10000 === 0) trace(byte.toString() + '/' + byteEnd.toString() + '\r');
     // Read data from input part of the memory
-    const extracted = load<u8>(byte);
+    extracted = load<u8>(byte);
     // Parse the number to a binary string
     binaryString += intToBinString(extracted);
+    // If the string length is multiple of the bit size then parse the current string
+    // Note that we do not parse everything to string and then to binary
+    // This is to avoid storing an extremly large string which is very unefficient
+    bitsToProcess = usize(binaryString.length);
+    if (bitsToProcess % bitSize === 0) {
+      bit = 0;
+      while (bit < bitsToProcess) {
+        currentBitString = binaryString.slice(bit, bit + bitSize);
+        currentValue = u8(parseInt(currentBitString, 2));
+        // DANI: OJO, esto funciona porque el output ahora mismo mide 1 byte
+        // DANI: El outputByte debería incrementar tanto como el output bytes per element
+        store<u8>(outputByte++, numberToASCII(currentValue));
+        bit += bitSize;
+      }
+      binaryString = '';
+    }
     byte++;
   }
-  // Now extract values from the string using the specified bit size and start
-  let bit = bitStart;
-  let outputByte = outputStart;
-  while (bit <= bitEnd) {
-    const bitString = binaryString.slice(bit, bit + bitSize);
-    const value = u8(parseInt(bitString, 2));
+  // Last byte is also processed apart since the last bits may be discarded
+  extracted = load<u8>(byte);
+  const spareBits = bitEnd % 8 === 0 ? 0 : (8 - (bitEnd % 8));
+  binaryString = intToBinString(extracted);
+  binaryString = binaryString.substring(0, binaryString.length - spareBits);
+  bitsToProcess = usize(binaryString.length);
+  bit = 0;
+  while (bit < bitsToProcess) {
+    currentBitString = binaryString.slice(bit, bit + bitSize);
+    currentValue = u8(parseInt(currentBitString, 2));
     // DANI: OJO, esto funciona porque el output ahora mismo mide 1 byte
     // DANI: El outputByte debería incrementar tanto como el output bytes per element
-    store<u8>(outputByte++, numberToASCII(value));
+    store<u8>(outputByte++, numberToASCII(currentValue));
     bit += bitSize;
   }
 }

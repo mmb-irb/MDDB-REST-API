@@ -80,6 +80,12 @@ const handleRanges = (request, parsedRanges, descriptor) => {
     });
     // Calculate the total number of values in the whole range and add it to the output object
     range.nvalues = dimensions.reduce((acc, dim) => range[dim].nvalues * acc, 1);
+    // Set an additional ranger which will be useful for the parsing
+    range.parseByteRanger = function* () {
+      const endBit = range.nvalues * fileMetadata.bitsize;
+      const bitProgress = range.nvalues * fileMetadata.bitsize - 1;
+      yield { start: 0, end: getBitByte(endBit), offset: 0, progress: bitProgress };
+    };
     // We return the range here and since it is not iterable there will be no ranged stream further
     return range;
   }

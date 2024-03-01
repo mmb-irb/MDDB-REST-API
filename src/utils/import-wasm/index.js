@@ -3,7 +3,7 @@ const { readFileSync } = require('fs');
 
 const loader = require('assemblyscript/lib/loader');
 
-const PAGE_SIZE = 0x10000; // fixed page size: 16KiB, or in hex 0x10000
+const PAGE_SIZE = 0x10000; // fixed page size: 64Kb, or in hex 0x10000
 // Divides the number of bytes between the defined bytes size of a page and rounds the result
 const getNPages = bytes => Math.ceil(bytes / PAGE_SIZE);
 
@@ -26,13 +26,15 @@ const importWA = (path, memorySize = 1) => {
   // Set the "env" object, which is used later to instantiate the AssemblyScript module
   const env = {
     abort(msg, file, line, column) {
+      //console.log('wasm has aborted: ' + msg);
       console.error(instance.__getString(msg));
       console.error(
         `abort called at ${instance.__getString(file)}: ${line}:${column}`,
       );
     },
     trace(msg, ...args) {
-      console.log(instance.__getString(msg), ...args);
+      //console.log('there was a trace: ' + msg);
+      console.log(instance.__getString(msg));
     },
     memory,
   };
