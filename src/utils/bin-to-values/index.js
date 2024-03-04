@@ -103,13 +103,15 @@ module.exports = (descriptor, range) => {
       // Set a memory buffer for the WASM to write its output
       const wasmMemoryOutputLength = currentOutputByte - wasmMemoryOutputOffset;
       const outputBuffer = Buffer.from(wasmMemory, wasmMemoryOutputOffset, wasmMemoryOutputLength);
-      console.log(chunk);
-      console.log(outputBuffer);
-      throw new Error('ya');
+
+      // Make a copy of the offset buffer since it may change its content even after is has been pushed
+      // WARNING: Skipping this part may result in duplicated chunks for big data downloads
+      const safeOutputBuffer = Buffer.alloc(outputBuffer.length);
+      outputBuffer.copy(safeOutputBuffer);
 
       // Send processed data as we call the next data chunk
       // DANI: No estoy seguro de que esto sea a prueba de back pressure
-      next(null, outputBuffer);
+      next(null, safeOutputBuffer);
     },
   });
 
