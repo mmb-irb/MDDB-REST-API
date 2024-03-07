@@ -42,6 +42,11 @@ app.use(
   }),
 );
 
+// Add POST request size limit
+// Defualt would be 100Kb which is not enought
+app.use(express.json({limit: '4mb'}));
+app.use(express.urlencoded({limit: '4mb'}));
+
 // Pagination
 app.use(paginate.middleware(DEFAULT_LIMIT, MAX_LIMIT));
 
