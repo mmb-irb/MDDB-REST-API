@@ -27,6 +27,9 @@ const {
   STANDARD_TRAJECTORY_FILENAME
 } = require('../../../utils/constants');
 
+// Get a function to issue a standard output filename
+const { setOutpuFilename } = require('../../../utils/auxiliar-functions');
+
 // Standard HTTP response status codes
 const {
   BAD_REQUEST,
@@ -235,19 +238,15 @@ module.exports = (db, { projects, files }) => {
         range.byteSize = null;
       } else if (transformFormatName === 'bin') {
         stream = rangedStream;
-      } else {
-        throw new Error('Missing instructions to export format');
-      }
-      // Get the accession, if exists, or get the id
-      const accessionOrId = projectData.accession
-        ? projectData.accession.toLowerCase()
-        : projectData.identifier;
+      } else throw new Error('Missing instructions to export format');
+      // Set the output filename according to some standards
+      const filename = setOutpuFilename(projectData, descriptor, transformFormatName);
       return {
         stream,
+        filename,
         descriptor,
         range,
-        transformFormat,
-        accessionOrId,
+        transformFormat
       };
     },
     // Handle the response header
@@ -255,10 +254,10 @@ module.exports = (db, { projects, files }) => {
       response,
       {
         stream,
+        filename,
         descriptor,
         range,
         transformFormat,
-        accessionOrId,
         headerError,
       },
     ) {
@@ -290,8 +289,7 @@ module.exports = (db, { projects, files }) => {
           transformFormat.contentType,
         );
       }
-      // Set the output filename according to some standards
-      const filename = accessionOrId + '_trajectory.' + transformFormat.name;
+      // Set the output filename
       response.setHeader(
         'Content-disposition',
         `attachment; filename=${filename}`,

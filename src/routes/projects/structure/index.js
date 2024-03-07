@@ -18,6 +18,8 @@ const {
 
 // Get the standard name of the structure file
 const { STANDARD_STRUCTURE_FILENAME } = require('../../../utils/constants');
+// Get a function to issue a standard output filename
+const { setOutpuFilename } = require('../../../utils/auxiliar-functions');
 
 const structureRouter = Router({ mergeParams: true });
 
@@ -75,7 +77,9 @@ module.exports = (db, { projects, files }) => {
       const accessionOrId = projectData.accession
         ? projectData.accession.toLowerCase()
         : projectData.identifier;
-      return { descriptor, stream, accessionOrId };
+      // Set the output filename according to some standards
+      const filename = setOutpuFilename(projectData, descriptor);
+      return { filename, descriptor, stream, accessionOrId };
     },
     // Handle the response header
     headers(response, retrieved) {
@@ -92,12 +96,10 @@ module.exports = (db, { projects, files }) => {
       if (retrieved.descriptor.contentType) {
         response.set('content-type', retrieved.descriptor.contentType);
       }
-      // Set the output filename according to some standards
-      const format = 'pdb';
-      const filename = retrieved.accessionOrId + '_structure.' + format;
+      // Set the output filename
       response.setHeader(
         'Content-disposition',
-        `attachment; filename=${filename}`,
+        `attachment; filename=${retrieved.filename}`,
       );
     },
     // Handle the response body
