@@ -91,8 +91,9 @@ const parseQueryRange = (string, limit) => {
   const set = new Set(accumulated);
   if (set.has(0)) return zeroError;
   const unique = Array.from(set);
-  // Remove values beyond the limi
-  const limited = limit ? unique.filter(v => v < limit) : unique;
+  // Remove values beyond the limit
+  // Note here we must respect value which equal the limit since they are still 1-based
+  const limited = limit ? unique.filter(v => v <= limit) : unique;
   // Sort values
   const sorted = limited.sort((a, b) => a - b);
   // Substract 1 from every value to convert them from 1-based to 0-based
