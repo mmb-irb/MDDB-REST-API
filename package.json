@@ -10,6 +10,7 @@
     "server:watch": "nodemon --inspect --ext js,json,yml index.js",
     "serve": "node index.js",
     "lint": "eslint '**/*.js'",
+    "test": "jest",
     "prettier": "prettier --write",
     "coverage": "npm run test -- --coverage --collectCoverageFrom='**/*.js' --collectCoverageFrom='!coverage/**'",
     "asbuild:untouched": "asc assembly/crd_parser.ts -b build/untouched.wasm -t build/untouched.wat --sourceMap --validate --importMemory --debug",
@@ -55,6 +56,7 @@
   "devDependencies": {
     "eslint": "6.6.0",
     "eslint-config-prettier": "6.5.0",
+    "jest": "24.9.0",
     "lint-staged": "9.4.3",
     "mongodb-memory-server": "^8.5.0",
     "nodemon": "1.19.4",
@@ -62,5 +64,25 @@
     "pm2": "4.1.2",
     "prettier": "1.19.1",
     "timing-functions": "^1.0.0"
+  },
+  "lint-staged": {
+    "*.{md,json}": [
+      "prettier --write",
+      "git add"
+    ],
+    "*.{js,mjs}": [
+      "prettier --write",
+      "eslint --fix",
+      "git add"
+    ]
+  },
+  "jest": {
+    "coverageReporters": [
+      "text-summary",
+      "html"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.js"
+    ]
   }
 }
