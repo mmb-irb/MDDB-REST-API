@@ -62,25 +62,5 @@
     "pm2": "4.1.2",
     "prettier": "1.19.1",
     "timing-functions": "^1.0.0"
-  },
-  "lint-staged": {
-    "*.{md,json}": [
-      "prettier --write",
-      "git add"
-    ],
-    "*.{js,mjs}": [
-      "prettier --write",
-      "eslint --fix",
-      "git add"
-    ]
-  },
-  "jest": {
-    "coverageReporters": [
-      "text-summary",
-      "html"
-    ],
-    "collectCoverageFrom": [
-      "src/**/*.js"
-    ]
   }
 }
