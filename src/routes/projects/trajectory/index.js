@@ -130,7 +130,9 @@ module.exports = (db, { projects, files }) => {
       fileMetadata.bitsize = 32;
       // Set the format in which data will be sent
       // Format is requested through the query
-      const transformFormat = acceptTransformFormat(request.query.format);
+      // We check both the body (in case it is a POST) and the query (in case it is a GET)
+      const formatRequest = request.body.format || request.query.format;
+      const transformFormat = acceptTransformFormat(formatRequest);
       if (!transformFormat) return {
         headerError: BAD_REQUEST,
         error: 'ERROR: Not supported format. Choose one of these: ' +
@@ -138,10 +140,12 @@ module.exports = (db, { projects, files }) => {
       };
 
       // In case we have a selection we must parse it to atoms
+      // We check both the body (in case it is a POST) and the query (in case it is a GET)
       let rangedAtoms;
       const selectionRequest = request.body.selection || request.query.selection;
       if (selectionRequest) {
         // Make sure atoms were not requested as well
+        // We check both the body (in case it is a POST) and the query (in case it is a GET)
         const atomsRequest = request.body.atoms || request.query.atoms;
         if (atomsRequest) return {
           headerError: BAD_REQUEST,

@@ -30,6 +30,7 @@ const handleRanges = (request, parsedRanges, descriptor) => {
   // If the file has not dimensions then there is nothing to do here
   if (dimensions.length === 0) return {};
   // Search for query parameters with these names in the request
+  // We check both the body (in case it is a POST) and the query (in case it is a GET)
   const rangeLocations = [request.body, request.query];
   // Get all requested ranges in the query
   const rangeStrings = {};

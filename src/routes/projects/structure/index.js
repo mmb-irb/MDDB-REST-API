@@ -56,6 +56,7 @@ module.exports = (db, { projects, files }) => {
       const fileId = descriptor._id;
       // Open a stream with the corresponding ID
       let stream = bucket.openDownloadStream(fileId);
+      // We check both the body (in case it is a POST) and the query (in case it is a GET)
       const selection = request.body.selection || request.query.selection;
       // In case of selection query
       if (selection) {
