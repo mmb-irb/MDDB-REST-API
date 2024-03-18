@@ -46,6 +46,7 @@ module.exports = (_, { projects }) => {
           delete md.frames;
           delete md.analyses;
           delete md.files;
+          delete md.warnings;
         })
         // Prepare the inputs json file to be sent
         const inputs = {
