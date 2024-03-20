@@ -10,9 +10,6 @@ const { ObjectId } = require('mongodb');
 // WARNING: It returns true with whatever string 12 characters long
 const isObjectId = string => /^[a-z0-9]{24}$/.test(string);
 
-// Set a function to check if it is a base identifier
-const isBaseId = string => /^[a-z]*_[a-z0-9]{24}$/.test(string);
-
 // Configure which collections are returned according to the host (client) who is asking
 const hostConfigs = require('../../../config.js').hosts;
 
@@ -65,8 +62,6 @@ const getProjectQuery = request => {
     if (isGlobal) return new Error('Internal identifiers are not supported by the global API');
     query._id = ObjectId(project);
   }
-  // Check if it is a base id
-  else if (isBaseId(project)) query.bid = project;
   // Otherwise we asume it is an accession
   else query.accession = project;
   // Return the query
