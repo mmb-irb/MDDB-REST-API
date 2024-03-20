@@ -1,7 +1,5 @@
 // Functions to be used widely along the code
 
-const { split } = require("lodash");
-
 // Try to parse JSON and return the bad request error in case it fails
 const parseJSON = string => {
     try {
@@ -21,8 +19,8 @@ const isIterable = obj => {
 // Set output filename
 const setOutpuFilename = (projectData, descriptor, forcedFormat = null) => {
     // Set the prefix
-     // Add the id or accession as prefix but replacing non filename-friendly characters
-    let prefix = (projectData.accession || projectData.identifier).replace(':','_');
+    // Add the id or accession as prefix but replacing non filename-friendly characters
+    let prefix = (projectData.accession || projectData.internalId.toString()).replace(':','_');
     if (descriptor.metadata.md !== null) prefix += '.' + (descriptor.metadata.md + 1);
     // Set the initial filename
     let filename = prefix + '_' + descriptor.filename;

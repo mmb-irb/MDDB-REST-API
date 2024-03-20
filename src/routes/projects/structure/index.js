@@ -74,13 +74,9 @@ module.exports = (db, { projects, files }) => {
       } else {
         stream = bucket.openDownloadStream(fileId);
       }
-      // Get the accession, if exists, or get the id
-      const accessionOrId = projectData.accession
-        ? projectData.accession.toLowerCase()
-        : projectData.identifier;
       // Set the output filename according to some standards
       const filename = setOutpuFilename(projectData, descriptor);
-      return { filename, descriptor, stream, accessionOrId };
+      return { filename, descriptor, stream };
     },
     // Handle the response header
     headers(response, retrieved) {
