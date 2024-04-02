@@ -99,6 +99,7 @@ module.exports = (_, { projects }) => {
           linkcense: metadata.LINKCENSE,
           citation: metadata.CITATION,
           thanks: metadata.THANKS,
+          accession: projectData.accession,
           links: metadata.LINKS,
           pdbIds: metadata.PDBIDS,
           framestep: metadata.FRAMESTEP,
