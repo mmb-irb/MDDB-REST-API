@@ -45,7 +45,8 @@ app.use(
 // Add POST request size limit
 // Defualt would be 100Kb which is not enought
 app.use(express.json({limit: '4mb'}));
-app.use(express.urlencoded({limit: '4mb'}));
+// The extended has to be declared explicitly to avoid a warning
+app.use(express.urlencoded({limit: '4mb', extended: true}));
 
 // Pagination
 app.use(paginate.middleware(DEFAULT_LIMIT, MAX_LIMIT));
