@@ -54,7 +54,7 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   // Note that project values will be overwritten by MD values
   Object.assign(projectData, rest);
   // Reduce the list of mds to their names
-  projectData.mds = projectData.mds.map(md => md.name);
+  projectData.mds = projectData.mds.map(md => md && md.name);
   // Rename the project "_id" as "internalId"
   projectData.internalId = projectData._id;
   delete projectData._id;
