@@ -368,12 +368,12 @@ const escapeRegExp = input => {
             error: `Project ${request.params.project} not found`
           };
           // Find the database thes project belongs to
-          const database = projectData.db;
+          const apiAlias = projectData.api;
           // Get the corresponding api
-          const api = await model.apis.findOne({ alias: database });
+          const api = await model.apis.findOne({ alias: apiAlias });
           if (!api) return {
             headerError: INTERNAL_SERVER_ERROR,
-            error: `Database ${database} not found`
+            error: `API ${apiAlias} not found`
           };
           // Get url path removing the first slash
           const urlPath = request.originalUrl.substring(1);
