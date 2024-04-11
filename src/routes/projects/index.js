@@ -359,55 +359,66 @@ const escapeRegExp = input => {
 
   // If we are using the global API then any further query is mapped to the corresponding database
   if (isGlobal) {
-    projectRouter.route('/:project/*').get(
-      handler({
-        async retriever(request) {
-          // Set the project filter
-          const projectFilter = getProjectQuery(request);
-          // Do the query
-          const projectData = await model.projects.findOne(projectFilter);
-          if (!projectData) return {
-            headerError: NOT_FOUND,
-            error: `Project ${request.params.project} not found`
-          };
-          // Find the database thes project belongs to
-          const apiAlias = projectData.api;
-          // Get the corresponding api
-          const api = await model.apis.findOne({ alias: apiAlias });
-          if (!api) return {
-            headerError: INTERNAL_SERVER_ERROR,
-            error: `API ${apiAlias} not found`
-          };
-          // Get url path removing the first slash
-          const urlPath = request.originalUrl.substring(1);
-          // Replace the global id by the local id
-          const splittedPath = urlPath.split('/');
-          splittedPath[3] = projectData.local;
-          const replacedPath = splittedPath.join('/');
-          // Build the new forwarded URL using the corresponding api url
-          const forwardedRef = api.url + replacedPath;
-          //console.log(forwardedRef);
-          return forwardedRef;
-        },
-        // Handle the response header
-        headers(response, retrieved) {
-          // There should always be a retrieved object
-          if (!retrieved) return response.sendStatus(INTERNAL_SERVER_ERROR);
-          // If there is any specific header error in the retrieved then send it
-          if (retrieved.headerError) response.status(retrieved.headerError);
-        },
-        // Handle the response body
-        body(response, retrieved) {
-          // If nothing is retrieved then end the response
-          // Note that the header 'sendStatus' function should end the response already, but just in case
-          if (!retrieved) return response.end();
-          // If there is any error in the body then just send the error
-          if (retrieved.error) return response.json(retrieved.error);
-          // Send the response
-          response.redirect(retrieved);
-        },
-      }),
-    );
+    // Set a handler to be used for both GET and POST methods
+    const redirectHandler = handler({
+      async retriever(request) {
+        // Set the project filter
+        const projectFilter = getProjectQuery(request);
+        // Do the query
+        const projectData = await model.projects.findOne(projectFilter);
+        if (!projectData) return {
+          headerError: NOT_FOUND,
+          error: `Project ${request.params.project} not found`
+        };
+        // Get the md number from the request
+        const requestedMdIndex = getMdIndex(request);
+        // If something went wrong with the MD request then return the error
+        if (requestedMdIndex instanceof Error) return {
+          headerError: BAD_REQUEST,
+          error: requestedMdIndex.message
+        };
+        // Set the local id to ask
+        let localAccession = projectData.local;
+        if (requestedMdIndex !== null) localAccession += `.${requestedMdIndex + 1}`;
+        // Find the database thes project belongs to
+        const apiAlias = projectData.api;
+        // Get the corresponding api
+        const api = await model.apis.findOne({ alias: apiAlias });
+        if (!api) return {
+          headerError: INTERNAL_SERVER_ERROR,
+          error: `API ${apiAlias} not found`
+        };
+        // Get url path removing the first slash
+        const urlPath = request.originalUrl.substring(1);
+        // Replace the global id by the local id
+        const splittedPath = urlPath.split('/');
+        splittedPath[3] = localAccession;
+        const replacedPath = splittedPath.join('/');
+        // Build the new forwarded URL using the corresponding api url
+        const forwardedRef = api.url + replacedPath;
+        //console.log(forwardedRef);
+        return forwardedRef;
+      },
+      // Handle the response header
+      headers(response, retrieved) {
+        // There should always be a retrieved object
+        if (!retrieved) return response.sendStatus(INTERNAL_SERVER_ERROR);
+        // If there is any specific header error in the retrieved then send it
+        if (retrieved.headerError) response.status(retrieved.headerError);
+      },
+      // Handle the response body
+      body(response, retrieved) {
+        // If nothing is retrieved then end the response
+        // Note that the header 'sendStatus' function should end the response already, but just in case
+        if (!retrieved) return response.end();
+        // If there is any error in the body then just send the error
+        if (retrieved.error) return response.json(retrieved.error);
+        // Send the response
+        response.redirect(retrieved);
+      },
+    });
+    projectRouter.route('/:project/*').get(redirectHandler);
+    projectRouter.route('/:project/*').post(redirectHandler);
   }
   // If it is a federated API then process the actual query
   else if (isFederated) {
