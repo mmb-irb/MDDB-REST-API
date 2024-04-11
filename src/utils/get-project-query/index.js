@@ -15,15 +15,18 @@ const hostConfigs = require('../../../config.js').hosts;
 
 // Read the property "NODE_ENV" from the global ".env" file
 const env = process.env.NODE_ENV.toLowerCase();
+const isProduction = env === 'production' || env === 'prod';
 
 // Check if it is a global API
 const isGlobal = process.env.DB_ROLE === 'global';
 
 // Set the published filter according to the enviornment (.env file)
 // If the environment is tagged as "production" only published projects are returned from mongo
-const publishedFilter = Object.seal(
-  env === 'production' || env === 'prod' ? { published: true } : {},
-);
+const publishedFilter = Object.seal(isProduction ? { published: true } : {});
+
+// Set a filter for the global API to not return unposited projects
+// Note that a non global API is not expected to have this field so it makes not sense applying the filter
+const positedFilter = Object.seal(isGlobal ? { unposited: { $exists: false } } : {});
 
 // Set the collection filter according to the request URL
 // This filter is applied over the project metadata 'collections', nothing to do with mongo collections
@@ -43,7 +46,7 @@ const getCollectionFilter = request => {
 // Join both published and collection filters in one single filter which is widely used
 const getBaseFilter = request => {
   const collectionFilter = getCollectionFilter(request);
-  return { ...publishedFilter, ...collectionFilter };
+  return { ...publishedFilter, ...positedFilter, ...collectionFilter };
 };
 
 // Given the API request, set the project(s) query by the following steps:
