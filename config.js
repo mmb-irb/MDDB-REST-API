@@ -2,7 +2,7 @@
 // i.e. anything which is not a plain string
 module.exports = {
   hosts: {
-    'localhost:8000': {
+    'localhost': {
       name: 'MDposit (local)',
       description: 'The main server including all simulations',
       prefix: 'MDP',

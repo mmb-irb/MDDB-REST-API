@@ -19,10 +19,18 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   // Swagger documentation parsed to an object
   const swaggerDocs = yaml.load(`${__dirname}/../docs/description.yml`);
   // Set the servers
-  const url =
-    host === 'localhost:8000'
-      ? 'http://localhost:8000/rest/{version}'
-      : '{protocol}://' + host + '/api/rest/{version}';
+  let url;
+  if (host === `localhost`) {
+    // Rewrite the host with the listen port
+    host = `localhost:${process.env.LISTEN_PORT}`;
+    // If this is the local host then use http to avoid problems
+    url = `http://${host}/rest/{version}`
+  }
+  else {
+    // Otherwise do not specify the protocol
+    `{protocol}://${host}/rest/{version}`
+  }
+  
   swaggerDocs.servers = [
     {
       url: url,
