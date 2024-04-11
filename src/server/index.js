@@ -8,9 +8,9 @@ const boxen = require('boxen');
 const chalk = require('chalk');
 
 const routes = require('../routes');
-const getCustomTimeout = require('../middlewares/custom-timeout');
+//const getCustomTimeout = require('../middlewares/custom-timeout');
 
-const PORT = 8000;
+const PORT = process.env.LISTEN_PORT;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
 

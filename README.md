@@ -40,6 +40,7 @@ Note that the API processes must be stopped and run again for new code to be eff
 | DB_AUTH_PASSWORD | string                        | db password               |
 | DB_AUTHSOURCE    | string                        | authentication db         |
 | DB_ROLE          | `federated` or `global`       | set if node is federated  |
+| LISTEN_PORT      | number                        | port to query the API     |
 
 ### config.js file template
 
