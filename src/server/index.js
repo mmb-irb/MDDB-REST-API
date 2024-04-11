@@ -11,6 +11,7 @@ const routes = require('../routes');
 //const getCustomTimeout = require('../middlewares/custom-timeout');
 
 const PORT = process.env.LISTEN_PORT;
+if (!PORT) throw new Error('Missing listen port in env');
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
 
