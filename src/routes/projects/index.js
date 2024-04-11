@@ -326,9 +326,12 @@ const escapeRegExp = input => {
           headerError: BAD_REQUEST,
           error: requestedMdIndex.message
         };
+        // Check if the raw flag has been passed
+        const raw = request.query.raw;
+        const isRaw = raw !== undefined && raw !== 'false';
         // Filter project data according to the requested MD index
         // Note that this function may include errors in the project
-        projectFormatter(projectData, requestedMdIndex);
+        if (!isRaw) projectFormatter(projectData, requestedMdIndex);
         // Return the project which matches the request project ID (accession)
         return projectData;
       },
@@ -377,8 +380,12 @@ const escapeRegExp = input => {
           };
           // Get url path removing the first slash
           const urlPath = request.originalUrl.substring(1);
+          // Replace the global id by the local id
+          const splittedPath = urlPath.split('/');
+          splittedPath[3] = projectData.local;
+          const replacedPath = splittedPath.join('/');
           // Build the new forwarded URL using the corresponding api url
-          const forwardedRef = api.url + urlPath;
+          const forwardedRef = api.url + replacedPath;
           //console.log(forwardedRef);
           return forwardedRef;
         },

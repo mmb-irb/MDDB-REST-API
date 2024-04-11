@@ -175,6 +175,13 @@ paths:
         its accession or identifier.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
+        - name: raw
+          in: query
+          description: >
+            Set if the response is not to be formatted, but sent as it is stored in the database.
+          schema:
+            type: boolean
+            default: false
       tags:
         - projects
       responses:
@@ -873,8 +880,13 @@ components:
       type: object
       required:
         - identifier
+        - accession
+        - published
         - metadata
-        - pdbInfo
+        - mds
+        - mdref
+        - mdNumber
+        - mdIndex
         - analyses
         - chains
         - files
@@ -889,10 +901,18 @@ components:
           pattern:
             $ref: '#/definitions/constants/AccessionPattern'
           example: $PREFIX00002
+        published:
+          type: boolean
         metadata:
           type: object
-        pdbInfo:
+        mds:
           type: object
+        mdref:
+          type: integer
+        mdNumber:
+          type: integer
+        mdIndex:
+          type: integer
         analyses:
           $ref: '#/components/schemas/AnalysisList'
         chains:

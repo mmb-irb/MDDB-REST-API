@@ -58,8 +58,9 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   // Rename the project "_id" as "internalId"
   projectData.internalId = projectData._id;
   delete projectData._id;
-  // Set the internal id as the project "identifier" also for legacy reasons
-  projectData.identifier = projectData.internalId;
+  // Set the identifier
+  // This id is the one to be used by the client to ask for more data about the same project
+  projectData.identifier = projectData.accession || projectData.internalId;
   // Return the modified object just for the map function to work properly
   return projectData;
 };
