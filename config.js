@@ -56,5 +56,17 @@ module.exports = {
       prefix: 'ABCMD',
       collection: 'abc', // This could be null with the current implementation
     },
+    'mmb-dev.mddbr.eu': {
+      name: 'MMB node',
+      description: 'The MMB federated node server',
+      prefix: 'MCV19',
+      collection: null,
+    },
+    'mmb.mddbr.eu': {
+      name: 'MMB node',
+      description: 'The MMB federated node server',
+      prefix: 'MCV19',
+      collection: null,
+    },
   },
 };
