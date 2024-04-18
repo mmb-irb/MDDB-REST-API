@@ -24,11 +24,11 @@ Object.entries(hostConfig).forEach(([host, config]) => {
     // Rewrite the host with the listen port
     host = `localhost:${process.env.LISTEN_PORT}`;
     // If this is the local host then use http to avoid problems
-    url = `http://${host}/rest/{version}`
+    url = `http://${host}/rest/{version}`;
   }
   else {
     // Otherwise do not specify the protocol
-    `{protocol}://${host}/rest/{version}`
+    url = `{protocol}://${host}/api/rest/{version}`;
   }
   
   swaggerDocs.servers = [
