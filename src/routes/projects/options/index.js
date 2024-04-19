@@ -115,7 +115,7 @@ module.exports = (_, { projects, references }) => {
           );
           // Consume the projects cursor and keep only the references
           const projectReferences = await projectsCursor
-            .map(project => project.metadata.REFERENCES)
+            .map(project => project.metadata.REFERENCES || undefined)
             .toArray();
           // Now set the projector with references fields only
           // Get also the uniprot ids to associate values further
@@ -165,7 +165,7 @@ module.exports = (_, { projects, references }) => {
             Object.entries(values).forEach(([value, uniprot_ids]) => {
               let count = 0;
               for (const references of projectReferences) {
-                if (references === null) continue;
+                if (references === undefined) continue;
                 if (
                   references.some(reference => uniprot_ids.includes(reference))
                 )
