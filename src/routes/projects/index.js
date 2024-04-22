@@ -16,6 +16,8 @@ const {
 const { projectFormatter } = require('../../utils/get-project-data');
 // Set a error-proof JSON parser
 const { parseJSON } = require('../../utils/auxiliar-functions');
+// Import references configuration
+const { REFERENCES } = require('../../utils/constants');
 
 const { BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 
@@ -51,22 +53,26 @@ const escapeRegExp = input => {
   // Access the database
   const db = client.db(process.env.DB_NAME);
   // Get the desired collections from the database
-  const model = isGlobal
-    // Collections for the global API
-    ? {
-      projects: db.collection('global.projects'),
-      references: db.collection('global.references'),
-      apis: db.collection('global.apis')
-    }
-    // Collections for the federated API
-    : {
-      projects: db.collection('projects'),
-      analyses: db.collection('analyses'),
-      files: db.collection('fs.files'),
-      chains: db.collection('chains'),
-      references: db.collection('references'),
-      topologies: db.collection('topologies'),
-    };
+  const model = {}
+  // Collections for the global API
+  if (isGlobal) {
+    model.projects = db.collection('global.projects');
+    model.apis = db.collection('global.apis');
+    Object.entries(REFERENCES).forEach(([referenceName, reference]) => {
+      model[referenceName] = db.collection(`global.${reference.collectionName}`);
+    });
+  }
+  // Collections for the federated API
+  else {
+    model.projects = db.collection('projects');
+    model.topologies = db.collection('topologies');
+    model.analyses = db.collection('analyses');
+    model.files = db.collection('fs.files');
+    model.chains = db.collection('chains');
+    Object.entries(REFERENCES).forEach(([referenceName, reference]) => {
+      model[referenceName] = db.collection(reference.collectionName);
+    });
+  }
 
   // Root
   projectRouter.route('/').get(
