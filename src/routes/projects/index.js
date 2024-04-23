@@ -17,7 +17,7 @@ const { projectFormatter } = require('../../utils/get-project-data');
 // Set a error-proof JSON parser
 const { parseJSON } = require('../../utils/auxiliar-functions');
 // Import references configuration
-const { REFERENCES } = require('../../utils/constants');
+const { REFERENCES, REFERENCE_HEADER } = require('../../utils/constants');
 
 const { BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 
@@ -27,9 +27,6 @@ const isFederated = process.env.DB_ROLE === 'federated';
 if (isGlobal === isFederated) throw new Error('API must be configured as global or federated (DB_ROLE)');
 
 const projectRouter = Router();
-
-// Set a header for queried fields to be queried in the references collection instead of projects
-const referencesHeader = 'references.';
 
 // Convert a string input into int, float or boolean type if possible
 const parseType = input => {
@@ -162,13 +159,13 @@ const escapeRegExp = input => {
             if (!projectsQuery) return { error: BAD_REQUEST };
             // At this point the query object should correspond to a mongo query itself
             // Find fields which start with 'references'
-            // These fields are actually intended to query the references collections
-            // If we found references fields then we must query the references collection
-            // Then each references field will be replaced by a query to 'metadata.REFERENCES' in the projects query
-            // The value of 'metadata.REFERENCES' to be queried will be the matching uniprot ids
-            const parseReferencesQuery = async original_query => {
+            // These fields are actually intended to query reference collections
+            // If we found references fields then we must query the corresponding reference collection
+            const parseReferencesQuery = async (originalQuery, referenceName, reference) => {
+              // Keep the final reference ids which are present among all reference queries
+              let finalReferences;
               // Iterate over the original query fields
-              for (const [field, value] of Object.entries(original_query)) {
+              for (const [field, value] of Object.entries(originalQuery)) {
                 // If the field is actually a list of fields then run the parsing function recursively
                 if (field === '$and' || field === '$or') {
                   for (const subquery of value) {
@@ -177,26 +174,38 @@ const escapeRegExp = input => {
                   return;
                 }
                 // If the field does not start with the references header then skip it
-                if (!field.startsWith(referencesHeader)) return;
+                if (!field.startsWith(REFERENCE_HEADER)) continue;
+                // Get the reference name
+                const currentReferenceName = field.split('.')[1];
+                if (currentReferenceName !== referenceName) continue;
                 // Get the name of the field after substracting the symbolic header
-                const referencesField = field.replace(referencesHeader, '');
+                const referencesField = field.split('.')[2];
                 const referencesQuery = {};
                 referencesQuery[referencesField] = value;
                 // Query the references collection
                 // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
-                const referencesCursor = await model.references
+                const referencesCursor = await model[referenceName]
                   .find(referencesQuery)
-                  .project({ uniprot: true, _id: false });
+                  .project({ [reference.idField]: true, _id: false });
+                // From the results keep only the reference id
                 const results = await referencesCursor
-                  .map(ref => ref.uniprot)
+                  .map(ref => ref[reference.idField])
                   .toArray();
                 // Update the original query by removing the original field and adding the parsed one
-                delete original_query[field];
-                original_query['metadata.REFERENCES'] = { $in: results };
+                delete originalQuery[field];
+                // Update final reference ids
+                const currentIds = new Set(results);
+                if (!finalReferences) finalReferences = currentIds;
+                else finalReferences = new Set([...finalReferences].filter(i => currentIds.has(i)));
               }
+              if (!finalReferences) return;
+              originalQuery[reference.projectIdsField] = { $in: Array.from(finalReferences) };
             };
             // Start the parsing function
-            await parseReferencesQuery(projectsQuery);
+            for await(const [referenceName, reference] of Object.entries(REFERENCES)) {
+              await parseReferencesQuery(projectsQuery, referenceName, reference);
+            }
+            // Add final reference ids to the global projects query
             if (!finder.$and) finder.$and = [];
             finder.$and.push(projectsQuery);
           }

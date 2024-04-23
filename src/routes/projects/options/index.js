@@ -7,31 +7,9 @@ const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../../../utils/status-co
 // Get an automatic mongo query parser based on environment and request
 const { getBaseFilter } = require('../../../utils/get-project-query');
 // Set a error-proof JSON parser
-const { parseJSON } = require('../../../utils/auxiliar-functions');
+const { parseJSON, getValueGetter } = require('../../../utils/auxiliar-functions');
 // Import references configuration
-const { REFERENCES } = require('../../../utils/constants');
-
-// Set a header for queried fields to be queried in the references collection instead of projects
-const REFERENCE_HEADER = 'references.';
-
-// Set a function to build value getters with specific nesting paths
-// Each nested step is separated by a dot
-// e.g. 'metadata.LIGANDS' -> { metadata: { LIGANDS: <target value> } } 
-const getValueGetter = path => {
-  if (!path) throw new Error('Value getter has no path');
-  // Split the path in its nested steps
-  const steps = path.split('.');
-  // Build the getter function
-  const valueGetter = object => {
-    let lastObject = object;
-    for (const step of steps) {
-      lastObject = lastObject[step]
-      if (lastObject === undefined) return;
-    }
-    return lastObject;
-  }
-  return valueGetter;
-};
+const { REFERENCES, REFERENCE_HEADER } = require('../../../utils/constants');
 
 const analysisRouter = Router({ mergeParams: true });
 
