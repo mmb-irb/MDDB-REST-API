@@ -11,10 +11,7 @@ const consumeStream = require('../../../utils/consume-stream');
 const { getProjectData } = require('../../../utils/get-project-data');
 
 // Standard HTTP response status codes
-const {
-  NOT_FOUND,
-  INTERNAL_SERVER_ERROR,
-} = require('../../../utils/status-codes');
+const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
 
 // Get the standard name of the structure file
 const { STANDARD_STRUCTURE_FILENAME } = require('../../../utils/constants');
@@ -64,6 +61,7 @@ module.exports = (db, { projects, files }) => {
         const pdbFile = await consumeStream(bucket.openDownloadStream(fileId));
         // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
         const selectedPdb = await getSelectedPdb(pdbFile, selection);
+        if (selectedPdb.error) return selectedPdb;
         // Selected pdb will be never null, since an empty pdb file would have header and end
         // Now convert the string pdb to a stream
         //const bufferPdb = Buffer.from(selectedPdb, 'base64');

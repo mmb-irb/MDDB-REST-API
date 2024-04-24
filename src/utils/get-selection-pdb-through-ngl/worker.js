@@ -23,6 +23,8 @@ if (!global.window) {
 
 // Now that we're good, load ngl
 const ngl = require('ngl');
+// HTTP response standard codes
+const { BAD_REQUEST } = require('../status-codes');
 
 /**
  * This is the main part of the worker's logic
@@ -33,9 +35,7 @@ const ngl = require('ngl');
  */
 const main = async (pdbFile, selection) => {
   // Save the pdbFile as a Blob (Binary large object), which is a format for storing data
-  const structure = await ngl.autoLoad(new global.Blob([pdbFile]), {
-    ext: 'pdb',
-  });
+  const structure = await ngl.autoLoad(new global.Blob([pdbFile]), { ext: 'pdb' });
   // Parse the whole structure to pdb file
   // WARNING: Apparently there is no way to filter the structure before passing it to pdb writer
   const pdb = new ngl.PdbWriter(structure);
@@ -47,6 +47,11 @@ const main = async (pdbFile, selection) => {
   const sel = new ngl.Selection(selection);
   // Save the data from structure which corresponds to the selection atoms
   const view = structure.getView(sel);
+  // If the selection is empty then return an error instead of an empty pdb file
+  if (view.atomCount === 0) return {
+    headerError: BAD_REQUEST,
+    error: `Empty atom selection for "${selection}"`
+  }
   // Add the pdb line for each corresponding filtered atom to the new filtered pdb lines
   // The +2 goes for the innate pdb headers: 'TITEL' and 'MODEL 1'
   view.eachAtom(({ index }) => filteredPdbLines.push(pdbLines[index + 2]));
