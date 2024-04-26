@@ -19,11 +19,6 @@ const { REFERENCES, REFERENCE_HEADER } = require('../../utils/constants');
 // Standard HTTP response status codes
 const { BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 
-// Set if it is a global or a federated API
-const isGlobal = process.env.DB_ROLE === 'global';
-const isFederated = process.env.DB_ROLE === 'federated';
-if (isGlobal === isFederated) throw new Error('API must be configured as global or federated (DB_ROLE)');
-
 const projectRouter = Router();
 
 // Convert a string input into int, float or boolean type if possible
