@@ -8,6 +8,8 @@ const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../../../utils/status-co
 const { getBaseFilter } = require('../../../utils/get-project-query');
 // Set a error-proof JSON parser
 const { parseJSON } = require('../../../utils/auxiliar-functions');
+// Import references configuration
+const { REFERENCES, REFERENCE_HEADER } = require('../../../utils/constants');
 
 const analysisRouter = Router({ mergeParams: true });
 
@@ -15,7 +17,7 @@ const analysisRouter = Router({ mergeParams: true });
 const referencesHeader = 'references.';
 
 // This endpoint returns some summary of data contained in the projects collection
-module.exports = (_, { projects }) => {
+module.exports = (_, model) => {
   // Root
   analysisRouter.route('/').get(
     handler({
@@ -39,13 +41,14 @@ module.exports = (_, { projects }) => {
             };
             // At this point the query object should correspond to a mongo query itself
             // Find fields which start with 'references'
-            // These fields are actually intended to query the references collections
+            // These fields are actually intended to query references collections
             // If we found references fields then we must query the references collection
-            // Then each references field will be replaced by a query to 'metadata.REFERENCES' in the projects query
-            // The value of 'metadata.REFERENCES' to be queried will be the matching uniprot ids
-            const parseReferencesQuery = async original_query => {
+            // Then each references field will be replaced by its corresponding project field in a new query
+            // e.g. references.proteins -> metadata.REFERENCES
+            // e.g. references.ligands -> metadata.LIGANDS
+            const parseReferencesQuery = async originalQuery => {
               // Iterate over the original query fields
-              for (const [field, value] of Object.entries(original_query)) {
+              for (const [field, value] of Object.entries(originalQuery)) {
                 // If the field is actually a list of fields then run the parsing function recursively
                 if (field === '$and' || field === '$or') {
                   for (const subquery of value) {
@@ -54,22 +57,30 @@ module.exports = (_, { projects }) => {
                   return;
                 }
                 // If the field does not start with the references header then skip it
-                if (!field.startsWith(referencesHeader)) return;
-                // Get the name of the field after substracting the symbolic header
-                const referencesField = field.replace(referencesHeader, '');
+                if (!field.startsWith(REFERENCE_HEADER)) return;
+                // Get the name of the field and the reference collection
+                const fieldSplits = field.split('.');
+                const referenceName = fieldSplits[1];
+                const referenceField = fieldSplits[2];
+                // Get the reference configuration
+                const reference = REFERENCES[referenceName];
+                // Set the references query
                 const referencesQuery = {};
-                referencesQuery[referencesField] = value;
+                referencesQuery[referenceField] = value;
+                // Set the reference projector
+                const referencesProjector = { _id: false };
+                referencesProjector[reference.idField] = true;
                 // Query the references collection
                 // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
-                const referencesCursor = await model.references
+                const referencesCursor = await model[reference.collectionName]
                   .find(referencesQuery)
-                  .project({ uniprot: true, _id: false });
+                  .project(referencesProjector);
                 const results = await referencesCursor
-                  .map(ref => ref.uniprot)
+                  .map(ref => ref[reference.idField])
                   .toArray();
                 // Update the original query by removing the original field and adding the parsed one
-                delete original_query[field];
-                original_query['metadata.REFERENCES'] = { $in: results };
+                delete originalQuery[field];
+                originalQuery[reference.projectIdsField] = { $in: results };
               }
             };
             // Start the parsing function
@@ -79,7 +90,7 @@ module.exports = (_, { projects }) => {
           }
         }
         // Get all projects
-        const cursor = await projects.find(
+        const cursor = await model.projects.find(
           finder,
           // Discard the heaviest fields we do not need anyway
           {
