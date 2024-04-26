@@ -1,8 +1,5 @@
-
-// Get an automatic mongo query parser based on environment and request
-const { getProjectQuery, getMdIndex } = require('../get-project-query');
 // Standard HTTP response status codes
-const { NOT_FOUND, BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../status-codes');
+const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../status-codes');
 
 // This function filters project data to a single MD
 // Some project and MD files are merged such as metadata, metadata warnings, files and analyses
@@ -65,25 +62,4 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   return projectData;
 };
 
-// Give a requested project, find the id of a specific file by its filename
-// If there is any problem send informative errors
-const getProjectData = async (projects, request) => {
-  // Find the project from the request
-  // Return the project which matches the request accession
-  // This is used by several endpoints so do not exclude any data
-  const projectQuery = getProjectQuery(request);
-  const rawProjectData = await projects.findOne(projectQuery);
-  // If we did not found the project then stop here
-  if (!rawProjectData) return { headerError: NOT_FOUND, error: 'Project was not found' };
-  // Get the md index from the request or use the reference MD id in case it is missing
-  const requestedMdIndex = getMdIndex(request);
-  // If something went wrong with the MD request then return the error
-  if (requestedMdIndex instanceof Error) return { headerError: BAD_REQUEST, error: requestedMdIndex.message };
-  // Return the formatted data
-  return projectFormatter(rawProjectData, requestedMdIndex);
-}
-
-module.exports = {
-  projectFormatter,
-  getProjectData
-}
+module.exports = projectFormatter;

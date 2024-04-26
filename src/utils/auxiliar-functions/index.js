@@ -1,3 +1,8 @@
+// Library to read yaml files
+const yaml = require('yamljs');
+// Get the configuration parameters for the different requesting hosts
+const hostConfig = yaml.load(`${__dirname}/../../../config.yml`).hosts;
+
 // Functions to be used widely along the code
 
 // Try to parse JSON and return the bad request error in case it fails
@@ -48,19 +53,40 @@ const getValueGetter = path => {
     const steps = path.split('.');
     // Build the getter function
     const valueGetter = object => {
-      let lastObject = object;
-      for (const step of steps) {
-        lastObject = lastObject[step]
-        if (lastObject === undefined) return;
-      }
-      return lastObject;
+        let lastObject = object;
+        for (const step of steps) {
+            lastObject = lastObject[step]
+            if (lastObject === undefined) return;
+        }
+        return lastObject;
     }
     return valueGetter;
-  };
+};
+
+// Get the request host and then get the host configuration
+// Configurations are defined in the config.yml file in the root
+// Note that localhost has to do some extra logic to match the configuration
+// NEVER FORGET: For the host to be inherited (and not 'localhost') you need to configure your apache
+// Add the line 'ProxyPreserveHost On' in the API location settings
+const getConfig = request => {
+    // Get the request host
+    const host = request.get('host');
+    // Get host configuration
+    const config = hostConfig[host];
+    if (config) return config;
+    // When host is the localhost, the request host usually includes the port (e.g. localhost:8000)
+    if (host.startsWith('localhost')) return hostConfig['localhost'];
+    // If we still have no match then return a default value
+    return {
+        name: '(Unknown service)',
+        description: 'The requesting URL is not recognized, all local collections will be returned'
+    };
+}
 
 module.exports = {
     parseJSON,
     isIterable,
     setOutpuFilename,
-    getValueGetter
+    getValueGetter,
+    getConfig
 }

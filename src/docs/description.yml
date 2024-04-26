@@ -900,7 +900,7 @@ components:
           type: string
           pattern:
             $ref: '#/definitions/constants/AccessionPattern'
-          example: $PREFIX00002
+          example: $ACCESSION
         published:
           type: boolean
         metadata:
@@ -1751,7 +1751,7 @@ components:
 definitions:
   constants:
     IDPattern: '^[a-fA-F\d]{24}$'
-    AccessionPattern: '^$PREFIX[0-9]{5}$'
+    AccessionPattern: 'Free'
   arguments:
     projectAccessionOrID:
       name: projectAccessionOrID
@@ -1761,13 +1761,13 @@ definitions:
         A project will always have a unique identifier (even if unpublished and
         in the development version of the API).<br>
         When published, it will be assigned a never-changing unique
-        user-friendly accession starting with $PREFIX.<br>
+        user-friendly accession such as $ACCESSION.<br>
         You can use either to access the corresponding data, even if the
         **accession is recommended**
       required: true
       schema:
         type: string
-      example: $PREFIX00002
+      example: $ACCESSION
     UniProtID:
       name: UniProtID
       in: path

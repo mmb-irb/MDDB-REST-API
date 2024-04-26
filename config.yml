@@ -1,0 +1,69 @@
+# Set the behaviour of the API depending of the URL which makes the request
+# name - Service name to be displayed in the swagger docs
+# description - Header description to be displayed in the swagger docs
+# accession - Accession example to be displayed in the swagger docs
+# collection - Specific collection to be targeted. Other collections will be filtered away
+# global - Set if it is to behave as global API instead of a local (federated) API
+hosts:
+    
+    localhost:
+        name: MDposit (local)
+        description: The main server including all simulations
+        accession: A0001
+
+    mdposit.mddbr.eu:
+        name: MDposit
+        description: The main server including all simulations
+        accession: A0001
+        global: true
+
+    mdposit-dev.mddbr.eu:
+        name: MDposit
+        description: The main server including all simulations
+        accession: A0001
+        global: true
+
+    mdposit-dev.bsc.es:
+        name: MDposit (obsolete)
+        description: The main server including all simulations
+        accession: A0001
+
+    bioexcel-cv19.bsc.es:
+        name: BioExcel-CV19
+        description: The Covid-19 server
+        accession: MCV1900193
+        collection: cv19
+
+    bioexcel-cv19-dev.bsc.es:
+        name: BioExcel-CV19
+        description: The Covid-19 server
+        accession: MCV1900193
+        collection: cv19
+
+    model-cns-dev.bsc.es:
+        name: MoDEL-CNS
+        description: The Central Nervous System server
+        collection: mcns
+
+    abc-dev.mddbr.eu:
+        name: ABC
+        description: The ABC server
+        accession: seq001
+        collection: abc # This is redundant with the current implementation
+
+    abc.mddbr.eu:
+        name: ABC
+        description: The ABC server
+        accession: seq001
+        collection: abc # This is redundant with the current implementation
+
+    mmb-dev.mddbr.eu:
+        name: MMB node
+        description: The MMB federated node server
+        accession: A0001
+
+    mmb.mddbr.eu:
+        name: MMB node
+        description: The MMB federated node server
+        accession: A0001
+    

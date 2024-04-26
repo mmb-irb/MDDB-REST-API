@@ -1,69 +1,37 @@
 const Router = require('express').Router;
-
-// Funtion to conver string ids to mongo object ids
-const { ObjectId } = require('mongodb');
-
-// Function to remove keys from objects
-const omit = require('lodash').omit;
-
+// A standard request and response handler used widely in most endpoints
 const handler = require('../../../utils/generic-handler');
-
+// Get the database handler
+const getDatabase = require('../../../database');
+// Standard HTTP response status codes
 const { NOT_FOUND } = require('../../../utils/status-codes');
-// Get an automatic mongo query parser based on environment and request
-const { getProjectQuery, getIdOrAccession, isObjectId } = require('../../../utils/get-project-query');
 
-const topologyRouter = Router({ mergeParams: true });
+const router = Router({ mergeParams: true });
 
-// This endpoint returns some summary of data contained in the projects collection
-module.exports = (_, { projects, topologies }) => {
-  // Root
-  topologyRouter.route('/').get(
-    handler({
-      async retriever(request) {
-        // If the project id is a mongo id then we can directly ask for the topology
-        // If the project id is an accession we must find the project first in order to know the internal mongo id
-        let projectId = getIdOrAccession(request);
-        if (!isObjectId(projectId)) {
-          // Find the project which matches the request accession
-          const projectDoc = await projects.findOne(
-            getProjectQuery(request),
-            // And get the "_id" attribute
-            { projection: { _id: true } },
-          );
-          // If there is no project we return here
-          if (!projectDoc) return;
-          projectId = projectDoc._id;
-        }
-        // Return the project which matches the request accession
-        const topology = await topologies.findOne(
-          { project: ObjectId(projectId) },
-          { projection: { _id: false, project: false } },
-        );
-        // If no topology was found then return here
-        if (!topology) return;
-        const output = omit(topology, ['_id']);
-        output.internalId = topology._id;
-        return output;
-      },
-      // Handle the response header
-      headers(response, retrieved) {
-        // If nothing is retrieved then send a NOT_FOUND header and end the response
-        if (!retrieved) return response.sendStatus(NOT_FOUND);
-        // If there is any specific header error in the retrieved then send it
-        if (retrieved.headerError) response.status(retrieved.headerError);
-      },
-      // Handle the response body
-      body(response, retrieved) {
-        // If nothing is retrieved then end the response
-        // Note that the header 'sendStatus' function should end the response already, but just in case
-        if (!retrieved) return response.end();
-        // If there is any error in the body then just send the error
-        if (retrieved.error) return response.json(retrieved.error);
-        // Send the response
-        response.json(retrieved);
-      }
-    }),
-  );
+// This endpoint returns a project topology
+router.route('/').get(
+  handler({
+    async retriever(request) {
+      // Stablish database connection and retrieve our custom handler
+      const database = await getDatabase(request);
+      // Get the requested project data
+      const projectData = await database.getProjectData();
+      // If there was any problem then return the errors
+      if (projectData.error) return projectData;
+      // Return the project which matches the request accession
+      const topology = await database.topologies.findOne(
+        { project: projectData.internalId },
+        { projection: { _id: false, project: false } },
+      );
+      // If no topology was found then return here
+      if (!topology) return {
+        headerError: NOT_FOUND,
+        error: `Project ${projectData.accession} has no topology`
+      };
+      delete topology._id;
+      return topology;
+    }
+  }),
+);
 
-  return topologyRouter;
-};
+module.exports = router;

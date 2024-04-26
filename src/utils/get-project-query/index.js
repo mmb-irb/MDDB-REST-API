@@ -10,42 +10,32 @@ const { ObjectId } = require('mongodb');
 // WARNING: It returns true with whatever string 12 characters long
 const isObjectId = string => /^[a-z0-9]{24}$/.test(string);
 
-// Configure which collections are returned according to the host (client) who is asking
-const hostConfigs = require('../../../config.js').hosts;
+// Get auxiliar functions
+const { getConfig } = require('../auxiliar-functions');
 
 // Read the property "NODE_ENV" from the global ".env" file
 const env = process.env.NODE_ENV.toLowerCase();
 const isProduction = env === 'production' || env === 'prod';
 
-// Check if it is a global API
-const isGlobal = process.env.DB_ROLE === 'global';
-
 // Set the published filter according to the enviornment (.env file)
 // If the environment is tagged as "production" only published projects are returned from mongo
 const publishedFilter = Object.seal(isProduction ? { published: true } : {});
 
-// Set a filter for the global API to not return unposited projects
-// Note that a non global API is not expected to have this field so it makes not sense applying the filter
-const positedFilter = Object.seal(isGlobal ? { unposited: { $exists: false } } : {});
-
-// Set the collection filter according to the request URL
-// This filter is applied over the project metadata 'collections', nothing to do with mongo collections
-// Note that unknown hosts (e.g. 'localhost:8000') will get all simulations, with no filter
-const getCollectionFilter = request => {
-  // NEVER FORGET: For the host to be inherited (and not 'localhost') you need to configure your apache
-  // Add the line 'ProxyPreserveHost On' in the API location settings
-  const host = request.get('host');
-  const hostConfig = hostConfigs[host];
-  if (!hostConfig) return {};
-  const hostCollection = hostConfig.collection;
-  return Object.seal(
-    hostCollection ? { 'metadata.COLLECTIONS': hostCollection } : {},
-  );
-};
-
-// Join both published and collection filters in one single filter which is widely used
+// Join the published filter, the collection filter and the posited filter in one single filter which is widely used
 const getBaseFilter = request => {
-  const collectionFilter = getCollectionFilter(request);
+  // Get host configuration
+  const config = getConfig(request);
+  // Check if it is a global API
+  const isGlobal = config && config.global;
+  // Set a filter for the global API to not return unposited projects
+  // Note that a non global API is not expected to have this field so it makes not sense applying the filter
+  const positedFilter = Object.seal(isGlobal ? { unposited: { $exists: false } } : {});
+  // Set the collection filter according to the request URL
+  // This filter is applied over the project metadata 'collections', nothing to do with mongo collections
+  // Note that unknown hosts (e.g. 'localhost:8000') will get all simulations, with no filter
+  const hostCollection = config && config.collection;
+  const collectionFilter = Object.seal(hostCollection ? { 'metadata.COLLECTIONS': hostCollection } : {});
+  // Return all filters together, including also the publsihed filter
   return { ...publishedFilter, ...positedFilter, ...collectionFilter };
 };
 

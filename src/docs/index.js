@@ -1,19 +1,38 @@
-// Import yaml to read the description.yml file
+// Library to read yaml files
 const yaml = require('yamljs');
 // Import the swagger logic
 const swaggerUI = require('swagger-ui-express');
 const swaggerInit = swaggerUI.serve[0];
 // Get the configuration parameters for the different requesting hosts
-const hostConfig = require('../../config.js').hosts;
+const hostConfig = yaml.load(`${__dirname}/../../config.yml`).hosts;
 // Set the configuration for a hipotetical missing host
 hostConfig[null] = {
   name: '(Unknown service)',
   description:
     'The requesting URL is not recognized, all simulations will be returned',
-  prefix: 'MDP',
-  collection: null,
 };
 
+// Set a function to replace a string anywhere in a object/array full of nested strings
+const replaceAnywhere = (targetObject, targetString, replaceString) => {
+  // This works for both arrays and objects
+  for (const inderOrKey in targetObject) {
+    // Get the current value
+    const value = targetObject[inderOrKey];
+    // If it is a string then apply the replacement
+    if (typeof value === 'string') targetObject[inderOrKey] = value.replaceAll(targetString, replaceString);
+    // If it is an array or object then apply this function recursively
+    else if (typeof targetObject === 'object') replaceAnywhere(value, targetString, replaceString);
+    else throw new Error(`Unsupported type ${typeof value} when replacing anywhere`);
+    // If this is an object and thus we are iterating its keys, then also replace the key strings
+    if (typeof inderOrKey === 'string') {
+      const replacedKey = inderOrKey.replaceAll(targetString, replaceString);
+      targetObject[replacedKey] = targetObject[inderOrKey];
+      delete inderOrKey;
+    }
+  }
+};
+
+// Elaborate the different possible swagger responsed depending on the request URL
 const swaggerResponses = {};
 Object.entries(hostConfig).forEach(([host, config]) => {
   // Swagger documentation parsed to an object
@@ -42,38 +61,11 @@ Object.entries(hostConfig).forEach(([host, config]) => {
     },
   ];
 
-  // Adapt the documentation to the current database name and prefix by replacing some parts of the docs
-  const swaggerInfo = swaggerDocs.info;
-  swaggerInfo.title = swaggerInfo.title.replace('$DATABASE', config.name);
-  swaggerInfo.description = swaggerInfo.description.replace(
-    /\$DATABASE/g, // Use regexp instead of string in order to replace all matches
-    config.name,
-  );
-  swaggerInfo.description = swaggerInfo.description.replace(
-    '$CLIENT_URL', // Use regexp instead of string in order to replace all matches
-    host,
-  );
-  for (const path in swaggerDocs.paths) {
-    swaggerDocs.paths[path].get.description = swaggerDocs.paths[
-      path
-    ].get.description.replace('$DATABASE', config.name);
-  }
-  swaggerDocs.components.schemas.Project.properties.accession.example = swaggerDocs.components.schemas.Project.properties.accession.example.replace(
-    '$PREFIX',
-    config.prefix,
-  );
-  swaggerDocs.definitions.constants.AccessionPattern = swaggerDocs.definitions.constants.AccessionPattern.replace(
-    '$PREFIX',
-    config.prefix,
-  );
-  swaggerDocs.definitions.arguments.projectAccessionOrID.description = swaggerDocs.definitions.arguments.projectAccessionOrID.description.replace(
-    '$PREFIX',
-    config.prefix,
-  );
-  swaggerDocs.definitions.arguments.projectAccessionOrID.example = swaggerDocs.definitions.arguments.projectAccessionOrID.example.replace(
-    '$PREFIX',
-    config.prefix,
-  );
+  // Adapt the documentation to the current database name and accession example by replacing some parts of the docs
+  replaceAnywhere(swaggerDocs, '$CLIENT_URL', host);
+  replaceAnywhere(swaggerDocs, '$DATABASE', config.name);
+  const accessionExample = config.accession || '< No example available >';
+  replaceAnywhere(swaggerDocs, '$ACCESSION', accessionExample);
 
   // Set also the swagger options
   const swaggerOpts = {
@@ -107,6 +99,7 @@ Object.entries(hostConfig).forEach(([host, config]) => {
 const getSwaggerDocs = request => {
   // Get the hostname from the request
   const host = request.get('host');
+  console.log(host);
   return swaggerResponses[host] || swaggerResponses[null];
 };
 

@@ -1,68 +1,54 @@
 const Router = require('express').Router;
-
+// A standard request and response handler used widely in most endpoints
 const handler = require('../../../utils/generic-handler');
-
+// Get the database handler
+const getDatabase = require('../../../database');
+// Standard HTTP response status codes
 const { NOT_FOUND } = require('../../../utils/status-codes');
-// Get an automatic mongo query parser based on environment and request
-const { getProjectQuery } = require('../../../utils/get-project-query');
 
-const chainRouter = Router({ mergeParams: true });
+const router = Router({ mergeParams: true });
 
-module.exports = (_, { projects, chains }) => {
-  // Root
-  chainRouter.route('/').get(
-    handler({
-      retriever(request) {
-        // Return the project which matches the request accession
-        return projects.findOne(
-          getProjectQuery(request),
-          // But return only the "chains" attribute
-          { projection: { _id: false, chains: true } },
-        );
-      },
-      // If there is nothing retrieved or the retrieved has no chains, send a NOT_FOUND status in the header
-      headers(response, retrieved) {
-        if (!(retrieved && retrieved.chains)) response.sendStatus(NOT_FOUND);
-      },
-      // If there is retrieved and the retrieved has chains, send the chains in the body
-      body(response, retrieved) {
-        if (retrieved && retrieved.chains) response.json(retrieved);
-        else response.end();
-      },
-    }),
-  );
+// Root
+router.route('/').get(
+  handler({
+    async retriever(request) {
+      // Stablish database connection and retrieve our custom handler
+      const database = await getDatabase(request);
+      // Get the requested project data
+      const projectData = await database.getProjectData();
+      // If there was any problem then return the errors
+      if (projectData.error) return projectData;
+      // If project contains no chains then report it
+      if (!projectData.chains) return {
+        headerError: NOT_FOUND,
+        error: `Project "${projectData.accession}" has no chains`
+      };
+      // Return analysis names only
+      return projectData.chains;
+    },
+  }),
+);
 
-  // When there is a chain parameter (e.g. .../chains/A)
-  chainRouter.route('/:chain').get(
-    handler({
-      async retriever(request) {
-        // Find the project which matches the request accession
-        const projectDoc = await projects.findOne(
-          getProjectQuery(request),
-          // And get the "_id" attribute
-          { projection: { _id: true } },
-        );
-        // If there is no project we return here
-        if (!projectDoc) return;
-        // Else, find the chain with the provided name in the project
-        return chains.findOne(
-          { project: projectDoc._id, name: request.params.chain },
-          // But do not return the _id and project attributes
-          { projection: { _id: false, project: false } },
-        );
-      },
-      // If there is nothing retrieved or the retrieved has no sequence, send a NOT_FOUND status in the header
-      headers(response, retrieved) {
-        if (!(retrieved && retrieved.sequence)) response.sendStatus(NOT_FOUND);
-      },
-      // If there is retrieved and the retrieved has a sequece, send the analyses in the body
-      body(response, retrieved) {
-        if (retrieved && retrieved.sequence) {
-          response.json(retrieved);
-        } else response.end();
-      },
-    }),
-  );
+// When there is a chain parameter (e.g. .../chains/A)
+router.route('/:chain').get(
+  handler({
+    async retriever(request) {
+      // Stablish database connection and retrieve our custom handler
+      const database = await getDatabase(request);
+      // Get the requested project data
+      const projectData = await database.getProjectData();
+      // If there was any problem then return the errors
+      if (projectData.error) return projectData;
+      // Find the chain with the provided name and project id
+      const chain = await database.chains.findOne(
+        // Set the query
+        { project: projectData.internalId, name: request.params.chain },
+        // But do not return the _id and project attributes
+        { projection: { _id: false, project: false } },
+      );
+      return chain;
+    },
+  }),
+);
 
-  return chainRouter;
-};
+module.exports = router;

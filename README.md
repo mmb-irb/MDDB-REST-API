@@ -39,27 +39,13 @@ Note that the API processes must be stopped and run again for new code to be eff
 | DB_AUTH_USER     | string                        | db user                   |
 | DB_AUTH_PASSWORD | string                        | db password               |
 | DB_AUTHSOURCE    | string                        | authentication db         |
-| DB_ROLE          | `federated` or `global`       | set if node is federated  |
 | LISTEN_PORT      | number                        | port to query the API     |
 
-### config.js file template
+### config.yml file
 
-module.exports = {
-"hosts": {
-"mdposit.bsc.es": {
-"name": "MDposit",
-"description": "The main server including all simulations",
-"prefix": "MDP",
-"collection": null
-},
-"bioexcel-cv19.bsc.es": {
-"name": "BioExcel-CV19",
-"description": "The Covid-19 server",
-"prefix": "MCV19",
-"collection": "cv19"
-},
-}
-}
+You may need to edit this file as well to customize your swagger documentation and define
+how the API should behave depending on the requesting URL.<br/>
+The file in the repository provides an explanation on every field and several examples.
 
 ### chemfiles installation
 
