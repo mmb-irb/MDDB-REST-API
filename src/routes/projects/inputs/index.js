@@ -44,9 +44,7 @@ router.route('/').get(
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
       // Get the requested project data
-      const projectData = await database.getRawProjectData(
-        projection = { _id: false, metadata: true, mds: true, mdref: true }
-      );
+      const projectData = await database.getRawProjectData();
       // If something went wrong while requesting project data then stop here
       if (projectData.error) return projectData;
       // Now set the the inputs object to be sent as response
