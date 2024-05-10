@@ -66,4 +66,13 @@ hosts:
         name: MMB node
         description: The MMB federated node server
         accession: A0001
-    
+
+    oxford-dev.mddbr.eu:
+        name: Oxford node
+        description: The Oxford University federated node server
+        accession: A01M3
+
+    oxford.mddbr.eu:
+        name: Oxford node
+        description: The Oxford University federated node server
+        accession: A01M3
