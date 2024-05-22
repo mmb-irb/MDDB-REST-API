@@ -102,7 +102,7 @@ router.route('/').get(
         forced_references: metadata.FORCED_REFERENCES,
         multimeric: metadata.MULTIMERIC,
         chainnames: metadata.CHAINNAMES,
-        ligands: metadata.LIGANDS,
+        ligands: metadata.INPUT_LIGANDS,
         membranes: metadata.MEMBRANES,
         customs: metadata.CUSTOMS,
         orientation: metadata.ORIENTATION,
