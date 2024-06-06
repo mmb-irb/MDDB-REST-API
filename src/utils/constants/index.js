@@ -13,7 +13,7 @@ const REFERENCES = {
     }
 };
 
-// Local mongo collection names are for federated APIs
+// Local mongo collection names are for federated nodes
 const LOCAL_COLLECTION_NAMES = {
     projects: 'projects',
     topologies: 'topologies',
@@ -29,7 +29,7 @@ Object.entries(REFERENCES).forEach(([referenceName, reference]) => {
 // Global mongo collections in names are for the global API only
 const GLOBAL_COLLECTION_NAMES = {
     projects: 'global.projects',
-    apis: 'global.apis'
+    nodes: 'global.nodes'
 };
 // Add global reference collections
 Object.entries(REFERENCES).forEach(([referenceName, reference]) => {

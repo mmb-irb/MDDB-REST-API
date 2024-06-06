@@ -346,8 +346,6 @@ const redirectHandler = handler({
   async retriever(request) {
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);
-    // If the database is not global the we do not have to redirect
-    if (!database.isGlobal) return { local: true };
     // Set the project filter
     const projectFilter = getProjectQuery(request);
     // Do the query
@@ -367,12 +365,12 @@ const redirectHandler = handler({
     let localAccession = projectData.local;
     if (requestedMdIndex !== null) localAccession += `.${requestedMdIndex + 1}`;
     // Find the database thes project belongs to
-    const apiAlias = projectData.api;
-    // Get the corresponding api
-    const api = await database.apis.findOne({ alias: apiAlias });
-    if (!api) return {
+    const nodeAlias = projectData.node;
+    // Get the corresponding node
+    const node = await database.nodes.findOne({ alias: nodeAlias });
+    if (!node) return {
       headerError: INTERNAL_SERVER_ERROR,
-      error: `API "${apiAlias}" not found`
+      error: `Node "${nodeAlias}" not found`
     };
     // Get url path removing the first slash
     const urlPath = request.originalUrl.substring(1);
@@ -380,8 +378,8 @@ const redirectHandler = handler({
     const splittedPath = urlPath.split('/');
     splittedPath[3] = localAccession;
     const replacedPath = splittedPath.join('/');
-    // Build the new forwarded URL using the corresponding api url
-    const forwardedRef = api.url + replacedPath;
+    // Build the new forwarded URL using the corresponding node API url
+    const forwardedRef = node.api_url + replacedPath;
     //console.log(forwardedRef);
     return forwardedRef;
   },
@@ -392,11 +390,6 @@ const redirectHandler = handler({
     if (!retrieved) return response.end();
     // If there is any error in the body then just send the error
     if (retrieved.error) return response.json(retrieved.error);
-    // If this is the local API then just do not respond here and allow the rest of routes to play
-    if (retrieved.local) {
-      console.log(projectRouter);
-      return;
-    };
     // Send the response
     response.redirect(retrieved);
   },

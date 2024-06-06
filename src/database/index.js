@@ -68,18 +68,18 @@ class Database {
         return projectFormatter(rawProjectData, requestedMdIndex);
     }
 
-    // Get all monitored APIs in a singe object where API aliases are the object keys
-    // get apiList () {
+    // Get all monitored nodes in a singe object where node aliases are the object keys
+    // get nodeList () {
     //     return (async () => {
-    //         // Get the current list of APIs and make sure it is not empty
-    //         const list = await this.apis.find().toArray();
-    //         if (!list || list.length === 0) throw new Error('There are no APIs to be monitored');
-    //         // Convert the list to an object where api aliases are the keys
-    //         const apiList = {};
-    //         list.forEach(api => {
-    //             apiList[api.alias] = { name: api.name, url: api.url };
+    //         // Get the current list of nodes and make sure it is not empty
+    //         const list = await this.nodes.find().toArray();
+    //         if (!list || list.length === 0) throw new Error('There are no nodes to be monitored');
+    //         // Convert the list to an object where node aliases are the keys
+    //         const nodeList = {};
+    //         list.forEach(node => {
+    //             nodeList[node.alias] = { name: node.name, url: node.api_url };
     //         });
-    //         return apiList;
+    //         return nodeList;
     //     })();
     // }
 
