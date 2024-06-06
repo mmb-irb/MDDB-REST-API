@@ -32,7 +32,7 @@ Note that the API processes must be stopped and run again for new code to be eff
 
 | key              | value                         | description               |
 | ---------------- | ----------------------------- | ------------------------- |
-| NODE_ENV         | `development` or `production` | dev or prod flag          |
+| NODE_ENV         | `test` or not defined         | to run a local fake mongo |
 | DB_SERVER        | `<url>`                       | url of the db server      |
 | DB_PORT          | number                        | port of the db server     |
 | DB_NAME          | string                        | name of the db collection |

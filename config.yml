@@ -4,6 +4,8 @@
 # accession - Accession example to be displayed in the swagger docs
 # collection - Specific collection to be targeted. Other collections will be filtered away
 # global - Set if it is to behave as global API instead of a local (federated) API
+# production - Set if projects with 'published: false' are to be hidden (true) or shown (false)
+
 hosts:
     
     localhost:
@@ -16,6 +18,7 @@ hosts:
         description: The main server including all simulations
         accession: A0001
         global: true
+        production: true
 
     mdposit-dev.mddbr.eu:
         name: MDposit
@@ -33,6 +36,7 @@ hosts:
         description: The Covid-19 server
         accession: MCV1900193
         collection: cv19
+        production: true
 
     bioexcel-cv19-dev.bsc.es:
         name: BioExcel-CV19
@@ -56,6 +60,7 @@ hosts:
         description: The ABC server
         accession: seq001
         collection: abc # This is redundant with the current implementation
+        production: true
 
     mmb-dev.mddbr.eu:
         name: MMB node
@@ -66,6 +71,7 @@ hosts:
         name: MMB node
         description: The MMB federated node server
         accession: A0001
+        production: true
 
     oxford-dev.mddbr.eu:
         name: Oxford node
@@ -76,3 +82,4 @@ hosts:
         name: Oxford node
         description: The Oxford University federated node server
         accession: A01M3
+        production: true

@@ -13,18 +13,15 @@ const isObjectId = string => /^[a-z0-9]{24}$/.test(string);
 // Get auxiliar functions
 const { getConfig } = require('../auxiliar-functions');
 
-// Read the property "NODE_ENV" from the global ".env" file
-const env = process.env.NODE_ENV.toLowerCase();
-const isProduction = env === 'production' || env === 'prod';
-
-// Set the published filter according to the enviornment (.env file)
-// If the environment is tagged as "production" only published projects are returned from mongo
-const publishedFilter = Object.seal(isProduction ? { published: true } : {});
-
 // Join the published filter, the collection filter and the posited filter in one single filter which is widely used
 const getBaseFilter = request => {
   // Get host configuration
   const config = getConfig(request);
+  // Check if it is a production API
+  const isProduction = config.production;
+  // Set the published filter according to the enviornment (.env file)
+  // If the environment is tagged as "production" only published projects are returned from mongo
+  const publishedFilter = Object.seal(isProduction ? { published: true } : {});
   // Check if it is a global API
   const isGlobal = config && config.global;
   // Set a filter for the global API to not return unposited projects
