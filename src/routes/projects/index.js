@@ -12,7 +12,7 @@ const {
 } = require('../../utils/get-project-query');
 // Get the project formatter
 const projectFormatter = require('../../utils/project-formatter');
-// Set a error-proof JSON parser
+// Get auxiliar functions
 const { parseJSON, getConfig } = require('../../utils/auxiliar-functions');
 // Import references configuration
 const { REFERENCES, REFERENCE_HEADER } = require('../../utils/constants');
