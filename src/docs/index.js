@@ -67,6 +67,9 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   const accessionExample = config.accession || '< No example available >';
   replaceAnywhere(swaggerDocs, '$ACCESSION', accessionExample);
 
+  // Remove the nodes endpoint documentation if this is not a global host
+  if (!config.global) delete swaggerDocs.paths['/nodes'];
+
   // Set also the swagger options
   const swaggerOpts = {
     customCss: `.swagger-ui .topbar { display: none }`,

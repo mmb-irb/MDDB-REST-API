@@ -854,6 +854,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/Chain'
 
+  /nodes:
+    get:
+      summary: Get a list of available nodes.
+      description: >
+        Get a list of $DATABASE federated nodes and some info about them including the name, API URL or physicial location.
+        This endpoint is only avialable in the global API
+      tags:
+        - nodes
+      responses:
+        200:
+          description: an array of nodes
+          content:
+            application/json:
+              schema:
+                type: array
+
 components:
   schemas:
     FileDescription:
