@@ -83,3 +83,8 @@ hosts:
         description: The Oxford University federated node server
         accession: A01M3
         production: true
+
+    cineca.mddbr.eu:
+        name: Cineca node
+        description: The Cineca federated node server at Bologna
+        accession: A0005
