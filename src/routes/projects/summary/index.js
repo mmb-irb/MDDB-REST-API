@@ -163,7 +163,7 @@ router.route('/').get(
             if (!files) return 0;
             return files.length;
           }
-          return mds.reduce((acc, curr) => (acc + curr.files.length), 0);
+          return mds.reduce((acc, curr) => (acc + curr.files ? curr.files.length : 0), 0);
         })
         .reduce((acc, curr) => {
           if (curr) {
@@ -180,7 +180,7 @@ router.route('/').get(
             if (!analyses) return 0;
             return analyses.length;
           }
-          return mds.reduce((acc, curr) => (acc + curr.analyses.length), 0);
+          return mds.reduce((acc, curr) => (acc + curr.analyses ? curr.analyses.length : 0), 0);
         })
         .reduce((acc, curr) => {
           if (curr) {
