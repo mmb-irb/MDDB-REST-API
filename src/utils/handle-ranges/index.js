@@ -168,8 +168,8 @@ const handleRanges = (request, parsedRanges, descriptor) => {
 
   // In case all ranges are whole we return the range now that it is not yet iterable
   // This will make the trajectory stream not ranged at all
-  if (Object.values(range).every(r => r.whole)) return range;
-
+  if (dimensions.every(dim => range[dim].whole)) return range;
+  
   // Here we're about to generate an array with the combinations of all dimensions, which might be A LOT!
   // In order to save memory we generate them on the fly
 
