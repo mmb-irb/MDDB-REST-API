@@ -88,3 +88,8 @@ hosts:
         name: Cineca node
         description: The Cineca federated node server at Bologna
         accession: A0005
+
+    jsc.mddbr.eu:
+        name: JSC node
+        description: The JSC federated node server at Jülich
+        accession: A0001
