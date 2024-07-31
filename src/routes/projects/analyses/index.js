@@ -3,6 +3,8 @@ const Router = require('express').Router;
 const handler = require('../../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../../database');
+// Standard HTTP response status codes
+const { NOT_FOUND } = require('../../../utils/status-codes');
 
 const router = Router({ mergeParams: true });
 
@@ -43,8 +45,16 @@ router.route('/:analysis').get(
         // Skip some useless values
         { projection: { _id: false, name: false, project: false, md: false } },
       );
-      // If we did not found the analysis then there is nothing to do
-      if (!analysisData) return;
+      // If we did not found the analysis then return a not found error
+      if (!analysisData) return {
+        headerError: NOT_FOUND,
+        error: `Analysis "${request.params.analysis}" not found. Project ${
+          projectData.accession
+        } has the following available analyses: ${
+          // Get the list of available analyses for this project to provide more help
+          projectData.analyses.join(', ')
+        }`
+      };
       // Send the analysis data
       return analysisData.value;
     }
