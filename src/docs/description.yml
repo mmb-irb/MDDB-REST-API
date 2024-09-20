@@ -80,7 +80,7 @@ paths:
                   projects:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Project'
+                      $ref: '#/components/schemas/ProjectMD'
                   filteredCount:
                     type: integer
                     example: 10
@@ -190,7 +190,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Project'
+                $ref: '#/components/schemas/ProjectMD'
 
   /projects/{projectAccessionOrID}/topology:
     get:
@@ -634,9 +634,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: string
+                $ref: '#/components/schemas/FilesList'
 
   /projects/{projectAccessionOrID}/files/{filename}:
     get:
@@ -872,28 +870,53 @@ paths:
 
 components:
   schemas:
-    FileDescription:
+
+    ProjectMD:
       type: object
+      description: >
+        Main entry, metadata and available analyses or files for a specific MD inside the project
+        The selected MD metadata, available analysis and files are merged over the project ones.
+      required:
+        - accession
+        - published
+        - metadata
+        - mds
+        - mdref
+        - mdNumber
       properties:
-        length:
-          type: integer
-          description: length in bytes
-          example: 368194
-        filename:
+        identifier:
           type: string
-          example: md.structure.pdb
-        md5:
+          pattern:
+            $ref: '#/definitions/constants/IDPattern'
+          example: 5d08b56e174bf85a17e00438
+        accession:
           type: string
-          pattern: '^[0-9a-f]{32}$'
-          example: 79ac468d3cc434ad777048b51e65afc3
-        contentType:
-          type: string
-          example: chemical/x-pdb
+          pattern:
+            $ref: '#/definitions/constants/AccessionPattern'
+          example: $ACCESSION
+        published:
+          type: boolean
         metadata:
           type: object
+        mds:
+          type: object
+        mdref:
+          type: integer
+        mdNumber:
+          type: integer
+        mdIndex:
+          type: integer
+        analyses:
+          $ref: '#/components/schemas/AnalysisList'
+        files:
+          $ref: '#/components/schemas/FilesList'
+        chains:
+          $ref: '#/components/schemas/ChainList'
 
-    Project:
+    InternalProject:
       type: object
+      description: >
+        Main entry, metadata and available analyses or files for a specific project including all MDs
       required:
         - identifier
         - accession
@@ -922,7 +945,29 @@ components:
         metadata:
           type: object
         mds:
-          type: object
+          type: array
+          items:
+            type: object
+            description: >
+              Every MD is an independent set of trajectory coordinates within the same Project.
+              MDs in a same project share most metadata (e.g. replicas).
+            properties:
+              name:
+                type: string
+              metadata:
+                type: object
+              analyses:
+                $ref: '#/components/schemas/InternalList'
+              files:
+                $ref: '#/components/schemas/InternalList'
+              frames:
+                type: integer
+              atoms:
+                type: integer
+              warnings:
+                type: array
+                items:
+                  type: object
         mdref:
           type: integer
         mdNumber:
@@ -930,13 +975,11 @@ components:
         mdIndex:
           type: integer
         analyses:
-          $ref: '#/components/schemas/AnalysisList'
+          $ref: '#/components/schemas/InternalList'
+        files:
+          $ref: '#/components/schemas/InternalList'
         chains:
           $ref: '#/components/schemas/ChainList'
-        files:
-          type: array
-          items:
-            $ref: '#/components/schemas/FileDescription'
 
     ProjectSummary:
       type: object
@@ -1727,6 +1770,59 @@ components:
       example:
         - pca
         - rgyr
+
+    FileDescription:
+      type: object
+      properties:
+        length:
+          type: integer
+          description: length in bytes
+          example: 368194
+        filename:
+          type: string
+          example: md.structure.pdb
+        md5:
+          type: string
+          pattern: '^[0-9a-f]{32}$'
+          example: 79ac468d3cc434ad777048b51e65afc3
+        contentType:
+          type: string
+          example: chemical/x-pdb
+        metadata:
+          type: object
+
+    FilesList:
+      type: array
+      description: >
+        List of available files
+        The preview pictured shown in the browser is the file called 'screenshot.jpg'
+      items:
+        type: string
+      example:
+        - screenshot.jpg
+        - trajectory.bin
+
+    InternalList:
+      type: array
+      description: >
+        List of available documents including both the name and the interal id of the document.
+        These are used to list available files and analyses in project data, for internal managment of the API.
+        These are not shown to the users by default.
+        However, if the 'raw' flag is passed to the projects endpoint then they become visible.
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+            description: name of the document
+            example: pca
+          id:
+            type: string
+            description: internal id of the document
+            example: 65afd5223837f199fe7671c1
+      example:
+        - { name: pca, id: 65afd5223837f199fe7671c1 }
+        - { name: rgyr, id: 65afd5233837f199fe7671c3 }
 
     Chain:
       type: object

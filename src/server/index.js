@@ -4,6 +4,7 @@ const cors = require('cors');
 const swaggerUI = require('swagger-ui-express');
 const serveStatic = swaggerUI.serve[1];
 const getSwaggerDocs = require(`${__dirname}/../docs`);
+const swaggerSpec = require(`${__dirname}/../docs/specification`);
 const boxen = require('boxen');
 const chalk = require('chalk');
 
@@ -62,6 +63,7 @@ app.get('/rest', (_, res) =>
     'api versions': ['v1', 'current'],
     'current version': 'v1',
     documentation: 'docs',
+    'federated specification': 'spec'
   }),
 );
 
@@ -100,6 +102,9 @@ app.use('/rest/docs', (request, response, next) => {
   // Load the rest of swagger stuff: scripts, css, etc.
   serveStatic(request, response, next);
 });
+
+// Federated specification
+app.use('/rest/spec', swaggerUI.serve, swaggerSpec);
 
 module.exports = {
   app,
