@@ -4,10 +4,11 @@ info:
   description:  >
     An API giving support to the corresponding endpoints and respecting the mandatory response format
     specifications should be compatible with the global MDDB node. Therefore its simulations could be
-    included and displayed in the global API and web server.
+    included and displayed in the global API and web server. Every endpoint is marked as MANDATORY, a
+    SHOULD or OPTIONAL.
     <br />
     <br />
-    Note that these early guidelines may change in the near future
+    Note that these early guidelines may change in the near future.    
   version: 1.0.0
 
 paths:
@@ -16,10 +17,11 @@ paths:
       summary: Get a list of projects
       description: >
         This endpoint allows to retrieve the whole list of projects through a pagination system.<br />
-        Note that the pagination is mandatory to avoid a huge response.
+        Note that the pagination is mandatory to avoid a huge response and protect the API memory.
         **For the federated system:** when the global API asks a federated API for its projects it always 
         includes the "raw" argument thus asking for the project data as is in the database, not formatted.
         The response schema below corresponds to our internal format including all MDs.
+        This endpoint is MANDATORY for the federated system.
       tags:
         - projects
       parameters:
@@ -74,6 +76,7 @@ paths:
         **For the federated system:** when the global API asks a federated API for its projects it always 
         includes the "raw" argument thus asking for the project data as is in the database, not formatted.
         The response schema below corresponds to our internal format including all MDs.
+        This endpoint is MANDATORY for the federated system.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: raw
@@ -95,7 +98,9 @@ paths:
   /projects/{projectAccessionOrID}/topology:
     get:
       summary: Get the simulation topology.
-      description: Get a json object containing data related to atom, residue and chains (e.g. atom names, residue numbers).
+      description: >
+        Get a json object containing data related to atom, residue and chains (e.g. atom names, residue numbers).
+        This endpoint is MANDATORY for the federated system.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
@@ -114,6 +119,8 @@ paths:
       description: >
         Get the main structure of the project in pdb format.
         Structure may be filtered by specific atoms.
+        The POST method is also allowed to support long atom selections.
+        This endpoint is MANDATORY for the federated system.
       produces:
         - chemical/x-pdb
       parameters:
@@ -158,6 +165,8 @@ paths:
       description: >
         Get the main structure of the project in pdb format.
         Structure may be filtered by specific atoms.
+        The POST method is also allowed to support long atom selections.
+        This endpoint is MANDATORY for the federated system.
       produces:
         - chemical/x-pdb
       parameters:
@@ -203,10 +212,13 @@ paths:
       summary: Get a complete or partial trajectory of the project.
       description: >
         Get a complete or partial trajectory of the project.
+        The POST method is also allowed to support long atom and frame selections.
         Data is streamed from the first moment, no matter the format or selection of frames and atoms.
         Note that trajectories are huge files and they may take a lot of disk when downloaded.
-        For a federated API to be compatible with the global node it must support at least the octet format.
-        The rest of formats are optional.
+        For a federated API to be compatible with the global node it must support the 'frames' argument
+        and the binary format (bin) since the web client strongly relies on them.
+        The rest of arguments and formats are optional.
+        This endpoint is MANDATORY for the federated system.
       produces:
         - application/octet-stream
         - text/mdcrd
@@ -218,10 +230,11 @@ paths:
           in: query
           schema:
             type: string
-            enum: ['mdcrd', 'xtc', 'trr']
+            enum: ['bin', 'mdcrd', 'xtc', 'trr']
           description: >
-            Specify a request format for the trajectory file. The default format is an internal
-            binary format used by the client.<br>
+            Specify a request format for the trajectory file. When no format is specified,
+            the default format is an internal binary format (bin) used by the web client.<br>
+            Note that this is the only mandatory format to be supported by a federated API.
         - name: frames
           in: query
           schema:
@@ -268,28 +281,44 @@ paths:
         200:
           description: the main trajectory
           content:
-            text/mdcrd:
-              schema:
-                type: string
-                format: binary
             application/octet-stream:
               schema:
-                format: binary
+                $ref: '#/definitions/bin format'
+            application/xtc:
+              schema:
+                $ref: '#/definitions/xtc format'
+            application/trr:
+              schema:
+                $ref: '#/definitions/trr format'
+            text/mdcrd:
+              schema:
+                $ref: '#/definitions/mdcrd format'
         206:
           description: a partial trajectory
           content:
-            text/mdcrd:
-              schema:
-                type: string
-                format: binary
             application/octet-stream:
               schema:
-                format: binary
+                $ref: '#/definitions/bin format'
+            application/xtc:
+              schema:
+                $ref: '#/definitions/xtc format'
+            application/trr:
+              schema:
+                $ref: '#/definitions/trr format'
+            text/mdcrd:
+              schema:
+                $ref: '#/definitions/mdcrd format'
     post:
       summary: Get a complete or partial trajectory of the project (long atom and frame selections allowed).
       description: >
         Get a complete or partial trajectory of the project.
-        This process may take some time since trajectories are heavy files.
+        The POST method is also allowed to support long atom and frame selections.
+        Data is streamed from the first moment, no matter the format or selection of frames and atoms.
+        Note that trajectories are huge files and they may take a lot of disk when downloaded.
+        For a federated API to be compatible with the global node it must support the 'frames' argument
+        and the binary format (bin) since the web client strongly relies on them.
+        The rest of arguments and formats are optional.
+        This endpoint is MANDATORY for the federated system.
       produces:
         - application/octet-stream
         - text/mdcrd
@@ -301,10 +330,11 @@ paths:
           in: query
           schema:
             type: string
-            enum: ['mdcrd', 'xtc', 'trr']
+            enum: ['bin', 'mdcrd', 'xtc', 'trr']
           description: >
-            Specify a request format for the trajectory file. The default format is an internal
-            binary format used by the client.<br>
+            Specify a request format for the trajectory file. When no format is specified,
+            the default format is an internal binary format (bin) used by the web client.<br>
+            Note that this is the only mandatory format to be supported by a federated API.
         - name: frames
           in: query
           schema:
@@ -351,28 +381,40 @@ paths:
         200:
           description: the main trajectory
           content:
-            text/mdcrd:
-              schema:
-                type: string
-                format: binary
             application/octet-stream:
               schema:
-                format: binary
+                $ref: '#/definitions/bin format'
+            application/xtc:
+              schema:
+                $ref: '#/definitions/xtc format'
+            application/trr:
+              schema:
+                $ref: '#/definitions/trr format'
+            text/mdcrd:
+              schema:
+                $ref: '#/definitions/mdcrd format'
         206:
           description: a partial trajectory
           content:
-            text/mdcrd:
-              schema:
-                type: string
-                format: binary
             application/octet-stream:
               schema:
-                format: binary
+                $ref: '#/definitions/bin format'
+            application/xtc:
+              schema:
+                $ref: '#/definitions/xtc format'
+            application/trr:
+              schema:
+                $ref: '#/definitions/trr format'
+            text/mdcrd:
+              schema:
+                $ref: '#/definitions/mdcrd format'
                   
   /projects/{projectAccessionOrID}/references:
     get:
       summary: Get the simulation references.
-      description: Get a json object containing data related to the reference sequence for any protein in the simulation.
+      description: >
+        Get a data related to the project references including both proteins and ligands.
+        This endpoint is OPTIONAL for the federated system.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
@@ -382,14 +424,19 @@ paths:
           description: JSON formatted topology
           content:
             application/json:
-              type: array
-              items:
-                $ref: '#/components/schemas/Reference'
+              schema:
+                type: array
+                items:
+                  anyOf:
+                    - $ref: '#/components/schemas/ProteinReference'
+                    - $ref: '#/components/schemas/LigandReference'
 
-  /references:
+  /references/proteins:
     get:
-      summary: Get all available reference UniProt IDs.
-      description: Get a list of UniProt IDs with an ID for each reference in the database.
+      summary: Get all available protein reference UniProt IDs.
+      description: >
+        Get a list of UniProt IDs with an ID for each protein reference in the database.
+        This endpoint is OPTIONAL for the federated system.
       tags:
         - references
       responses:
@@ -400,27 +447,77 @@ paths:
               type: array
               items:
                 type: string
+              example:
+                - P17427
+                - P27870
+                - Q01842
 
-  /references/{UniProtID}:
+  /references/proteins/{UniProtID}:
     get:
       summary: Get a specific reference.
-      description: Get a json object containing data related to the reference sequence for the specified UniProt ID
+      description: >
+        Get protein reference data for the specified UniProt ID.
+        This endpoint is OPTIONAL for the federated system.
       tags:
         - references
       parameters:
         - $ref: '#/definitions/arguments/UniProtID'
       responses:
         200:
-          description: Reference object.
+          description: Protein reference data
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Reference'
+                $ref: '#/components/schemas/ProteinReference'
+
+  /references/ligands:
+    get:
+      summary: Get all available ligand reference PubChem IDs.
+      description: >
+        Get a list of PubChem IDs with an ID for each ligand reference in the database.
+        This endpoint is OPTIONAL for the federated system.
+      tags:
+        - references
+      responses:
+        200:
+          description: List of PubChem IDs
+          content:
+            application/json:
+              type: array
+              items:
+                type: string
+              example:
+                - '444097'
+                - '3033'
+                - '3033'
+
+  /references/ligands/{PubChemID}:
+    get:
+      summary: Get a specific reference.
+      description: >
+        Get ligand reference data for the specified PubChem ID.
+        This endpoint is OPTIONAL for the federated system.
+      tags:
+        - references
+      parameters:
+        - $ref: '#/definitions/arguments/PubChemID'
+      responses:
+        200:
+          description: Ligand reference data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LigandReference'
 
   /projects/{projectAccessionOrID}/files:
     get:
       summary: Get the list of available files associated to the current project MD.
-      description: Get the list of files for a specific project MD.
+      description: >
+        Get the list of files for a specific project MD.
+        Files may be anything, in any format, with no size restriction.
+        Files may include additional data to support some analyses, raw source files or other resources.
+        For instance, the preview screenshot used by the web client is saved among the files as 'screenshot.jpg'.
+        This endpoint is a SHOULD for the federated system.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
@@ -434,12 +531,16 @@ paths:
                 type: array
                 items:
                   type: string
+                example:
+                  - screenshot.jpg
+                  - structure.pdb
 
   /projects/{projectAccessionOrID}/files/{filename}:
     get:
       summary: Download a specific file.
       description: >
         Download a specific file for a specific project MD by its file name.
+        This endpoint is a SHOULD for the federated system.
       produces:
         - application/octet-stream
         - chemical/x-pdb
@@ -503,7 +604,9 @@ paths:
   /projects/{projectAccessionOrID}/filenotes:
     get:
       summary: Get file descriptors for every available file associated to the current project MD.
-      description: Get the list of file descriptors for a specific project MD.
+      description: >
+        Get the list of file descriptors for a specific project MD.
+        This endpoint is a SHOULD for the federated system.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
@@ -523,6 +626,7 @@ paths:
       summary: Get a specific file descriptor.
       description: >
         Get a specific file descriptor for a specific project MD by its name.
+        This endpoint is a SHOULD for the federated system.
       produces:
         - application/octet-stream
         - chemical/x-pdb
@@ -530,8 +634,7 @@ paths:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: filename
           in: path
-          description: >
-            filename, as defined in the list of files included in a project
+          description: Filename, as defined in the list of files included in a project
           required: true
           schema:
             type: string
@@ -542,12 +645,19 @@ paths:
         200:
           description: a file descriptor
           content:
-            $ref: '#/components/schemas/FileDescription'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileDescription'
 
   /projects/{projectAccessionOrID}/analyses:
     get:
       summary: Get the list of available analyses in a specific project.
-      description: Get a list with available analyses in a specific project.
+      description: >
+        Get a list with available analyses in a specific project.
+        Analyses ara data formatted as an 'object', with a limit of 16 Mb.
+        Data is organized differently for every different type of analysis.
+        This endpoint is a SHOULD for the federated system.
+        A federated API may mimic the name and format of any of the already supported analyses in the global web client.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
@@ -558,7 +668,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AnalysisList'
+                type: array
+                description: list of available analyses
+                items:
+                  type: string
+                example:
+                  - pca
+                  - rgyr
   /projects/{projectAccessionOrID}/analyses/{analysisName}:
     get:
       summary: Get an analysis for a project.
@@ -572,19 +688,6 @@ paths:
           required: true
           schema:
             type: string
-            enum: [
-              'dist-perres',
-              'energies',
-              'fluctuation',
-              'hbonds',
-              'pca',
-              'pockets',
-              'rgyr',
-              'rmsd-pairwise',
-              'rmsd-perres',
-              'rmsds',
-              'sasa',
-              'tmscores']
       tags:
         - analyses
       responses:
@@ -592,25 +695,264 @@ paths:
           description: an object containing analysis data
           content:
             application/json:
-              schema:
-                oneOf:
-                  - $ref: '#/components/schemas/Distance per residue analysis'
-                  - $ref: '#/components/schemas/Energies analysis'
-                  - $ref: '#/components/schemas/Fluctuation analysis'
-                  - $ref: '#/components/schemas/Hydrogen bonds analysis'
-                  - $ref: '#/components/schemas/PCA analysis'
-                  - $ref: '#/components/schemas/Pockets analysis'
-                  - $ref: '#/components/schemas/Radius of gyration analysis'
-                  - $ref: '#/components/schemas/RMSD pairwise analysis'
-                  - $ref: '#/components/schemas/RMSD per residue analysis'
-                  - $ref: '#/components/schemas/RMSDs'
-                  - $ref: '#/components/schemas/Solvent accessible surface analysis'
-                  - $ref: '#/components/schemas/TM scores'
-                example: >
-                  No example is provided since each analysis is different. Look at the schemas
+              example: No example is provided since each analysis is different. Look at the schemas
 
 components:
   schemas:
+
+    ProjectMetadata:
+      type: object
+      description: >
+        Project metadata including structural feautures, MD parameters and external references.
+      required: [ name ]
+      properties:
+        NAME:
+          type: string
+          example: My simulation
+        DESCRIPTION:
+          type: string
+          example: My simulation was done like this...
+        AUTHORS:
+          type: array
+          items:
+            type: string
+          example:
+            - My name
+            - My colleague's name
+        GROUPS:
+          type: array
+          items:
+            type: string
+          example:
+            - My group
+            - My colleague's group
+        CONTACT:
+          type: string
+          example: For any doubt please contact me at me@mymail.com
+        LICENSE:
+          type: string
+          example: This trajectory dataset is released under a Creative Commons Attribution 4.0 International Public License
+        LINKCENSE:
+          type: string
+          example: https://creativecommons.org/licenses/by/4.0/
+        CITATION:
+          type: string
+          example: My related paper
+        THANKS:
+          type: string
+          example: My acknowledgements
+        LINKS:
+          type: array
+          items:
+            type: object
+        WARNINGS:
+          type: array
+          items:
+            type: object
+        COLLECTIONS:
+          type: array
+          items:
+            type: string
+          example:
+            - My custom flag
+            - My other custom flag
+        PROGRAM:
+          type: string
+          example: GROMACS
+        VERSION:
+          type: string
+          example: 2024.1
+        TYPE:
+          type: string
+          enum: [ Trajectory, Ensemble ]
+          example: Trajectory
+        METHOD:
+          type: string
+          example: Classical MD
+        FF:
+          type: array
+          items:
+            type: string
+          example:
+            - Amber ff14SB
+            - GLYCAM-06h
+        WAT:
+          type: string
+          example: TIP3P
+        FRAMESTEP:
+          type: number
+          description: Time between frames in nanoseconds (ns)
+          example: 0.01
+        TIMESTEP:
+          type: number
+          description: Time between steps during the simulation in femtoseconds (fs)
+          example: 2
+        TEMP:
+          type: number
+          description: Temperature in Kelvin (K)
+          example: 300
+        ENSEMBLE:
+          type: string
+          example: NPT
+        BOXTYPE:
+          type: string
+          example: Octahedral
+        BOXSIZEX:
+          type: number
+          example: 6.56936
+        BOXSIZEY:
+          type: number
+          example: 6.19365
+        BOXSIZEZ:
+          type: number
+          example: 5.36386
+        SYSATS:
+          type: number
+          example: 10000
+        PROTATS:
+          type: number
+          example: 8000
+        PROT:
+          type: number
+          example: 100
+        DPPC:
+          type: number
+          example: 0
+        SOL:
+          type: number
+          example: 0
+        NA:
+          type: number
+          example: 0
+        CL:
+          type: number
+          example: 0
+        PDBIDS:
+          type: array
+          items:
+            type: string
+          example:
+            - 6vw1
+            - 6vxx
+        REFERENCES:
+          type: array
+          items:
+            type: string
+          example:
+            - P0DTC2
+            - Q9BYF1
+        FORCED_REFERENCES:
+          type: array
+        LIGANDS:
+          type: array
+          items:
+            type: string
+          example:
+            - 5870
+            - 5757
+        LIGANDNAMES:
+          type: array
+          items:
+            type: string
+          example:
+            - My drug
+            - My other drug
+        INPUT_LIGANDS:
+          type: array
+        SEQUENCES:
+          type: array
+          items:
+            type: string
+          example:
+            - DWGYDDKNGPEQWSKLYPIANGNNQSPVDIKTS
+            - XXXXXXX
+        INTERACTIONS:
+          description: Interactions to be analyzed by the workflow
+          type: array
+          items:
+            type: object
+            required: [ name, agent_1, selection_1, agent_2, selection_2 ]
+            parameters:
+              - name: name
+                description: Custom interaction title
+                schema:
+                  type: string
+                  example: My interaction
+              - name: agent_1
+                description: Custom title for the first interacting agent
+                schema:
+                  type: string
+                  example: My protein
+              - name: selection_1
+                description: Atom selection for the first interacting agent in VMD syntax
+                schema:
+                  type: string
+                  example: chain A
+              - name: agent_2
+                description: Custom title for the second interacting agent
+                schema:
+                  type: string
+                  example: My ligand
+              - name: selection_2
+                description: Atom selection for the second interacting agent in VMD syntax
+                schema:
+                  type: string
+                  example: chain B
+        PBC_SELECTION:
+          description: Periodic Boundary Conditions atom selection
+          type: string
+          example: chain M
+        CUSTOMS:
+          description: Additional representations setup for the NGL viewer
+          type: array
+          items:
+            type: object
+        ORIENTATION:
+          description: 10 numbers whcih are used by the NGL viewer to set the default camera orientation
+          type: array
+          items:
+            type: number
+        DOMAINS:
+          type: array
+          items:
+            type: string
+          example:
+            - Carbonic anhydrase 1
+            - Disordered
+        PTM:
+          type: array
+          items:
+            type: string
+          example:
+            - Acetylation
+            - Glycosilation
+        MULTIMERIC:
+          type: array
+          items:
+            type: string
+          example:
+            - Monomer
+            - Dimer
+        MEMBRANES:
+          description: Obsolete
+          type: array
+          items:
+            type: object
+        CV19_UNIT:
+          type: string
+          example: Spike
+        CV19_STARTCONF:
+          type: string
+          example: Closed
+        CV19_ABS:
+          description: Antibody presence
+          type: boolean
+        CV19_NANOBS:
+          description: Nanobody presence
+          type: boolean
+        CV19_VARIANT:
+          type: string
+          example: Omicron
 
     InternalProject:
       type: object
@@ -645,258 +987,7 @@ components:
             This parameters is used by some nodes to show/hide their simulations
             This is mandatory for the project to be posited in the global node
         metadata:
-          type: object
-          description: >
-            Project metadata including structural feautures, MD parameters and external references.
-          required: [ name ]
-          properties:
-            NAME:
-              type: string
-              example: My simulation
-            DESCRIPTION:
-              type: string
-              example: My simulation was done like this...
-            AUTHORS:
-              type: array
-              items:
-                type: string
-              example:
-                - My name
-                - My colleague's name
-            GROUPS:
-              type: array
-              items:
-                type: string
-              example:
-                - My group
-                - My colleague's group
-            CONTACT:
-              type: string
-              example: For any doubt please contact me at me@mymail.com
-            LICENSE:
-              type: string
-              example: This trajectory dataset is released under a Creative Commons Attribution 4.0 International Public License
-            LINKCENSE:
-              type: string
-              example: https://creativecommons.org/licenses/by/4.0/
-            CITATION:
-              type: string
-              example: My related paper
-            THANKS:
-              type: string
-              example: My acknowledgements
-            LINKS:
-              type: array
-              items:
-                type: object
-            WARNINGS:
-              type: array
-              items:
-                type: object
-            COLLECTIONS:
-              type: array
-              items:
-                type: string
-              example:
-                - My custom flag
-                - My other custom flag
-            PROGRAM:
-              type: string
-              example: GROMACS
-            VERSION:
-              type: string
-              example: 2024.1
-            TYPE:
-              type: string
-              enum: [ Trajectory, Ensemble ]
-              example: Trajectory
-            METHOD:
-              type: string
-              example: Classical MD
-            FF:
-              type: array
-              items:
-                type: string
-              example:
-                - Amber ff14SB
-                - GLYCAM-06h
-            WAT:
-              type: string
-              example: TIP3P
-            FRAMESTEP:
-              type: number
-              description: Time between frames in nanoseconds (ns)
-              example: 0.01
-            TIMESTEP:
-              type: number
-              description: Time between steps during the simulation in femtoseconds (fs)
-              example: 2
-            TEMP:
-              type: number
-              description: Temperature in Kelvin (K)
-              example: 300
-            ENSEMBLE:
-              type: string
-              example: NPT
-            BOXTYPE:
-              type: string
-              example: Octahedral
-            BOXSIZEX:
-              type: number
-              example: 6.56936
-            BOXSIZEY:
-              type: number
-              example: 6.19365
-            BOXSIZEZ:
-              type: number
-              example: 5.36386
-            SYSATS:
-              type: number
-              example: 10000
-            PROTATS:
-              type: number
-              example: 8000
-            PROT:
-              type: number
-              example: 100
-            DPPC:
-              type: number
-              example: 0
-            SOL:
-              type: number
-              example: 0
-            NA:
-              type: number
-              example: 0
-            CL:
-              type: number
-              example: 0
-            PDBIDS:
-              type: array
-              items:
-                type: string
-              example:
-                - 6vw1
-                - 6vxx
-            REFERENCES:
-              type: array
-              items:
-                type: string
-              example:
-                - P0DTC2
-                - Q9BYF1
-            FORCED_REFERENCES:
-              type: array
-            LIGANDS:
-              type: array
-              items:
-                type: string
-              example:
-                - 5870
-                - 5757
-            LIGANDNAMES:
-              type: array
-              items:
-                type: string
-              example:
-                - My drug
-                - My other drug
-            INPUT_LIGANDS:
-              type: array
-            SEQUENCES:
-              type: array
-              items:
-                type: string
-              example:
-                - DWGYDDKNGPEQWSKLYPIANGNNQSPVDIKTS
-                - XXXXXXX
-            INTERACTIONS:
-              description: Interactions to be analyzed by the workflow
-              type: array
-              items:
-                type: object
-                required: [ name, agent_1, selection_1, agent_2, selection_2 ]
-                parameters:
-                  - name: name
-                    description: Custom interaction title
-                    schema:
-                      type: string
-                      example: My interaction
-                  - name: agent_1
-                    description: Custom title for the first interacting agent
-                    schema:
-                      type: string
-                      example: My protein
-                  - name: selection_1
-                    description: Atom selection for the first interacting agent in VMD syntax
-                    schema:
-                      type: string
-                      example: chain A
-                  - name: agent_2
-                    description: Custom title for the second interacting agent
-                    schema:
-                      type: string
-                      example: My ligand
-                  - name: selection_2
-                    description: Atom selection for the second interacting agent in VMD syntax
-                    schema:
-                      type: string
-                      example: chain B
-            PBC_SELECTION:
-              description: Periodic Boundary Conditions atom selection
-              type: string
-              example: chain M
-            CUSTOMS:
-              description: Additional representations setup for the NGL viewer
-              type: array
-              items:
-                type: object
-            ORIENTATION:
-              description: 10 numbers whcih are used by the NGL viewer to set the default camera orientation
-              type: array
-              items:
-                type: number
-            DOMAINS:
-              type: array
-              items:
-                type: string
-              example:
-                - Carbonic anhydrase 1
-                - Disordered
-            PTM:
-              type: array
-              items:
-                type: string
-              example:
-                - Acetylation
-                - Glycosilation
-            MULTIMERIC:
-              type: array
-              items:
-                type: string
-              example:
-                - Monomer
-                - Dimer
-            MEMBRANES:
-              description: Obsolete
-              type: array
-              items:
-                type: object
-            CV19_UNIT:
-              type: string
-              example: Spike
-            CV19_STARTCONF:
-              type: string
-              example: Closed
-            CV19_ABS:
-              description: Antibody presence
-              type: boolean
-            CV19_NANOBS:
-              description: Nanobody presence
-              type: boolean
-            CV19_VARIANT:
-              type: string
-              example: Omicron
+          $ref: '#/components/schemas/ProjectMetadata'
         mds:
           type: array
           items:
@@ -1004,7 +1095,6 @@ components:
             - { name: trajectory.bin, id: 65afd5233837f199fe7671c3 }
         chains:
           description: Project chain (about to be removed)
-          $ref: '#/components/schemas/ChainList'
 
     Topology:
       description: Standard topology object
@@ -1103,13 +1193,15 @@ components:
         references:
           type: array
           description: >
-            A list containing the reference names of every residue sequence reference used.
-            References are used to numerate residues in the topology according to the standards.
+            A list containing the reference ids of every reference used.
+            They may be UniProt ids for proteins or PubChem ids for ligands
+            Protein references are used to numerate residues in the topology according to the standards.
+            Both protein and ligand references are used to label residues in the web client.
           items:
             type: string
             example:
-              - "SARS-CoV-2 spike"
-              - "Angiotensin-converting enzyme 2"
+              - "P00915"
+              - "1986"
         reference_types:
           type: array
           description: >
@@ -1139,17 +1231,108 @@ components:
               - 18
               - 345
 
-    AnalysisList:
-      type: array
-      description: list of available analyses
-      items:
-        type: string
-      example:
-        - pca
-        - rgyr
+    ProteinReference:
+      type: object
+      required:
+        - uniprot
+        - sequence
+        - name
+        - gene
+        - organism
+      properties:
+        uniprot:
+          description: UniProt id
+          type: string
+          example: P0DTC2
+        sequence:
+          description: Amino acids sequence
+          type: string
+          example: MFVFLVLLPLVSSQCVNLTTRTQL…GSCCKFDEDDSEPVLKGVKLHYT
+        name:
+          description: UniProt name
+          type: string
+          example: Spike glycoprotein
+        gene:
+          description: UniProt gene name
+          type: string
+          example: S
+        organism:
+          description: UniProt organism
+          type: string
+          example: Severe acute respiratory syndrome coronavirus 2
+        domains:
+          description: UniProt domains
+          type: array
+          items:
+            type: object
+          example: [
+            { name: Some specific domain, selection: 14-685, description: This domain is important because... }
+          ]
+        functions:
+          description: UniProt functions
+          type: array
+          items:
+            type: string
+          example:
+            - host cell surface receptor binding
+            - identical protein binding
+        entropies:
+          description: Residue mutation rate according to GISAID data (covid-19 spike systems only)
+          type: array
+          items:
+            type: number
+        epitopes:
+          description: Known epitopes according to the PDB (covid-19 spike systems only)
+          type: array
+          items:
+            type: object
+
+    LigandReference:
+      type: object
+      required:
+        - name
+        - pubchem
+        - smiles
+        - formula
+        - mordred
+        - morgan
+      properties:
+        pubchem:
+          description: PubChem id
+          type: string
+          example: 1986
+        drugbank:
+          description: DrugBank id
+          type: string
+          example: DB00819
+        chembl:
+          description: ChEMBL id
+          type: string
+          example: CHEMBL20 
+        name:
+          description: One of the accepted ligand names according to PubChem
+          type: string
+          example: acetazolamide
+        smiles:
+          description: Simplified Molecular Input Line Entry System (SMILES)
+          type: string
+          example: CC(=O)NC1=NN=C(S1)S(=O)(=O)N
+        formula:
+          description: Information about the proportions of atoms
+          type: string
+          example: C4H6N4O3S2
+        mordred:
+          description: Results from the molecular descriptor calculator (https://github.com/mordred-descriptor/mordred)
+          type: object
+        morgan:
+          description: Morgan fingerprint
+          type: array
+          items:
+            type: integer
 
     FileDescription:
       type: object
+      required: [ length, filename ]
       properties:
         length:
           type: integer
@@ -1157,7 +1340,7 @@ components:
           example: 368194
         filename:
           type: string
-          example: md.structure.pdb
+          example: structure.pdb
         md5:
           type: string
           pattern: '^[0-9a-f]{32}$'
@@ -1196,3 +1379,43 @@ definitions:
       schema:
         type: string
       example: Q9BYF1
+    PubChemID:
+      name: PubChemID
+      in: path
+      description: >
+        PubChem accession ID
+      required: true
+      schema:
+        type: string
+      example: 1986
+  bin format:
+    type: string
+    format: binary
+    description: >
+      Binary float32 coordinates in a row and nothing else.
+      There is no separator between frames or atoms or x, y and z coordinates.
+    example: <binary>
+  mdcrd format:
+    type: string
+    format: text
+    description: >
+      ASCII format including coordinates separated by white spaces.<br>
+      Every row includes 10 coordinates.
+    example: > # Los breaks tipo /n o <br /> no funcionan aquí, el breakline entre título y coordenadas hace que se vea bien
+      Node name - Accession id
+
+        42.750  43.800  52.570  43.330  44.600  52.780  42.390  43.540  53.480  42.050
+        43.930  51.850  43.650  42.720  52.080  44.490  42.640  52.780  42.940  41.360
+        52.070  43.620  40.580  51.720  42.650  41.110  53.090  41.720  41.240  51.140
+        40.490  41.780  51.370  40.110  42.220  52.280  39.760  41.800  50.170  38.840
+        42.200  50.050  40.450  41.270  49.130  40.130  41.140  47.810  39.140  41.330
+  xtc format:
+    type: string
+    format: binary
+    description: Gromacs format (compressed). Specification at https://manual.gromacs.org/archive/5.0.4/online/xtc.html
+    example: <binary>
+  trr format:
+    type: string
+    format: binary
+    description: Gromacs format. Specification at https://manual.gromacs.org/archive/5.0.4/online/trr.html
+    example: <binary>
