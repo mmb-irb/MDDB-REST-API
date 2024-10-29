@@ -430,6 +430,7 @@ paths:
                   anyOf:
                     - $ref: '#/components/schemas/ProteinReference'
                     - $ref: '#/components/schemas/LigandReference'
+                    - $ref: '#/components/schemas/PdbReference'
 
   /references/proteins:
     get:
@@ -454,7 +455,7 @@ paths:
 
   /references/proteins/{UniProtID}:
     get:
-      summary: Get a specific reference.
+      summary: Get a specific protein reference.
       description: >
         Get protein reference data for the specified UniProt ID.
         This endpoint is OPTIONAL for the federated system.
@@ -493,7 +494,7 @@ paths:
 
   /references/ligands/{PubChemID}:
     get:
-      summary: Get a specific reference.
+      summary: Get a specific ligand reference.
       description: >
         Get ligand reference data for the specified PubChem ID.
         This endpoint is OPTIONAL for the federated system.
@@ -508,6 +509,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LigandReference'
+
+  /references/pdb_refs:
+    get:
+      summary: Get all available PDB reference ids.
+      description: >
+        Get a list of PDB IDs with for each ligand reference in the database.
+      tags:
+        - references
+      responses:
+        200:
+          description: List of PDB IDs
+          content:
+            application/json:
+              type: array
+              items:
+                type: string
+              example:
+                - 12CA
+                - 153L
+                - 16PK
+
+  /references/pdb_refs/{PDBID}:
+    get:
+      summary: Get a specific PDB reference.
+      description: >
+        Get ligand reference data for the specified PubChem ID.
+      tags:
+        - references
+      parameters:
+        - $ref: '#/definitions/arguments/PDBID'
+      responses:
+        200:
+          description: PDB reference data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdbReference'
 
   /projects/{projectAccessionOrID}/files:
     get:
@@ -1300,7 +1338,7 @@ components:
         pubchem:
           description: PubChem id
           type: string
-          example: 1986
+          example: "1986"
         drugbank:
           description: DrugBank id
           type: string
@@ -1329,6 +1367,61 @@ components:
           type: array
           items:
             type: integer
+
+    PdbReference:
+      type: object
+      required:
+        - id
+        - title
+        - class
+        - authors
+        - date
+        - organism
+        - method
+        - resolution
+        - chain_uniprots
+      properties:
+        id:
+          description: PDB id
+          type: string
+          example: 12CA
+        title:
+          description: Name of the PDB entry
+          type: string
+          example: Altering the mouth of a hydrophobic pocket...
+        class:
+          description: PDB classification
+          type: string
+          example: Lyase(oxo-acid)
+        authors:
+          description: List of authors
+          type: array
+          items:
+            type: string
+          example:
+            - CHRISTIANSON, D.W.
+            - NAIR, S.K.
+        date:
+          description: Publication date
+          type: string
+          example: 10/01/91
+        organism:
+          description: Source organism
+          type: string
+          example: Homo sapiens
+        method:
+          description: Experimental method
+          type: string
+          example: X-RAY DIFFRACTION
+        resolution:
+          description: Experimental resolution
+          type: float
+          example: 2.4
+        chain_uniprots:
+          description: Uniprot Id of every chain
+          type: object
+          example:
+            A: P00918
 
     FileDescription:
       type: object
@@ -1387,7 +1480,16 @@ definitions:
       required: true
       schema:
         type: string
-      example: 1986
+      example: "1986"
+    PDBID:
+      name: PDBID
+      in: path
+      description: >
+        PDB accession ID
+      required: true
+      schema:
+        type: string
+      example: 12CA
   bin format:
     type: string
     format: binary

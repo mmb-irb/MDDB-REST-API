@@ -10,6 +10,11 @@ const REFERENCES = {
         collectionName: 'ligands',
         idField: 'pubchem',
         projectIdsField: 'metadata.LIGANDS'
+    },
+    pdb_refs: {
+        collectionName: 'pdb_refs',
+        idField: 'id',
+        projectIdsField: 'metadata.PDBIDS'
     }
 };
 

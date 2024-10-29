@@ -4,7 +4,7 @@ const dbConnection = process.env.NODE_ENV === 'test'
     ? require('../../test-helpers/mongo/index')
     : require('../models/index');
 
-// Import references configuration
+// Import collections configuration
 const { LOCAL_COLLECTION_NAMES, GLOBAL_COLLECTION_NAMES } = require('../utils/constants');
 
 // Get an automatic mongo query parser based on environment and request
