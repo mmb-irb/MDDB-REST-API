@@ -102,7 +102,6 @@ Object.entries(hostConfig).forEach(([host, config]) => {
 const getSwaggerDocs = request => {
   // Get the hostname from the request
   const host = request.get('host');
-  console.log(host);
   return swaggerResponses[host] || swaggerResponses[null];
 };
 
