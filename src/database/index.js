@@ -6,16 +6,16 @@ const dbConnection = process.env.NODE_ENV === 'test'
 
 // Import collections configuration
 const { LOCAL_COLLECTION_NAMES, GLOBAL_COLLECTION_NAMES } = require('../utils/constants');
-
 // Get an automatic mongo query parser based on environment and request
 const { getProjectQuery, getMdIndex } = require('../utils/get-project-query');
 // Get a function to clean raw project data to a standard format
 const projectFormatter = require('../utils/project-formatter');
 // Get auxiliar functions
 const { getConfig } = require('../utils/auxiliar-functions');
-
 // Standard HTTP response status codes
 const { NOT_FOUND, BAD_REQUEST } = require('../utils/status-codes');
+// The project class is used to handle database data from a specific project
+const Project = require('./project');
 
 // Set the project class
 class Database {
@@ -68,20 +68,21 @@ class Database {
         return projectFormatter(rawProjectData, requestedMdIndex);
     }
 
-    // Get all monitored nodes in a singe object where node aliases are the object keys
-    // get nodeList () {
-    //     return (async () => {
-    //         // Get the current list of nodes and make sure it is not empty
-    //         const list = await this.nodes.find().toArray();
-    //         if (!list || list.length === 0) throw new Error('There are no nodes to be monitored');
-    //         // Convert the list to an object where node aliases are the keys
-    //         const nodeList = {};
-    //         list.forEach(node => {
-    //             nodeList[node.alias] = { name: node.name, url: node.api_url };
-    //         });
-    //         return nodeList;
-    //     })();
-    // }
+    // Get project data properly formatted
+    // If there is any problem send informative errors
+    getProject = async () => {
+        // Get project raw data
+        const rawProjectData = await this.getRawProjectData();
+        // If something went wrong when requesting raw data then stop here
+        if (rawProjectData.error) return rawProjectData;
+        // Get the md index from the request or use the reference MD id in case it is missing
+        const requestedMdIndex = getMdIndex(this.request);
+        // If something went wrong with the MD request then return the error
+        if (requestedMdIndex instanceof Error) return { headerError: BAD_REQUEST, error: requestedMdIndex.message };
+        // Return the formatted data
+        const formattedData = projectFormatter(rawProjectData, requestedMdIndex);
+        return new Project(formattedData, this);
+    }
 
     // Close the connection to mongo and delete this handler
     close = () => {

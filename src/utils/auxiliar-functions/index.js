@@ -83,10 +83,19 @@ const getConfig = request => {
     };
 }
 
+// Given 2 sets, return the intersection between them
+// This should be done using the set intersection function, but this is not implemented in old js versions
+const intersection = (set1, set2) => {
+    const matches = [];
+    set1.forEach(value => { if (set2.has(value)) matches.push(value) });
+    return new Set(matches);
+}
+
 module.exports = {
     parseJSON,
     isIterable,
     setOutpuFilename,
     getValueGetter,
-    getConfig
+    getConfig,
+    intersection
 }

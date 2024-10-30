@@ -3,8 +3,6 @@ const Router = require('express').Router;
 const handler = require('../../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../../database');
-// Standard HTTP response status codes
-const { NOT_FOUND } = require('../../../utils/status-codes');
 
 const router = Router({ mergeParams: true });
 
@@ -15,11 +13,11 @@ router.route('/').get(
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
       // Get the requested project data
-      const projectData = await database.getProjectData();
+      const project = await database.getProject();
       // If there was any problem then return the errors
-      if (projectData.error) return projectData;
+      if (project.error) return project;
       // Return analysis names only
-      return projectData.analyses;
+      return project.data.analyses;
     }
   }),
 );
@@ -31,32 +29,12 @@ router.route('/:analysis').get(
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
       // Get the requested project data
-      const projectData = await database.getProjectData();
+      const project = await database.getProject();
       // If there was any problem then return the errors
-      if (projectData.error) return projectData;
+      if (project.error) return project;
       // Query the database and retrieve the requested analysis
-      const analysisData = await database.analyses.findOne(
-        // Set the query
-        {
-          project: projectData.internalId,
-          md: projectData.mdIndex,
-          name: request.params.analysis.toLowerCase(),
-        },
-        // Skip some useless values
-        { projection: { _id: false, name: false, project: false, md: false } },
-      );
-      // If we did not found the analysis then return a not found error
-      if (!analysisData) return {
-        headerError: NOT_FOUND,
-        error: `Analysis "${request.params.analysis}" not found. Project ${
-          projectData.accession
-        } has the following available analyses: ${
-          // Get the list of available analyses for this project to provide more help
-          projectData.analyses.join(', ')
-        }`
-      };
-      // Send the analysis data
-      return analysisData.value;
+      const analysisName = request.params.analysis.toLowerCase();
+      return await project.getAnalysisData(analysisName);
     }
   }),
 );

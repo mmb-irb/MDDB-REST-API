@@ -339,6 +339,8 @@ localRouter.use('/:project/references', require('./references'));
 localRouter.use('/:project/inputs', require('./inputs'));
 // Topology
 localRouter.use('/:project/topology', require('./topology'));
+// Knowledge
+localRouter.use('/:project/knowledge', require('./knowledge'));
 
 // If we are using the global API then any further query is mapped to the corresponding database
 // Set a handler to be used for both GET and POST methods
