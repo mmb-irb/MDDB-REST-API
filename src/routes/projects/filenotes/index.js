@@ -4,7 +4,7 @@ const handler = require('../../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../../database');
 // Get an automatic mongo query parser based on environment and request
-const { isObjectId } = require('../../../utils/get-project-query');
+const { isObjectId } = require('../../../utils/auxiliar-functions');
 
 // Standard HTTP response status codes
 const { INTERNAL_SERVER_ERROR, BAD_REQUEST, NOT_FOUND } = require('../../../utils/status-codes');

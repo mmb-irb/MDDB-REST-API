@@ -15,6 +15,11 @@ const parseJSON = string => {
     }
 };
 
+// Set a function to ckeck if a string is a mongo internal id
+// WARNING: Do not use the builtin 'ObjectId.isValid'
+// WARNING: It returns true with whatever string 12 characters long
+const isObjectId = string => /^[a-z0-9]{24}$/.test(string);
+
 // Set a function to check if an object is iterable
 const isIterable = obj => {
     if (!obj) return false;
@@ -93,6 +98,7 @@ const intersection = (set1, set2) => {
 
 module.exports = {
     parseJSON,
+    isObjectId,
     isIterable,
     setOutpuFilename,
     getValueGetter,

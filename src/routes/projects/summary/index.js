@@ -5,8 +5,6 @@ const handler = require('../../../utils/generic-handler');
 const getDatabase = require('../../../database');
 // Standard HTTP response status codes
 const { BAD_REQUEST } = require('../../../utils/status-codes');
-// Get an automatic mongo query parser based on environment and request
-const { getBaseFilter } = require('../../../utils/get-project-query');
 // Set a error-proof JSON parser
 const { parseJSON } = require('../../../utils/auxiliar-functions');
 // Import references configuration
@@ -22,7 +20,7 @@ router.route('/').get(
       const database = await getDatabase(request);
       // Set an object with all the parameters to performe the mongo query
       // Start filtering by published projects only if we are in production environment
-      const finder = getBaseFilter(request);
+      const finder = database.getBaseFilter();
       // Handle when there is a mongo query
       let query = request.query.query;
       if (query) {

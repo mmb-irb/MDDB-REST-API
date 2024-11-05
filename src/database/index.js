@@ -6,8 +6,6 @@ const dbConnection = process.env.NODE_ENV === 'test'
 
 // Import collections configuration
 const { LOCAL_COLLECTION_NAMES, GLOBAL_COLLECTION_NAMES } = require('../utils/constants');
-// Get an automatic mongo query parser based on environment and request
-const { getProjectQuery, getMdIndex } = require('../utils/get-project-query');
 // Get a function to clean raw project data to a standard format
 const projectFormatter = require('../utils/project-formatter');
 // Get auxiliar functions
@@ -16,6 +14,17 @@ const { getConfig } = require('../utils/auxiliar-functions');
 const { NOT_FOUND, BAD_REQUEST } = require('../utils/status-codes');
 // The project class is used to handle database data from a specific project
 const Project = require('./project');
+
+// This function returns an object with the mongo object id
+// This id is associated to the provided idOrAccession when it is valid
+// When the idOrAccession is not valid for mongo it just returns the same idOrAccession
+// In addition, it returns the provided filters
+const { ObjectId } = require('mongodb');
+
+// Set a function to ckeck if a string is a mongo internal id
+// WARNING: Do not use the builtin 'ObjectId.isValid'
+// WARNING: It returns true with whatever string 12 characters long
+const isObjectId = string => /^[a-z0-9]{24}$/.test(string);
 
 // Set the project class
 class Database {
@@ -38,32 +47,113 @@ class Database {
         for (const [collectionAlias, collectionName] of Object.entries(collectionNames)) {
             this[collectionAlias] = db.collection(collectionName);
         }
+        // Save some internal values
+        this._requestedMdIndex = undefined;
+    };
+
+    // Join the published filter, the collection filter and the posited filter in one single filter
+    getBaseFilter = () => {
+        // Check if it is a production API
+        const isProduction = this.config.production;
+        // Set the published filter according to the enviornment (.env file)
+        // If the environment is tagged as "production" only published projects are returned from mongo
+        const publishedFilter = Object.seal(isProduction ? { published: true } : {});
+        // Check if it is a global API
+        const isGlobal = this.config && this.config.global;
+        // Set a filter for the global API to not return unposited projects
+        // Note that a non global API is not expected to have this field so it makes not sense applying the filter
+        const positedFilter = Object.seal(isGlobal ? { unposited: { $exists: false } } : {});
+        // Set the collection filter according to the request URL
+        // This filter is applied over the project metadata 'collections', nothing to do with mongo collections
+        // Note that unknown hosts (e.g. 'localhost:8000') will get all simulations, with no filter
+        const hostCollection = this.config && this.config.collection;
+        const collectionFilter = Object.seal(hostCollection ? { 'metadata.COLLECTIONS': hostCollection } : {});
+        // Return all filters together, including also the publsihed filter
+        return { ...publishedFilter, ...positedFilter, ...collectionFilter };
+    };
+
+    // Given the API request, set the project(s) query by the following steps:
+    // 1 - Set a published filter according to if it we are in a development or production environment
+    // 2 - Set a collection filter based on the origin of the call
+    // 3 - Set a project and md filter based on the id or accession in the request
+    getProjectQuery = () => {
+        // Add the base filter to the query
+        const query = { ...this.getBaseFilter() };
+        // Get the project id or accession
+        const idOrAccession = this.request.params.project;
+        const project = idOrAccession.split('.')[0];
+        // Check if the idOrAccession is a mongo internal object id
+        if (isObjectId(project)) {
+            // Check if it is a global API
+            const isGlobal = this.config && this.config.global;
+            // If so, we must complain
+            if (isGlobal) return new Error('Internal identifiers are not supported by the global API');
+            query._id = ObjectId(project);
+        }
+        // Otherwise we asume it is an accession
+        else query.accession = project;
+        // Return the query
+        return query;
+    };
+
+    // Find the requested MD index
+    // Note that it may be different from the actual MD index since the requested may be null
+    // This parameters is saved and reused because it mya be called by different sources in a single API call
+    get requestedMdIndex () {
+        // If we already have an internal value then return it
+        if (this._requestedMdIndex !== undefined) return this._requestedMdIndex;
+        // Otherwise we must get the value
+        // Get the requested accession or project id
+        const idOrAccession = this.request.params.project;
+        // Extract the MD number, if any
+        // If there is no MD number in the requets then return null
+        const splits = idOrAccession.split('.');
+        if (splits.length < 2) return null;
+        const mdNumber = +splits[1];
+        // If the second split is not parsable to a number then the request is wrong
+        if (isNaN(mdNumber)) return new Error('MD number must be numeric');
+        // The MD number is 1-based, so if it is 0 then the request is wrong
+        if (mdNumber <= 0) return new Error('MD number must be greater than 0');
+        // Get the MD index by substracting 1 to the MD number
+        // Save the MD index and return it
+        this._requestedMdIndex = mdNumber - 1;
+        return this._requestedMdIndex;
     };
 
     // Get project data as is in the database
-    // If there is any problem send informative errors
+    // Here data includes all MDs
     getRawProjectData = async (projection = {}) => {
-        // Find the project from the request
-        // Return the project which matches the request accession
-        // This is used by several endpoints so do not exclude any data
-        const projectQuery = getProjectQuery(this.request);
+        // Set the project query for the database according to the request parameters
+        const projectQuery = this.getProjectQuery();
+        // If something went wrong with the project request then return the error
+        if (projectQuery instanceof Error) return {
+            headerError: BAD_REQUEST,
+            error: projectQuery.message
+        };
+        // Get project data from the database
         const rawProjectData = await this.projects.findOne(projectQuery, { projection });
         // If we did not found the project then stop here
-        if (!rawProjectData) return { headerError: NOT_FOUND, error: 'Project was not found' };
+        if (!rawProjectData) return {
+            headerError: NOT_FOUND,
+            error: `Project ${this.request.params.project} was not found`
+        };
         return rawProjectData;
     }
 
     // Get project data properly formatted
-    // If there is any problem send informative errors
+    // Here data belongs to a specific MD
     getProjectData = async () => {
         // Get project raw data
         const rawProjectData = await this.getRawProjectData();
         // If something went wrong when requesting raw data then stop here
         if (rawProjectData.error) return rawProjectData;
         // Get the md index from the request or use the reference MD id in case it is missing
-        const requestedMdIndex = getMdIndex(this.request);
+        const requestedMdIndex = this.requestedMdIndex;
         // If something went wrong with the MD request then return the error
-        if (requestedMdIndex instanceof Error) return { headerError: BAD_REQUEST, error: requestedMdIndex.message };
+        if (requestedMdIndex instanceof Error) return {
+            headerError: BAD_REQUEST,
+            error: requestedMdIndex.message
+        };
         // Return the formatted data
         return projectFormatter(rawProjectData, requestedMdIndex);
     }
@@ -71,17 +161,12 @@ class Database {
     // Get project data properly formatted
     // If there is any problem send informative errors
     getProject = async () => {
-        // Get project raw data
-        const rawProjectData = await this.getRawProjectData();
-        // If something went wrong when requesting raw data then stop here
-        if (rawProjectData.error) return rawProjectData;
-        // Get the md index from the request or use the reference MD id in case it is missing
-        const requestedMdIndex = getMdIndex(this.request);
-        // If something went wrong with the MD request then return the error
-        if (requestedMdIndex instanceof Error) return { headerError: BAD_REQUEST, error: requestedMdIndex.message };
-        // Return the formatted data
-        const formattedData = projectFormatter(rawProjectData, requestedMdIndex);
-        return new Project(formattedData, this);
+        // Get project data
+        const projectData = await this.getProjectData();
+        // If something went wrong with project data then stop here
+        if (projectData.error) return projectData;
+        // Return the project handler
+        return new Project(projectData, this);
     }
 
     // Close the connection to mongo and delete this handler

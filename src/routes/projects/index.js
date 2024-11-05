@@ -4,12 +4,6 @@ const { ObjectId } = require('mongodb');
 const handler = require('../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../database');
-// Get an automatic mongo query parser based on environment and request
-const {
-  getProjectQuery,
-  getBaseFilter,
-  getMdIndex,
-} = require('../../utils/get-project-query');
 // Get the project formatter
 const projectFormatter = require('../../utils/project-formatter');
 // Get auxiliar functions
@@ -45,7 +39,7 @@ projectRouter.route('/').get(
       const database = await getDatabase(request);
       // Set an object with all the parameters to performe the mongo query
       // Start filtering by published projects only if we are in production environment
-      const finder = getBaseFilter(request);
+      const finder = database.getBaseFilter();
       // Then, search by 'search' parameters
       // Look for the search text in the accession and some metadata/pdbInfo fields
       const search = request.query.search;
@@ -289,28 +283,14 @@ projectRouter.route('/:project').get(
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
-      // Set the project filter
-      const projectFilter = getProjectQuery(request);
-      // Do the query
-      const projectData = await database.projects.findOne(projectFilter);
-      if (!projectData) return {
-        headerError: NOT_FOUND,
-        error: `Project "${request.params.project}" not found`
-      };
-      // Get the md number from the request
-      const requestedMdIndex = getMdIndex(request);
-      // If something went wrong with the MD request then return the error
-      if (requestedMdIndex instanceof Error) return {
-        headerError: BAD_REQUEST,
-        error: requestedMdIndex.message
-      };
       // Check if the raw flag has been passed
       const raw = request.query.raw;
       const isRaw = raw !== undefined && raw !== 'false';
-      // Filter project data according to the requested MD index
-      // Note that this function may include errors in the project
-      if (!isRaw) projectFormatter(projectData, requestedMdIndex);
-      // Return the project which matches the request project ID (accession)
+      // Get project data, either raw or already formatted
+      const projectData = isRaw
+        ? await database.getRawProjectData()
+        : await database.getProjectData();
+      // Return project data as is
       return projectData;
     }
   }),
@@ -348,24 +328,14 @@ const redirectHandler = handler({
   async retriever(request) {
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);
-    // Set the project filter
-    const projectFilter = getProjectQuery(request);
-    // Do the query
-    const projectData = await database.projects.findOne(projectFilter);
-    if (!projectData) return {
-      headerError: NOT_FOUND,
-      error: `Project ${request.params.project} not found`
-    };
-    // Get the md number from the request
-    const requestedMdIndex = getMdIndex(request);
-    // If something went wrong with the MD request then return the error
-    if (requestedMdIndex instanceof Error) return {
-      headerError: BAD_REQUEST,
-      error: requestedMdIndex.message
-    };
+    // Get the project
+    const projectData = await database.getProjectData();
     // Set the local id to ask
     let localAccession = projectData.local;
+    // Get the requested MD and add it to the local accession, if any
+    const requestedMdIndex = database.requestedMdIndex;
     if (requestedMdIndex !== null) localAccession += `.${requestedMdIndex + 1}`;
+    console.log('REDIRECTED TO ' + localAccession);
     // Find the database thes project belongs to
     const nodeAlias = projectData.node;
     // Get the corresponding node
