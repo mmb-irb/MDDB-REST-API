@@ -41,6 +41,8 @@ const getBaseFilter = request => {
 // 2 - Set a collection filter based on the origin of the call
 // 3 - Set a project and md filter based on the id or accession in the request
 const getProjectQuery = request => {
+  // Get host configuration
+  const config = getConfig(request);
   // Add the base filter to the query
   const baseFilter = getBaseFilter(request);
   const query = { ...baseFilter };
@@ -49,6 +51,9 @@ const getProjectQuery = request => {
   const project = idOrAccession.split('.')[0];
   // Check if the idOrAccession is a mongo internal object id
   if (isObjectId(project)) {
+    // Check if it is a global API
+    const isGlobal = config && config.global;
+    // If so, we must complain
     if (isGlobal) return new Error('Internal identifiers are not supported by the global API');
     query._id = ObjectId(project);
   }
