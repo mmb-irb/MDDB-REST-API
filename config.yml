@@ -16,20 +16,20 @@ hosts:
     mdposit.mddbr.eu:
         name: MDposit
         description: The main server including all simulations
-        accession: A0001
+        accession: MD-A00001
         global: true
         production: true
 
     mdposit-dev.mddbr.eu:
         name: MDposit
         description: The main server including all simulations
-        accession: A0001
+        accession: MD-A00001
         global: true
 
     mdposit-dev.bsc.es:
         name: MDposit (obsolete)
         description: The main server including all simulations
-        accession: A0001
+        accession: MD-A00001
 
     bioexcel-cv19.bsc.es:
         name: BioExcel-CV19
