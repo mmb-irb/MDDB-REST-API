@@ -15,6 +15,11 @@ const REFERENCES = {
         collectionName: 'pdb_refs',
         idField: 'id',
         projectIdsField: 'metadata.PDBIDS'
+    },
+    chains: {
+        collectionName: 'chain_refs',
+        idField: 'sequence',
+        projectIdsField: 'metadata.PROTSEQ'
     }
 };
 
