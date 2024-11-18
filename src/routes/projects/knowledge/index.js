@@ -59,7 +59,7 @@ router.route('/sasa').get(
       // If there was any problem then stop here
       if (referenceData.error) return referenceData;
       // Filter PDB references
-      const pdbReferences = referenceData.filter(reference => reference.ref_type === 'pdb_refs');
+      const pdbReferences = referenceData.filter(reference => reference.ref_type === 'pdbs');
       // Make sure we have PDB references
       if (pdbReferences.length === 0) return {
         headerError: NOT_FOUND,

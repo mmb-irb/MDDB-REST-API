@@ -510,7 +510,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/LigandReference'
 
-  /references/pdb_refs:
+  /references/pdbs:
     get:
       summary: Get all available PDB reference ids.
       description: >
@@ -530,7 +530,7 @@ paths:
                 - 153L
                 - 16PK
 
-  /references/pdb_refs/{PDBID}:
+  /references/pdbs/{PDBID}:
     get:
       summary: Get a specific PDB reference.
       description: >
