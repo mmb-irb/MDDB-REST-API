@@ -40,12 +40,17 @@ router.route('/:chain').get(
       // If there was any problem then return the errors
       if (projectData.error) return projectData;
       // Find the chain with the provided name and project id
-      const chain = await database.chains.findOne(
+      console.log(projectData.internalId);
+      const chain = await database.old_chains.findOne(
         // Set the query
         { project: projectData.internalId, name: request.params.chain },
         // But do not return the _id and project attributes
         { projection: { _id: false, project: false } },
       );
+      if (!chain) return {
+        headerError: NOT_FOUND,
+        error: `Project "${projectData.accession}" has no chain ${request.params.chain}`
+      }
       return chain;
     },
   }),

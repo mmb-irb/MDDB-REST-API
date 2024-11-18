@@ -29,7 +29,7 @@ const LOCAL_COLLECTION_NAMES = {
     topologies: 'topologies',
     analyses: 'analyses',
     files: 'fs.files',
-    chains: 'chains',
+    old_chains: 'chains',
 };
 // Add local reference collections
 Object.entries(REFERENCES).forEach(([referenceName, reference]) => {
