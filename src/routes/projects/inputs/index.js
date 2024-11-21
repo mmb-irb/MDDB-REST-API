@@ -89,7 +89,7 @@ router.route('/').get(
         thanks: metadata.THANKS,
         accession: projectData.accession,
         links: metadata.LINKS,
-        pdbIds: metadata.PDBIDS,
+        pdb_ids: metadata.PDBIDS,
         framestep: metadata.FRAMESTEP,
         temp: metadata.TEMP,
         ensemble: metadata.ENSEMBLE,
