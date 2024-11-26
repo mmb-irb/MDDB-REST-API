@@ -233,8 +233,12 @@ router.route('/').get(
       if (requestedProjections.projects.length !== 0) {
         // For each projected field, get the counts
         requestedProjections.projects.forEach(field => {
-          const values = [];
-          const getValues = (object, steps) => {
+          // For each different value, save all project "indices" including it
+          // This allows us to not count the same project twice
+          // However we do not care which project has it, so we do not use the project id or similar
+          const values = {};
+          // Set a recursive function to reach indented values
+          const getValues = (object, steps, projectIndex) => {
             let value = object;
             for (const [index, step] of steps.entries()) {
               value = value[step];
@@ -242,17 +246,22 @@ router.route('/').get(
               // In case it is an array search for the remaining steps on each element
               if (Array.isArray(value)) {
                 const remainingSteps = steps.slice(index + 1);
-                value.forEach(element => getValues(element, remainingSteps));
+                value.forEach(element => getValues(element, remainingSteps, projectIndex));
                 return;
               }
             }
-            values.push(value);
+            // Get the set of projects with the current value and update it
+            const currentValueProjects = values[value];
+            if (currentValueProjects) currentValueProjects.add(projectIndex);
+            else values[value] = new Set([ projectIndex ]);
           };
+          // Start the recursive function here
           const fieldSteps = field.split('.');
-          projectsData.forEach(projectData => getValues(projectData, fieldSteps));
+          projectsData.forEach((projectData, projectIndex) => getValues(projectData, fieldSteps, projectIndex));
           // Count how many times is repeated each value and save the number with the fieldname key
           const counts = {};
-          values.forEach(v => (counts[v] = (counts[v] || 0) + 1));
+          Object.entries(values).forEach(([value, projectIndices]) => { counts[value] = projectIndices.size });
+          // Add current field counts to the overall options object to be returned
           options[field] = counts;
         });
       }
