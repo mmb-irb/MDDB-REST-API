@@ -14,7 +14,7 @@ const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../../utils/status-code
 // Get the standard name of the structure file
 const { STANDARD_STRUCTURE_FILENAME } = require('../../../utils/constants');
 // Get a function to issue a standard output filename
-const { setOutpuFilename } = require('../../../utils/auxiliar-functions');
+const { setOutputFilename } = require('../../../utils/auxiliar-functions');
 
 const router = Router({ mergeParams: true });
 
@@ -70,7 +70,7 @@ const structureHandler = handler({
       stream = bucket.openDownloadStream(fileId);
     }
     // Set the output filename according to some standards
-    const filename = setOutpuFilename(projectData, descriptor);
+    const filename = setOutputFilename(projectData, descriptor);
     return { filename, descriptor, stream };
   },
   // Handle the response header

@@ -26,7 +26,7 @@ const {
 } = require('../../../utils/constants');
 
 // Get a function to issue a standard output filename
-const { setOutpuFilename, getConfig } = require('../../../utils/auxiliar-functions');
+const { setOutputFilename, getConfig } = require('../../../utils/auxiliar-functions');
 
 // Standard HTTP response status codes
 const {
@@ -240,7 +240,7 @@ const trajectoryHandler = handler({
       stream = rangedStream;
     } else throw new Error('Missing instructions to export format');
     // Set the output filename according to some standards
-    const filename = setOutpuFilename(projectData, descriptor, transformFormatName);
+    const filename = setOutputFilename(projectData, descriptor, transformFormatName);
     return {
       stream,
       filename,

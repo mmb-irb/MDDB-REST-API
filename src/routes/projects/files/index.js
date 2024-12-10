@@ -18,7 +18,7 @@ const getRangedStream = require('../../../utils/get-ranged-stream');
 // Converts a binary file (.bin) into actual values
 const binToValues = require('../../../utils/bin-to-values');
 // Load a function to check if an object is iterable
-const { isIterable, setOutpuFilename } = require('../../../utils/auxiliar-functions');
+const { isIterable, setOutputFilename } = require('../../../utils/auxiliar-functions');
 
 const router = Router({ mergeParams: true });
 
@@ -129,7 +129,7 @@ router.route('/:file').get(
       }
       // Set the output filename
       const forcedFormat = isParse ? 'txt' : null;
-      const filename = setOutpuFilename(projectData, descriptor, forcedFormat);
+      const filename = setOutputFilename(projectData, descriptor, forcedFormat);
       return { filename, descriptor, stream: finalStream, byteSize };
     },
     // Handle the response header

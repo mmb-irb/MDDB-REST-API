@@ -27,7 +27,7 @@ const isIterable = obj => {
 };
 
 // Set output filename
-const setOutpuFilename = (projectData, descriptor, forcedFormat = null) => {
+const setOutputFilename = (projectData, descriptor, forcedFormat = null) => {
     // Set the prefix
     // Add the id or accession as prefix but replacing non filename-friendly characters
     let prefix = (projectData.accession || projectData.internalId.toString()).replace(':','_');
@@ -100,7 +100,7 @@ module.exports = {
     parseJSON,
     isObjectId,
     isIterable,
-    setOutpuFilename,
+    setOutputFilename,
     getValueGetter,
     getConfig,
     intersection
