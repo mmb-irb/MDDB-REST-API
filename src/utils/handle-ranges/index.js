@@ -220,7 +220,23 @@ const handleRanges = (request, parsedRanges, descriptor) => {
   // Note that ranger still may be bits or bytes
   // Make the conversion to bytes in case we are handling bits
   let byteRanger;
-  if (handleBytes) byteRanger = ranger;
+  if (handleBytes) {
+    // In this case the byte ranger is already the ranger
+    byteRanger = ranger;
+    // Set a simple parser
+    range.parseByteRanger = function* () {
+      const bitRanges = ranger();
+      for (const r of bitRanges) {
+        // Yield the current range
+        yield {
+          start: r.start,
+          end: r.end,
+          offset: 0,
+          progress: r.end - r.start
+        };
+      }
+    }
+  }
   else {
     // We set the byte ranger for bytes to be downloaded from the database
     // Note that byte ranges may overlap so we must merge them to improve efficiency during download
@@ -262,7 +278,7 @@ const handleRanges = (request, parsedRanges, descriptor) => {
     }
   }
 
-  // Use ths to debug the generator
+  // Use this to debug the generator
   // console.log('DEBUG');
   // const debugRanges = Array.from(byteRanger());
   // console.log(debugRanges.length);
@@ -277,7 +293,7 @@ const handleRanges = (request, parsedRanges, descriptor) => {
   }
   range.byteSize = byteSize;
 
-  // By setting the symbol iterator we dfine what is to be returned when trying to iterate over the range object
+  // By setting the symbol iterator we define what is to be returned when trying to iterate over the range object
   range[Symbol.iterator] = byteRanger;
   return range;
 };

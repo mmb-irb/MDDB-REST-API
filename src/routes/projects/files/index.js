@@ -123,9 +123,8 @@ router.route('/:file').get(
         finalStream = binToValues(descriptor, range);
         rangedStream.pipe(finalStream);
         // Update the output size
-        // DANI: Esto está hardcodeado, hay que definir el output type a parsear en el file metadata
-        const OUTPUT_BYTES_PER_ELEMENT = 1;
-        byteSize = range.nvalues * OUTPUT_BYTES_PER_ELEMENT;
+        // The output bytes per value is written in our custom stream
+        byteSize = range.nvalues * finalStream.outputBytesPerValue;
       }
       // Set the output filename
       const forcedFormat = isParse ? 'txt' : null;

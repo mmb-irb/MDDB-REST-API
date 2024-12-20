@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "start": "npm-run-all --silent --print-label --parallel asbuild:watch server:watch",
-    "build": "npm run asbuild:crdparse; npm run asbuild:binparse; npm run asbuild:chemfiles",
+    "build": "npm run asbuild:crdparse; npm run asbuild:binparse; npm run asbuild:f32parse; npm run asbuild:chemfiles",
     "server:watch": "nodemon --inspect --ext js,json,yml index.js",
     "serve": "node index.js",
     "lint": "eslint '**/*.js'",
@@ -18,7 +18,8 @@
     "asbuild": "npm run asbuild:untouched && npm run asbuild:crdparse",
     "asbuild:watch": "nodemon --watch assembly --ext ts --exec \"npm run asbuild\"",
     "asbuild:chemfiles": "g++ -o build/chemfiles_bin_converter assembly/chemfiles_bin_converter.cpp -L /usr/local/lib -lchemfiles",
-    "asbuild:binparse": "asc assembly/binary_parser.ts -b build/binary_parser.wasm -t build/binary_parser.wat --sourceMap --validate --importMemory --optimize"
+    "asbuild:binparse": "asc assembly/binary_parser.ts -b build/binary_parser.wasm -t build/binary_parser.wat --sourceMap --validate --importMemory --optimize",
+    "asbuild:f32parse": "asc assembly/float32_parser.ts -b build/float32_parser.wasm -t build/float32_parser.wat --sourceMap --validate --importMemory --optimize"
   },
   "repository": {
     "type": "git",
