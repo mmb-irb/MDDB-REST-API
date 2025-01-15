@@ -151,6 +151,16 @@ router.route('/').get(
           const reference = REFERENCES[referenceName];
           // Set a getter function for the project reference ids field
           const projectIdsGetter = getValueGetter(reference.projectIdsField);
+          // Count the number of reference ids per project
+          const referenceIdCounts = {};
+          for (const projectData of projectsData) {
+            const projectReferenceIds = projectIdsGetter(projectData, reference.projectIdsField); 
+            if (!projectReferenceIds) continue;
+            projectReferenceIds.forEach(referenceId => {
+              if (referenceId in referenceIdCounts) referenceIdCounts[referenceId] += 1;
+              else referenceIdCounts[referenceId] = 1;
+            });
+          }
           // Get the requested projection fields for the curent reference
           // Remove both the reference header and the reference name from every field to get the actual fields
           // e.g. 'references.proteins.name' -> 'name'
@@ -202,23 +212,18 @@ router.route('/').get(
             };
             // Run the actual values mining
             const fieldSteps = field.split('.');
-            referencesData.forEach(referenceData =>
-              getValues(referenceData, fieldSteps, referenceData[reference.idField]),
-            );
-            // Count the number of reference ids per project
-            const referenceIdCounts = {};
-            for (const projectData of projectsData) {
-              const projectReferenceIds = projectIdsGetter(projectData, reference.projectIdsField); 
-              if (!projectReferenceIds) continue;
-              projectReferenceIds.forEach(referenceId => {
-                if (referenceId in referenceIdCounts) referenceIdCounts[referenceId] += 1;
-                else referenceIdCounts[referenceId] = 1;
-              });
-            }
+            referencesData.forEach(referenceData => {
+              const referenceId = referenceData[reference.idField];
+              // If the reference id is not among the project counts then skip it
+              // There will be no matches from it anyway
+              // This may happen when we do not target the whole database
+              if (!(referenceId in referenceIdCounts)) return;
+              getValues(referenceData, fieldSteps, referenceData[reference.idField])
+            });
             // Convert every reference ids list in the count of projects including any of these reference ids
             const valueCounts = {};
             Object.entries(referenceIdsPerValue).forEach(([value, referenceIds]) => {
-              const count = referenceIds.reduce((acc, curr) => acc + referenceIdCounts[curr], 0);
+              const count = referenceIds.reduce((acc, curr) => acc + (referenceIdCounts[curr] || 0), 0);
               // Add the count only if it is not 0
               // This may happen when a reference is orphan (i.e. its associated projects were deleted)
               if (count !== 0) valueCounts[value] = count;
