@@ -1,20 +1,19 @@
 const Router = require('express').Router;
-// GridFSBucket manages the saving of files bigger than 16 Mb, splitting them into 4 Mb fragments (chunks)
-const { GridFSBucket } = require('mongodb');
 const { Readable } = require('stream');
 // A standard request and response handler used widely in most endpoints
 const handler = require('../../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../../database');
-// Returns a pdb filtered according to an NGL selection
-const getSelectedPdb = require('../../../utils/get-selection-pdb-through-ngl');
 const consumeStream = require('../../../utils/consume-stream');
 // Standard HTTP response status codes
-const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
+const { INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
 // Get the standard name of the structure file
 const { STANDARD_STRUCTURE_FILENAME } = require('../../../utils/constants');
 // Get a function to issue a standard output filename
 const { setOutputFilename } = require('../../../utils/auxiliar-functions');
+const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
+// Function to produce a PDB from topology and coordinates
+const producePdb = require('./produce-pdb');
 
 const router = Router({ mergeParams: true });
 
@@ -26,52 +25,46 @@ const structureHandler = handler({
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);
     // Set the bucket, which allows downloading big files from the database
-    const bucket = new GridFSBucket(database.db);
+    const bucket = database.bucket;
     // Find the requested project data
-    const projectData = await database.getProjectData();
+    const project = await database.getProject();
     // If there was any problem then return the errors
-    if (projectData.error) return projectData;
-    // Set the file query
-    // Note that we target files with the current MD index (MD files) or null MD index (project files)
-    const fileQuery = {
-      'filename': STANDARD_STRUCTURE_FILENAME,
-      'metadata.project': projectData.internalId,
-      'metadata.md': { $in: [projectData.mdIndex, null] }
-    }
-    // Download the corresponding file
-    const descriptor = await database.files.findOne(fileQuery);
+    if (project.error) return project;
+    // Download the main structure file descriptor
+    const structureDescriptor = await project.getFileDescriptor(STANDARD_STRUCTURE_FILENAME);
     // If the object ID is not found in the data base the we have a mess
     // This is our fault, since a file id coming from a project must exist
-    if (!descriptor) return {
-      headerError: NOT_FOUND,
-      error: 'The structure file was not found in the files collection'
-    };
+    if (structureDescriptor.error) return structureDescriptor;
     // Get the file id
-    const fileId = descriptor._id;
+    const fileId = structureDescriptor._id;
     // Open a stream with the corresponding ID
     let stream = bucket.openDownloadStream(fileId);
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
     const selection = request.body.selection || request.query.selection;
-    // In case of selection query
+    // In case of selection query we will produce a filtered PDB
     if (selection) {
       // Open a stream and save it completely into memory
       const pdbFile = await consumeStream(bucket.openDownloadStream(fileId));
       // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
-      const selectedPdb = await getSelectedPdb(pdbFile, selection);
-      if (selectedPdb.error) return selectedPdb;
-      // Selected pdb will be never null, since an empty pdb file would have header and end
-      // Now convert the string pdb to a stream
-      //const bufferPdb = Buffer.from(selectedPdb, 'base64');
-      const bufferPdb = Buffer.from(selectedPdb, 'utf-8');
+      const atomIndices = await getAtomIndices(pdbFile, selection);
+      // Get the topology data
+      const topologyData = await project.getTopologyData();
+      // Get reference frame coordinates
+      const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame, atomIndices);
+      if (frameCoordinates.error) return frameCoordinates;
+      // Produce a filtered PDB file using both the topology data and reference frame coordinates
+      const pdbContent = producePdb(topologyData, frameCoordinates, atomIndices);
+      // Convert the PDB content to a buffer adn then to a stream
+      const bufferPdb = Buffer.from(pdbContent, 'utf-8');
       stream = Readable.from([bufferPdb]);
-      // Modify the original length
-      descriptor.length = bufferPdb.length;
+      // Modify the original descriptor length
+      structureDescriptor.length = bufferPdb.length;
     } else {
       stream = bucket.openDownloadStream(fileId);
     }
     // Set the output filename according to some standards
-    const filename = setOutputFilename(projectData, descriptor);
-    return { filename, descriptor, stream };
+    const filename = setOutputFilename(project.data, structureDescriptor);
+    return { filename, structureDescriptor, stream };
   },
   // Handle the response header
   headers(response, retrieved) {
@@ -80,13 +73,11 @@ const structureHandler = handler({
     // If there is any specific header error in the retrieved then send it
     // Note that we do not end the response here since the body may contain additional error details
     if (retrieved.headerError) return response.status(retrieved.headerError);
-    // If there is no descriptor then send a NOT FOUND signal as well
-    if (!retrieved.descriptor) return response.sendStatus(NOT_FOUND);
     // If there is an active stream, send range and length content
-    response.set('content-length', retrieved.descriptor.length);
+    response.set('content-length', retrieved.structureDescriptor.length);
     // Send content type also if known
-    if (retrieved.descriptor.contentType) {
-      response.set('content-type', retrieved.descriptor.contentType);
+    if (retrieved.structureDescriptor.contentType) {
+      response.set('content-type', retrieved.structureDescriptor.contentType);
     }
     // Set the output filename
     response.setHeader(

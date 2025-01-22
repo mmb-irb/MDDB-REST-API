@@ -1,6 +1,4 @@
 const Router = require('express').Router;
-// GridFSBucket manages the saving of files bigger than 16 Mb, splitting them into 4 Mb fragments (chunks)
-const { GridFSBucket } = require('mongodb');
 
 const handler = require('../../../utils/generic-handler');
 // Get the database handler
@@ -29,15 +27,15 @@ router.route('/').get(
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
       // Get the requested project data
-      const projectData = await database.getProjectData();
+      const project = await database.getProject();
       // If there was any problem then return the errors
-      if (projectData.error) return projectData;
+      if (project.error) return project;
       // If project data does not contain the 'mds' field then it may mean it is in the old format
-      if (!projectData.mds) return {
+      if (!project.data.mds) return {
         headerError: INTERNAL_SERVER_ERROR,
         error: 'Project is missing mds. Is it in an old format?'
       };
-      return projectData.files;
+      return project.data.files;
     }
   }),
 );
@@ -60,26 +58,16 @@ router.route('/:file').get(
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
       // Set the bucket, which allows downloading big files from the database
-      const bucket = new GridFSBucket(database.db);
+      const bucket = database.bucket;
       // Find the requested project data
-      const projectData = await database.getProjectData();
+      const project = await database.getProject();
       // If there was any problem then return the errors
-      if (projectData.error) return projectData;
-      // Set the file query
-      // Note that we target files with the current MD index (MD files) or null MD index (project files)
-      const fileQuery = {
-        'filename': request.params.file,
-        'metadata.project': projectData.internalId,
-        'metadata.md': { $in: [projectData.mdIndex, null] }
-      }
-      // Download the corresponding file
-      const descriptor = await database.files.findOne(fileQuery);
+      if (project.error) return project;
+      // Load the corresponding file descriptor
+      const descriptor = await project.getFileDescriptor(request.params.file);
       // If the object ID is not found in the data base the we have a mess
       // This is our fault, since a file id coming from a project must exist
-      if (!descriptor) return {
-        headerError: NOT_FOUND,
-        error: 'File was not found in the files collection'
-      };
+      if (descriptor.error) return descriptor;
       // Set the output size
       // Note this size will change if the output is ranged or parsed
       let byteSize = descriptor.length;
@@ -128,7 +116,7 @@ router.route('/:file').get(
       }
       // Set the output filename
       const forcedFormat = isParse ? 'txt' : null;
-      const filename = setOutputFilename(projectData, descriptor, forcedFormat);
+      const filename = setOutputFilename(project.data, descriptor, forcedFormat);
       return { filename, descriptor, stream: finalStream, byteSize };
     },
     // Handle the response header

@@ -15,11 +15,12 @@ const { NOT_FOUND, BAD_REQUEST } = require('../utils/status-codes');
 // The project class is used to handle database data from a specific project
 const Project = require('./project');
 
-// This function returns an object with the mongo object id
+// ObjectId returns an object with the mongo object id
 // This id is associated to the provided idOrAccession when it is valid
 // When the idOrAccession is not valid for mongo it just returns the same idOrAccession
 // In addition, it returns the provided filters
-const { ObjectId } = require('mongodb');
+// GridFSBucket manages the saving of files bigger than 16 Mb, splitting them into 4 Mb fragments (chunks)
+const { ObjectId, GridFSBucket } = require('mongodb');
 
 // Set a function to ckeck if a string is a mongo internal id
 // WARNING: Do not use the builtin 'ObjectId.isValid'
@@ -48,8 +49,18 @@ class Database {
             this[collectionAlias] = db.collection(collectionName);
         }
         // Save some internal values
+        this._bucket = undefined;
         this._requestedMdIndex = undefined;
     };
+
+    // Get the grid fs bucket
+    get bucket () {
+        // Return the internal value if it is already declared
+        if (this._bucket !== undefined) return this._bucket;
+        // Instantiate the bucket otherwise
+        this._bucket = new GridFSBucket(this.db);
+        return this._bucket;
+    }
 
     // Join the published filter, the collection filter and the posited filter in one single filter
     getBaseFilter = () => {

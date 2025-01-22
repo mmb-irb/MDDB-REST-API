@@ -1,6 +1,4 @@
 const Router = require('express').Router;
-// GridFSBucket manages the saving of files bigger than 16 Mb, splitting them into 4 Mb fragments (chunks)
-const { GridFSBucket } = require('mongodb');
 const { Readable, PassThrough } = require('stream');
 // A standard request and response handler used widely in most endpoints
 const handler = require('../../../utils/generic-handler');
@@ -22,7 +20,6 @@ const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
 // Get the standard name of both structure and trajectory files
 const {
   STANDARD_STRUCTURE_FILENAME,
-  STANDARD_TRAJECTORY_FILENAME
 } = require('../../../utils/constants');
 
 // Get a function to issue a standard output filename
@@ -32,7 +29,6 @@ const { setOutputFilename, getConfig } = require('../../../utils/auxiliar-functi
 const {
   BAD_REQUEST,
   INTERNAL_SERVER_ERROR,
-  NOT_FOUND
 } = require('../../../utils/status-codes');
 
 // Trajectory exporting supported formats
@@ -100,31 +96,15 @@ const trajectoryHandler = handler({
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);
     // Set the bucket, which allows downloading big files from the database
-    const bucket = new GridFSBucket(database.db);
+    const bucket = database.bucket;
     // Find the requested project data
-    const projectData = await database.getProjectData();
+    const project = await database.getProject();
     // If there was any problem then return the errors
-    if (projectData.error) return projectData;
-    // Set the file query
-    // Note that we target files with the current MD index (MD files) or null MD index (project files)
-    const fileQuery = {
-      'filename': STANDARD_TRAJECTORY_FILENAME,
-      'metadata.project': projectData.internalId,
-      'metadata.md': { $in: [projectData.mdIndex, null] }
-    }
-    // Download the corresponding file
-    const descriptor = await database.files.findOne(fileQuery);
+    if (project.error) return project;
+    // Download the main trajectory file descriptor
+    const trajectoryDescriptor = await project.getTrajectorFileDescriptor();
     // If the object ID is not found in the data base, return here
-    if (!descriptor) return {
-      headerError: NOT_FOUND,
-      error: 'The trajectory file was not found in the files collections'
-    };
-    // Adapt the descriptor to the dimensions format
-    const fileMetadata = descriptor.metadata;
-    fileMetadata.x = { name: 'coords', length: 3 };
-    fileMetadata.y = { name: 'atoms', length: fileMetadata.atoms };
-    fileMetadata.z = { name: 'frames', length: fileMetadata.frames };
-    fileMetadata.bitsize = 32;
+    if (trajectoryDescriptor.error) return trajectoryDescriptor;
     // Set the format in which data will be sent
     // Format is requested through the query
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
@@ -148,20 +128,10 @@ const trajectoryHandler = handler({
         headerError: BAD_REQUEST,
         error: 'Cannot request "selection" and "atoms" at the same time'
       };
-      // Set the file query
-      // Note that we target files with the current MD index (MD files) or null MD index (project files)
-      const structureFileQuery = {
-        'filename': STANDARD_STRUCTURE_FILENAME,
-        'metadata.project': projectData.internalId,
-        'metadata.md': { $in: [projectData.mdIndex, null] }
-      }
-      // Download the corresponding file
-      const structureDescriptor = await database.files.findOne(structureFileQuery);
+      // Download the main structure file descriptor
+      const structureDescriptor = await project.getFileDescriptor(STANDARD_STRUCTURE_FILENAME);
       // If the object ID is not found in the data base, return here
-      if (!structureDescriptor) return {
-        headerError: NOT_FOUND,
-        error: 'The structure file was not found in the files collections'
-      };
+      if (structureDescriptor.error) return structureDescriptor;
       // Open a stream and save it completely into memory
       const pdbFile = await consumeStream(
         bucket.openDownloadStream(structureDescriptor._id),
@@ -178,7 +148,7 @@ const trajectoryHandler = handler({
     }
     // When there is a selection or frame query (e.g. .../files/trajectory?selection=x)
     const parsedRanges = rangedAtoms ? { y: rangedAtoms } : {}
-    const range = handleRanges(request, parsedRanges, descriptor);
+    const range = handleRanges(request, parsedRanges, trajectoryDescriptor);
     // If something is wrong with ranges then return the error
     if (range.error) return range;
     // Get the number of atoms and frames
@@ -188,7 +158,7 @@ const trajectoryHandler = handler({
     let stream;
     // Return a simple stream when asking for the whole file (i.e. range is not iterable)
     // Return an internally managed stream when asking for specific ranges
-    const rangedStream = getRangedStream(bucket, descriptor._id, range);
+    const rangedStream = getRangedStream(bucket, trajectoryDescriptor._id, range);
     // Get the output format name
     const transformFormatName = transformFormat.name;
     // When user requests "crd" or "mdcrd" files
@@ -240,11 +210,11 @@ const trajectoryHandler = handler({
       stream = rangedStream;
     } else throw new Error('Missing instructions to export format');
     // Set the output filename according to some standards
-    const filename = setOutputFilename(projectData, descriptor, transformFormatName);
+    const filename = setOutputFilename(project.data, trajectoryDescriptor, transformFormatName);
     return {
       stream,
       filename,
-      descriptor,
+      trajectoryDescriptor,
       range,
       transformFormat
     };
@@ -255,7 +225,7 @@ const trajectoryHandler = handler({
     {
       stream,
       filename,
-      descriptor,
+      trajectoryDescriptor,
       range,
       transformFormat,
       headerError,
@@ -282,10 +252,10 @@ const trajectoryHandler = handler({
       if (range.byteSize % 1 !== 0) console.error('ERROR: Size is not integer');
       response.set('content-length', range.byteSize);
     }
-    if (descriptor.contentType) {
+    if (trajectoryDescriptor.contentType) {
       response.set(
         'content-type',
-        // Here descriptor.contentType should be "application/octet-stream"
+        // Here trajectoryDescriptor.contentType should be "application/octet-stream"
         transformFormat.contentType,
       );
     }

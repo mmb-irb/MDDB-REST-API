@@ -1,9 +1,17 @@
 // Standard HTTP response status codes
 const { NOT_FOUND } = require('../../utils/status-codes');
 // Import references configuration
-const { REFERENCES } = require('../../utils/constants');
+const { REFERENCES, STANDARD_TRAJECTORY_FILENAME } = require('../../utils/constants');
 // Get auxiliar functions
 const { getValueGetter } = require('../../utils/auxiliar-functions');
+// Get tools to handle range queries
+const handleRanges = require('../../utils/handle-ranges');
+const { rangeIndices } = require('../../utils/parse-query-range');
+// Returns a simple stream when asking for the whole file
+// Returns an internally managed stream when asking for specific ranges
+const getRangedStream = require('../../utils/get-ranged-stream');
+// Standard HTTP response status codes
+const { INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 
 // Set the project class
 class Project {
@@ -18,6 +26,14 @@ class Project {
         // This way, in case anything goes wrong, we can delete orphan chunks
         this.currentUploadId = null;
     };
+
+    // Return the reference frame
+    // If there is no reference frame (old projects) then resturn the first frame
+    get referenceFrame () {
+        const referenceFrame = this.data.refframe;
+        if (referenceFrame === undefined) return 0;
+        return referenceFrame;
+    }
 
     // Get topology data
     getTopologyData = async () => {
@@ -87,6 +103,88 @@ class Project {
             allReferences = allReferences.concat(referencesData)
         }
         return allReferences;
+    }
+
+    // Get coordinates from a specific frame
+    // If no frame is specified then the reference frame is used
+    getFrameCoordinates = async (frame, atomIndices) => {
+        // Set the target frame to be download
+        const targetFrame = frame === undefined ? this.referenceFrame : frame;
+        // Set ranges depending on the frame and atom indices requested
+        const parsedRanges = { z: [ { start: targetFrame, end: targetFrame } ] };
+        // Get ranged atom indices
+        const rangedAtoms = atomIndices && rangeIndices(atomIndices);
+        if (rangedAtoms) parsedRanges.y = rangedAtoms;
+        // Download the main trajectory file descriptor
+        const trajectoryDescriptor = await this.getTrajectorFileDescriptor();
+        // Set byte ranges depending on the frame and atom indices requested
+        const range = handleRanges(null, parsedRanges, trajectoryDescriptor);
+        // If something is wrong with ranges then return the error
+        if (range.error) return range;
+        // Return a simple stream when asking for the whole file (i.e. range is not iterable)
+        // Return an internally managed stream when asking for specific ranges
+        const rangedStream = getRangedStream(this.database.bucket, trajectoryDescriptor._id, range);
+        // Now consume the stream as binary values
+        const chunks = [];
+        await new Promise((resolve, reject) => {
+            rangedStream.on('data', chunk => chunks.push(Buffer.from(chunk)));
+            rangedStream.on('error', err => reject(err));
+            rangedStream.on('end', () => resolve());
+        });
+        // Join raw coordinates in a single buffer
+        const rawCoordinates = Buffer.concat(chunks);
+        // Buffer size must be equal to the number of coordinates * the number of bytes per coordinate (4)
+        const bufferSize = rawCoordinates.length;
+        const nAtoms = atomIndices ? atomIndices.length : trajectoryDescriptor.atoms;
+        const nCoordinates = nAtoms * 3;
+        if (bufferSize != nCoordinates * 4) return {
+            headerError: INTERNAL_SERVER_ERROR,
+            error: 'Unexpected buffer size in frame coordinates'
+        }
+        // Parse binary values to float32 numeric values
+        // Store coordinates in lists of 3 values (x,y,z) thus representing each atom coordinates
+        const coordinates = [];
+        for (let c = 0; c < nCoordinates; c++) {
+            const readByte = c * 4;
+            const parseCoordinate = rawCoordinates.readFloatLE(readByte);
+            if (c % 3 === 0) coordinates.push([parseCoordinate]);
+            else coordinates[coordinates.length - 1].push(parseCoordinate);
+        }
+        return coordinates;
+    }
+
+    // Get a file descriptor
+    getFileDescriptor = async filename => {
+        // Set the file query
+        const fileQuery = {
+            'filename': filename,
+            'metadata.project': this.data.internalId,
+            // Note that we target files with the current MD index (MD files) or null MD index (project files)
+            'metadata.md': { $in: [this.data.mdIndex, null] }
+        };
+        // Query the database
+        const fileDescriptor = await this.database.files.findOne(fileQuery);
+        if (!fileDescriptor) return {
+            headerError: NOT_FOUND,
+            error: `File descriptor for "${filename}" was not found in the files collection`
+        };
+        return fileDescriptor;
+    }
+
+    // Get the trajectory file descriptor
+    // Note that we add few metadata values to adapt it to the "dimensions" format
+    getTrajectorFileDescriptor = async () => {
+        // Get the file descriptor
+        const fileDescriptor = await this.getFileDescriptor(STANDARD_TRAJECTORY_FILENAME);
+        // If there was any problem then return here
+        if (fileDescriptor.error) return fileDescriptor;
+        // Modify the descriptor to adapt it to the "dimensions" format
+        fileDescriptor.metadata.x = { name: 'coords', length: 3 };
+        fileDescriptor.metadata.y = { name: 'atoms', length: fileDescriptor.metadata.atoms };
+        fileDescriptor.metadata.z = { name: 'frames', length: fileDescriptor.metadata.frames };
+        fileDescriptor.metadata.bitsize = 32;
+        // Return the modified descriptor
+        return fileDescriptor;
     }
 
 }

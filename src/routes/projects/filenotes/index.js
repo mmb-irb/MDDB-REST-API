@@ -7,7 +7,7 @@ const getDatabase = require('../../../database');
 const { isObjectId } = require('../../../utils/auxiliar-functions');
 
 // Standard HTTP response status codes
-const { INTERNAL_SERVER_ERROR, BAD_REQUEST, NOT_FOUND } = require('../../../utils/status-codes');
+const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-codes');
 
 // Set a function to clean file descriptors by renaming the field '_id' as 'internalId'
 const cleanFileDescriptor = descriptor => {
@@ -25,18 +25,18 @@ router.route('/').get(
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
       // Get the requested project data
-      const projectData = await database.getProjectData();
+      const project = await database.getProject();
       // If there was any problem then return the errors
-      if (projectData.error) return projectData;
+      if (project.error) return project;
       // If project data does not contain the 'mds' field then it may mean it is in the old format
-      if (!projectData.mds) return {
+      if (!project.data.mds) return {
         headerError: INTERNAL_SERVER_ERROR,
         error: 'Project is missing mds. Is it in an old format?'
       };
       // Send all file descriptions
       const filesQuery = {
-        'metadata.project': projectData.internalId,
-        'metadata.md': { $in: [projectData.mdIndex, null] },
+        'metadata.project': project.data.internalId,
+        'metadata.md': { $in: [project.data.mdIndex, null] },
       };
       const filesCursor = await database.files.find(filesQuery, { _id: false });
       const filesData = await filesCursor.toArray();
@@ -59,24 +59,14 @@ router.route('/:file').get(
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
       // Find the requested project data
-      const projectData = await database.getProjectData();
+      const project = await database.getProject();
       // If there was any problem then return the errors
-      if (projectData.error) return projectData;
-      // Set the file query
-      // Note that we target files with the current MD index (MD files) or null MD index (project files)
-      const fileQuery = {
-        'filename': request.params.file,
-        'metadata.project': projectData.internalId,
-        'metadata.md': { $in: [projectData.mdIndex, null] }
-      }
-      // Download the corresponding file
-      const descriptor = await database.files.findOne(fileQuery);
+      if (project.error) return project;
+      // Download the corresponding file descritpor
+      const descriptor = await project.getFileDescriptor(request.params.file);
       // If the object ID is not found in the data base the we have a mess
       // This is our fault, since a file id coming from a project must exist
-      if (!descriptor) return {
-        headerError: NOT_FOUND,
-        error: 'File was not found in the files collection'
-      };
+      if (descriptor.error) return descriptor;
       return cleanFileDescriptor(descriptor);
     }
   }),
