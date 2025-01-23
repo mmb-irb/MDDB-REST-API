@@ -19,5 +19,6 @@ rootRouter.route('/').get((request, response) => {
 rootRouter.use('/projects', require('./projects'));
 rootRouter.use('/references', require('./references'));
 rootRouter.use('/nodes', require('./nodes'));
+rootRouter.use('/knowledge', require('./knowledge'));
 
 module.exports = rootRouter;

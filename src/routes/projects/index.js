@@ -11,7 +11,7 @@ const { parseJSON, getConfig } = require('../../utils/auxiliar-functions');
 // Import references configuration
 const { REFERENCES, REFERENCE_HEADER } = require('../../utils/constants');
 // Standard HTTP response status codes
-const { BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
+const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 
 const projectRouter = Router();
 
@@ -319,8 +319,6 @@ localRouter.use('/:project/references', require('./references'));
 localRouter.use('/:project/inputs', require('./inputs'));
 // Topology
 localRouter.use('/:project/topology', require('./topology'));
-// Knowledge
-localRouter.use('/:project/knowledge', require('./knowledge'));
 
 // If we are using the global API then any further query is mapped to the corresponding database
 // Set a handler to be used for both GET and POST methods

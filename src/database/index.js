@@ -5,7 +5,12 @@ const dbConnection = process.env.NODE_ENV === 'test'
     : require('../models/index');
 
 // Import collections configuration
-const { LOCAL_COLLECTION_NAMES, GLOBAL_COLLECTION_NAMES } = require('../utils/constants');
+const {
+    LOCAL_COLLECTION_NAMES,
+    GLOBAL_COLLECTION_NAMES,
+    REFERENCES
+} = require('../utils/constants');
+const AVAILABLE_REFERENCES = Object.keys(REFERENCES).join(', ');
 // Get a function to clean raw project data to a standard format
 const projectFormatter = require('../utils/project-formatter');
 // Get auxiliar functions
@@ -92,6 +97,7 @@ class Database {
         const query = { ...this.getBaseFilter() };
         // Get the project id or accession
         const idOrAccession = this.request.params.project;
+        if (!idOrAccession) return new Error('No project ir or accession in the request');
         const project = idOrAccession.split('.')[0];
         // Check if the idOrAccession is a mongo internal object id
         if (isObjectId(project)) {
@@ -178,6 +184,27 @@ class Database {
         if (projectData.error) return projectData;
         // Return the project handler
         return new Project(projectData, this);
+    }
+
+    // Get all ids available in a given reference
+    getReferenceAvailableIds = async referenceName => {
+        // Get the requested reference configuration
+        const reference = REFERENCES[referenceName];
+        if (!reference) return {
+            headerError: NOT_FOUND,
+            error: `Unknown reference "${referenceName}". Available references: ${AVAILABLE_REFERENCES}`
+        };
+        // Set the target mongo collection
+        const collection = this[referenceName];
+        // Get all references, but only their reference ids
+        const cursor = await collection.find({},
+            { projection: { _id: false, [reference.idField]: true } },
+        );
+        // Consume the cursor
+        const references = await cursor.toArray();
+        // Get the reference ids in an array
+        const referenceIds = references.map(ref => ref[reference.idField]);
+        return referenceIds;
     }
 
     // Close the connection to mongo and delete this handler

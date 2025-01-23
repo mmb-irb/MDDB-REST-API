@@ -17,22 +17,8 @@ const wholeReferenceResponse = handler({
         const database = await getDatabase(request);
         // Get the requested reference configuration
         const referenceName = request.params.reference;
-        const reference = REFERENCES[referenceName];
-        if (!reference) return {
-            headerError: NOT_FOUND,
-            error: `Unknown reference "${referenceName}". Available references: ${availableReferences}`
-        };
-        // Set the target mongo collection
-        const collection = database[referenceName];
-        // Get all references, but only their reference ids
-        const cursor = await collection.find({},
-            { projection: { _id: false, [reference.idField]: true } },
-        );
-        // Consume the cursor
-        const references = await cursor.toArray();
-        // Get the reference ids in an array
-        const referenceIds = references.map(ref => ref[reference.idField]);
-        return referenceIds;
+        // Use the database function
+        return await database.getReferenceAvailableIds(referenceName);
     }
 });
 
