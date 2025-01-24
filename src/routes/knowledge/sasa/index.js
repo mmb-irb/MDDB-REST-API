@@ -4,7 +4,7 @@ const handler = require('../../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../../database');
 // Standard HTTP response status codes
-const { NOT_FOUND } = require('../../../utils/status-codes');
+const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
 
 // Instantiate the router
 const router = Router({ mergeParams: true });
@@ -69,11 +69,6 @@ router.route('/').get( handler({ async retriever(request) {
         const residueNumber = topologyData.residue_reference_numbers[residueIndex];
         // Get residue name
         const residueName = topologyData.residue_names[residueIndex];
-        // Add SASA data as a site
-        const site = {
-            site_id: site_count,
-            label: `${chainLetter} - ${residueName} ${residueNumber} SAS`
-        };
         sites.push(
             {
                 site_id: site_count,
@@ -111,6 +106,11 @@ router.route('/').get( handler({ async retriever(request) {
             chain_label: chainLetter,
             residues: pdbResidues
         })
+    }
+    // If no PDB chains were found then something is wrong
+    if (pdbChains.length === 0) return {
+        headerError: INTERNAL_SERVER_ERROR,
+        error: 'Something went wrong when searching for PDB chains'
     }
     // Return the final response in the expected format
     return {

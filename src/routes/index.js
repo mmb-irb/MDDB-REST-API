@@ -5,7 +5,7 @@ const { getConfig } = require('../utils/auxiliar-functions');
 rootRouter.route('/').get((request, response) => {
   // List all possible routes
   // This is just a map so the user knows which options are available
-  const availableRoutes = ['projects', 'references'];
+  const availableRoutes = ['projects', 'references', 'knowledge'];
   // Find out if the request host is configured as global
   const config = getConfig(request);
   const isGlobal = config && config.global;
