@@ -12,7 +12,21 @@ Have Node.js and npm installed and working
 4. (Optional) Compile the trajectory format converters with `npm run build`. Otherwise, the trajectory endpoint will not be able to export from .bin to other formats. [Chemfiles](#chemfiles-installation) must be previously installed.
 5. Start the server with `node index.js` or using a process manager like [PM2](http://pm2.keymetrics.io/) for example
 
+### Test run
+
+To simly run an instance of the API you must enter the API git repository and run the following command:
+```bash
+npm run start
+```
+If you have an error related to process 9229 yo may solvie it like this:
+```bash
+kill -9 lsof -t -i:9229
+```
+
 ### PM2 Installation and run
+
+PM2 is a deamon which handles the spawn and monitoring of API instances.
+It is also useful to automatically respawn instances after failure.
 
 In order to install pm2 run `npm install pm2`.<br/>
 Once installed, head to the API directory and run 4 instances of it:<br/>
