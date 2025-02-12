@@ -58,7 +58,7 @@ class Project {
         // Query the database and retrieve the requested analysis
         const analysisData = await this.database.analyses.findOne(
             // Set the query
-            { project: this.data.internalId, md: this.data.mdIndex, name },
+            { project: this.data.internalId, md: { $in: [ undefined, this.data.mdIndex ] }, name },
             // Skip some useless values
             { projection: { _id: false, name: false, project: false, md: false } },
         );
