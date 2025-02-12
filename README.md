@@ -14,7 +14,7 @@ Have Node.js and npm installed and working
 
 ### Test run
 
-To simly run an instance of the API you must enter the API git repository and run the following command:
+To simply run an instance of the API you must enter the API git repository and run the following command:
 ```bash
 npm run start
 ```
