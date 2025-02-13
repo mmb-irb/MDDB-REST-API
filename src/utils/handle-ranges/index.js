@@ -100,7 +100,7 @@ const handleRanges = (request, parsedRanges, descriptor) => {
       error: `Bytes range is not combinable with any other range and thus it must be passed alone`
     }
     // Parse the range string
-    const range = parseQueryRange(rangeStrings.bytes, fileMetadata.bytes.length);
+    const range = parseQueryRange(rangeStrings.bytes, fileMetadata.bytes.length, 'bytes');
     if (range.error) return range;
     // Set the header
     range.responseHeaders = [  getResponseHeader('bytes', range, descriptor.length) ];
@@ -140,7 +140,7 @@ const handleRanges = (request, parsedRanges, descriptor) => {
     // If there is no range then let the whole dimension intact
     else if (rangeString) {
       // Parse the range string and store it in the range object
-      const parsedRange = parseQueryRange(rangeString, dimensionLength);
+      const parsedRange = parseQueryRange(rangeString, dimensionLength, dimensionName);
       if (parsedRange.error) return parsedRange;
       range[dimension] = parsedRange;
     }

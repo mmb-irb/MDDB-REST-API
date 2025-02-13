@@ -44,7 +44,7 @@ const rangeIndices = indices => {
 // Accepted input string formats are start:end:step and e.g. 1,2,3-7
 // If a limit is passed then values beyond this limit are filtered
 // Note that range numbers are converted from 1-based to 0-based by substracting 1
-const parseQueryRange = (string, limit) => {
+const parseQueryRange = (string, limit, dimensionName) => {
   // Search in the function's parameter value "string" by using a specified regexp format: STEP_FORMAT
   const stepFormatParsed = STEP_FORMAT.exec(string);
   // Define the variable where indices will be saved
@@ -54,15 +54,18 @@ const parseQueryRange = (string, limit) => {
   if (stepFormatParsed) {
     const start = +stepFormatParsed.groups.start;
     if (start === 0) return zeroError;
-    const end = Math.max(+stepFormatParsed.groups.end, start); // If the end is less than the start then just use the start
-    const step = +(stepFormatParsed.groups.step || 1); // If no "step" group is found then step is 1
+    // If the end is less than the start then just use the start
+    const end = Math.max(+stepFormatParsed.groups.end, start);
+    // If no "step" group is found then step is 1
+    const step = +(stepFormatParsed.groups.step || 1);
     // If the step is 1 then simply use the range
     if (step === 1) return [{ start: start - 1, end: end - 1 }];
     for (let index = start; index <= end; index += step) {
       accumulated.push(index);
     }
-    // If the initial regexp search returns no results, there is an alternative regexp format
-  } else {
+  }  
+  // If the initial regexp search returns no results, there is an alternative regexp format
+  else {
     // First, split the string by comas
     for (const part of string.split(',')) {
       // Searcin each string fragment using the rexexp format "RE"
@@ -70,7 +73,7 @@ const parseQueryRange = (string, limit) => {
        // If there are no results then it means the request is not supported
       if (!extracted) return {
         headerError: BAD_REQUEST,
-        error: `Selection "${part}" not suported. Use either start:end:step or 1,2,3-7 formats.`
+        error: `Selection of ${dimensionName} (${part}) not suported. Use either start:end:step or 1,2,3-7 formats.`
       };
       // The regexp format RE has 3 defined groups: simple, start, and end
       // Save the "simple" group value and push it to the "accumulated" array if it is an integer
@@ -81,7 +84,9 @@ const parseQueryRange = (string, limit) => {
       }
       // Use the start and end groups to define and save the desired indices
       const start = +extracted.groups.start;
-      const end = Math.max(+extracted.groups.end, start); // If the end is less than the start then just use the start
+      // If the end is less than the start then just use the start
+      const end = Math.max(+extracted.groups.end, start);
+      // Return error if the range end exceeds the limit
       for (let index = start; index <= end; index++) {
         accumulated.push(index);
       }
@@ -91,11 +96,16 @@ const parseQueryRange = (string, limit) => {
   const set = new Set(accumulated);
   if (set.has(0)) return zeroError;
   const unique = Array.from(set);
-  // Remove values beyond the limit
-  // Note here we must respect value which equal the limit since they are still 1-based
-  const limited = limit ? unique.filter(v => v <= limit) : unique;
   // Sort values
-  const sorted = limited.sort((a, b) => a - b);
+  const sorted = unique.sort((a, b) => a - b);
+  // Return error if the range end exceeds the limit
+  // DANI: Antes se filtraban los valores mayores que el límite y arreglado
+  // DANI: Sin embargo esto podía dar lugar a trayectorias más cortas de lo esperado silenciosamente
+  const end = sorted[sorted.length - 1];
+  if (end > limit) return {
+    headerError: BAD_REQUEST,
+    error: `End of requested ${dimensionName} (${end}) is beyond the limit (${limit})`
+  };
   // Substract 1 from every value to convert them from 1-based to 0-based
   const zeroBased = sorted.map(i => i - 1);
   // Return ranged indices
