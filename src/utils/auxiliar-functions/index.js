@@ -96,6 +96,21 @@ const intersection = (set1, set2) => {
     return new Set(matches);
 }
 
+// Get the average from a list of values
+const caluclateMean = values => {
+    const addition = values.reduce((acc, curr) => acc + curr, 0);
+    return addition / values.length;
+}
+
+// Get the average and standard deviation from a list of values
+// https://stackoverflow.com/questions/7343890/standard-deviation-javascript
+const caluclateMeanAndStandardDeviation = values => {
+    const n = values.length;
+    const mean = caluclateMean(values);
+    const stdv = Math.sqrt(values.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n);
+    return { mean, stdv };
+}
+
 module.exports = {
     parseJSON,
     isObjectId,
@@ -103,5 +118,7 @@ module.exports = {
     setOutputFilename,
     getValueGetter,
     getConfig,
-    intersection
+    intersection,
+    caluclateMean,
+    caluclateMeanAndStandardDeviation
 }

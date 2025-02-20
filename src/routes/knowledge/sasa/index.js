@@ -5,6 +5,7 @@ const handler = require('../../../utils/generic-handler');
 const getDatabase = require('../../../database');
 // Standard HTTP response status codes
 const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
+const { caluclateMeanAndStandardDeviation } = require('../../../utils/auxiliar-functions');
 
 // Instantiate the router
 const router = Router({ mergeParams: true });
@@ -43,6 +44,12 @@ router.route('/').get( handler({ async retriever(request) {
         headerError: NOT_FOUND,
         error: `PDB reference ${pdbId} not found for project ${project.accession}`
     }
+    // Get the count of atoms per residue
+    const atomCountPerResidue = {};
+    topologyData.atom_residue_indices.forEach(residueIndex => {
+        if (atomCountPerResidue[residueIndex]) atomCountPerResidue[residueIndex] += 1;
+        else atomCountPerResidue[residueIndex] = 1;
+    });
     // Set the sites list to add further data
     let site_count = 1;
     const sites = [];
@@ -65,41 +72,50 @@ router.route('/').get( handler({ async retriever(request) {
         const pdbResidues = [];
         // Iterate residue indices
         residueIndices.forEach(residueIndex => {
-        // Get the residue numeration according to the reference (uniprot and thus the PDB)
-        const residueNumber = topologyData.residue_reference_numbers[residueIndex];
-        // Get residue name
-        const residueName = topologyData.residue_names[residueIndex];
-        sites.push(
-            {
-                site_id: site_count,
-                label: `${chainLetter} - ${residueName} ${residueNumber} SAS mean`
-            },
-            {
-                site_id: site_count + 1,
-                label: `${chainLetter} - ${residueName} ${residueNumber} SAS standard deviation`
-            }
-        );
-        // Add current PDB residue to the list
-        pdbResidues.push({
-            pdb_res_label: residueNumber.toString(),
-            aa_type: residueName,
-            site_data: [
+            // Get the residue numeration according to the reference (uniprot and thus the PDB)
+            const residueNumber = topologyData.residue_reference_numbers[residueIndex];
+            // Get residue name
+            const residueName = topologyData.residue_names[residueIndex];
+            // Get residue atom count
+            const residueAtomCount = atomCountPerResidue[residueIndex];
+            // Get residue SAS values for every frame in the analysis
+            const saspf = analysisData.saspf[residueIndex];
+            // Multiply the value by the number of atoms in the residue to 'un-normalize' them
+            const absaspf = saspf.map(sas => sas * residueAtomCount);
+            // Caluclate the mean and standard deviation of the new values
+            const { mean, stdv } = caluclateMeanAndStandardDeviation(absaspf);
+            // Get the residue 
+            sites.push(
                 {
-                    site_id_ref: site_count,
-                    raw_score: analysisData.means[residueIndex],
-                    raw_score_unit: 'Å²',
-                    confidence_classification: "medium",
+                    site_id: site_count,
+                    label: `${chainLetter} - ${residueName} ${residueNumber} SAS mean`
                 },
                 {
-                    site_id_ref: site_count + 1,
-                    raw_score: analysisData.stdvs[residueIndex],
-                    raw_score_unit: 'Å²',
-                    confidence_classification: "medium",
+                    site_id: site_count + 1,
+                    label: `${chainLetter} - ${residueName} ${residueNumber} SAS standard deviation`
                 }
-            ],
-        });
-        // Add one to the site counter
-        site_count += 2;
+            );
+            // Add current PDB residue to the list
+            pdbResidues.push({
+                pdb_res_label: residueNumber.toString(),
+                aa_type: residueName,
+                site_data: [
+                    {
+                        site_id_ref: site_count,
+                        raw_score: mean,
+                        raw_score_unit: 'Å²',
+                        confidence_classification: "medium",
+                    },
+                    {
+                        site_id_ref: site_count + 1,
+                        raw_score: stdv,
+                        raw_score_unit: 'Å²',
+                        confidence_classification: "medium",
+                    }
+                ],
+            });
+            // Add one to the site counter
+            site_count += 2;
         })
         // Add the current PDB chain to the list
         pdbChains.push({
