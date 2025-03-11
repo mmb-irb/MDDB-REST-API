@@ -73,6 +73,17 @@ hosts:
         accession: A0001
         production: true
 
+    irb-dev.mddbr.eu:
+        name: IRB node
+        description: The IRB federated node server
+        accession: A0001
+
+    irb.mddbr.eu:
+        name: IRB node
+        description: The IRB federated node server
+        accession: A0001
+        production: true
+
     oxford-dev.mddbr.eu:
         name: Oxford node
         description: The Oxford University federated node server
