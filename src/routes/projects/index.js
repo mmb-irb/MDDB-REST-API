@@ -206,12 +206,13 @@ projectRouter.route('/').get(
         options.score = { $meta: 'textScore' };
         projector.score = { $meta: 'textScore' };
       }
-      // Parse sort parameter if provided
+      // Parse sort parameter if provided. 
+      // To see why _id is always included, see below when cursor limit is set
       let sortOptions = { accession: 1, _id: 1 }; // Default sort
       if (request.query.sort) {
         try {
           const customSort = parseJSON(request.query.sort);
-          if (customSort && customSort.accession) {
+          if (customSort ) {
             // Preserve the _id secondary sort for consistency
             sortOptions = { ...customSort, _id: 1 };
           }
