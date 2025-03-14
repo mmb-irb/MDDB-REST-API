@@ -206,13 +206,26 @@ projectRouter.route('/').get(
         options.score = { $meta: 'textScore' };
         projector.score = { $meta: 'textScore' };
       }
+      // Parse sort parameter if provided
+      let sortOptions = { accession: 1, _id: 1 }; // Default sort
+      if (request.query.sort) {
+        try {
+          const customSort = parseJSON(request.query.sort);
+          if (customSort && customSort.accession) {
+            // Preserve the _id secondary sort for consistency
+            sortOptions = { ...customSort, _id: 1 };
+          }
+        } catch (error) {
+          // Handle malformed sort parameter
+        }
+      }
       // Finally, perform the mongo query
       // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
       // e.g. cursor.toArray()
       let cursor = await database.projects
         .find(finder, options)
         .project(projector)
-        .sort(options);
+        .sort(sortOptions);
       // If there are no results, we try it with the mongo internal ids
       // This only works with the full object id, not partial ids
       if ((await cursor.count()) === 0 && /[a-z0-9]{24}/.test(search)) {
@@ -250,7 +263,7 @@ projectRouter.route('/').get(
               // WARNING: Sorting by _id in second place is crucial for projects without accession, no never remove it
               // WARNING: Otherwise the sort may be totally inconsistent, which is very dangerous in combination with the 'skip'
               // We sort again. This time alphabetically by accession (*previous sort may be redundant)
-              .sort({ accession: 1, _id: 1 })
+              .sort(sortOptions)
               // Allow mongo to create temporally local files to handle the sort operation when reaching its 100Mb memory limit
               .allowDiskUse()
               // Avoid the first results when a page is provided in the request (URL)
