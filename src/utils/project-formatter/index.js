@@ -54,6 +54,7 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   projectData.mds = projectData.mds.map(md => md && md.name + (md.removed ? ' (removed)' : ''));
   // Rename the project "_id" as "internalId"
   projectData.internalId = projectData._id;
+  projectData.creationDate = projectData._id.getTimestamp();
   delete projectData._id;
   // Set the identifier
   // This id is the one to be used by the client to ask for more data about the same project
