@@ -210,15 +210,10 @@ projectRouter.route('/').get(
       // To see why _id is always included, see below when cursor limit is set
       let sortOptions = { accession: 1, _id: 1 }; // Default sort
       if (request.query.sort) {
-        try {
-          const customSort = parseJSON(request.query.sort);
-          if (customSort ) {
-            // Preserve the _id secondary sort for consistency
-            sortOptions = { ...customSort, _id: 1 };
-          }
-        } catch (error) {
-          // Handle malformed sort parameter
-        }
+        const customSort = parseJSON(request.query.sort);
+        sortOptions = customSort || sortOptions;
+        // Preserve the _id secondary sort for consistency
+        sortOptions._id = sortOptions._id || 1;
       }
       // Finally, perform the mongo query
       // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
