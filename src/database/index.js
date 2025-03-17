@@ -27,7 +27,7 @@ const Project = require('./project');
 // GridFSBucket manages the saving of files bigger than 16 Mb, splitting them into 4 Mb fragments (chunks)
 const { ObjectId, GridFSBucket } = require('mongodb');
 
-// Set a function to ckeck if a string is a mongo internal id
+// Set a function to check if a string is a mongo internal id
 // WARNING: Do not use the builtin 'ObjectId.isValid'
 // WARNING: It returns true with whatever string 12 characters long
 const isObjectId = string => /^[a-z0-9]{24}$/.test(string);

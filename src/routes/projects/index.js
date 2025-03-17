@@ -226,6 +226,8 @@ projectRouter.route('/').get(
       let cursor = await database.projects
         .find(finder, options)
         .project(projector)
+         // For case-insensitive sorting
+        .collation({ locale: 'en', strength: 2 })
         .sort(sortOptions);
       // If there are no results, we try it with the mongo internal ids
       // This only works with the full object id, not partial ids
