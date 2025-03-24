@@ -26,9 +26,9 @@ const bit2values = (valuesBitSize, range) => {
     const OUTPUT_BYTES_PER_VALUE = Uint8Array.BYTES_PER_ELEMENT;
     // Set an additional memory space for wasm internal management
     // WARNING: This space is essential
-    // If this space is not provided and the input buffer is long enought then strange things happen
+    // If this space is not provided and the input buffer is long enough then strange things happen
     // When a variable is stored in the wasm process it tries to be written to memory but it does not
-    // As a result output logs are never written and when trying to read them them they are indeed not strings
+    // As a result output logs are never written and when trying to read them they are indeed not strings
     const wasmMemoryInternalSize = importWA._PAGE_SIZE; // 64 Kb
     // Set range of bytes to be parsed including bit offsets and number of values
     // Note that this is a generator
@@ -145,11 +145,9 @@ const float32values = range => {
     const wasmMemoryInternalSize = importWA._PAGE_SIZE; // 64 Kb
     // Set range of bytes to be parsed including byte offsets and number of values
     // Note that this is a generator
-    const parseRanges = range.parseByteRanger();
+    const ranges = range.byteRanger();
     // Set a variable to store the current range
-    let currentRange = parseRanges.next().value;
-    // Save last range end as well
-    let lastEnd;
+    let currentRange = ranges.next().value;
     // Set a transform, which is a kind of stream
     const transform = new Transform({
         transform(chunk, _encoding, next) {
@@ -188,24 +186,27 @@ const float32values = range => {
             const lastInputByte = wasmMemoryInputOffset + chunkByteSize;
             // Process ranges until we consume the whole chunk
             while (currentInputByte < lastInputByte) {
-                // Set the expected number of values in the current range
-                const nextValues = (currentRange.progress + 1) / INPUT_BYTES_PER_VALUE;
+                // Set the expected number of values to be read in this iteration
+                // Note that we may have 2 different scenarios here:
+                // 1 - We may iterate multiple ranges in a single chunk
+                // 2 - We may iterate multiple chunks in a single range
+                const rangeValues = (currentRange.progress + 1) / INPUT_BYTES_PER_VALUE;
+                const nextValues = Math.min(rangeValues, chunkValues);
                 // Execute the transformation inside the wasm logic
                 // After this line the value of outputBuffer is changed
                 // Note that this process is full sync
                 wasmInstance.transform(currentInputByte, nextValues, currentOutputByte);
-                // Calculate the number of bytes we progress as we consume them
-                // Take it as byte size - 1. A byte progress of 0 means we are still consuming 1 byte (or part of it)
-                const byteProgress = currentRange.end - currentRange.start;
-                // Add the progress to the byte count
-                currentInputByte += byteProgress;
-                currentOutputByte += nextValues * OUTPUT_BYTES_PER_VALUE;
-                // Update the last end
-                lastEnd = currentRange.end;
-                // Get the next range
-                currentRange = parseRanges.next().value;
-                // In case the current range does not start at the last range end we must skip to the next byte
-                if (!currentRange || currentRange.start !== lastEnd) currentInputByte += 1;
+                // Calculate the progress in each byte count
+                const inputProgress = nextValues * INPUT_BYTES_PER_VALUE;
+                currentInputByte += inputProgress
+                const outputProgress = nextValues * OUTPUT_BYTES_PER_VALUE;
+                currentOutputByte += outputProgress;
+                // If we consumed the whole range then get the next range
+                // Otherwise update the current range progress
+                if (nextValues === rangeValues) currentRange = ranges.next().value;
+                else currentRange.progress -= inputProgress;
+                // If there are no more ranges then we are done
+                if (!currentRange) break;
             }
             // Set a memory buffer for the WASM to write its output
             const wasmMemoryOutputLength = currentOutputByte - wasmMemoryOutputOffset;

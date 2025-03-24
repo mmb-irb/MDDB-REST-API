@@ -68,7 +68,12 @@ const handleRanges = (request, parsedRanges, descriptor) => {
     }
   }
 
-  // If none of the supported ranges is defined then return a not iterable range
+  // Check if the bitsize is multiple of 8
+  // If so there is no need to mess with bits so we do it all in bytes
+  const handleBytes = fileMetadata.bitsize % 8 === 0;
+  const elementalSize = handleBytes ? fileMetadata.bitsize / 8 : fileMetadata.bitsize;
+
+  // If none of the supported ranges is defined then return a single range including all values
   // This will make the trajectory stream not ranged at all
   const requestedRangesCount = Object.keys(rangeStrings).length + Object.keys(parsedRanges).length;
   if (requestedRangesCount === 0) {
@@ -81,10 +86,15 @@ const handleRanges = (request, parsedRanges, descriptor) => {
     });
     // Calculate the total number of values in the whole range and add it to the output object
     range.nvalues = dimensions.reduce((acc, dim) => range[dim].nvalues * acc, 1);
+    // Set he byte ranger only if we do not care about bits
+    if (handleBytes) range.byteRanger = function* () {
+      const endByte = descriptor.length - 1;
+      yield { start: 0, end: endByte, offset: 0, progress: endByte };
+    }
     // Set an additional ranger which will be useful for the parsing
-    range.parseByteRanger = function* () {
+    else range.parseByteRanger = function* () {
       const endBit = range.nvalues * fileMetadata.bitsize;
-      const bitProgress = range.nvalues * fileMetadata.bitsize - 1;
+      const bitProgress = endBit - 1;
       yield { start: 0, end: getBitByte(endBit), offset: 0, progress: bitProgress };
     };
     // We return the range here and since it is not iterable there will be no ranged stream further
@@ -117,11 +127,6 @@ const handleRanges = (request, parsedRanges, descriptor) => {
   // Calculate total (not ranged) size for every step in every dimension
   let lastDimensionSize = 0;
   const dimensionValueSizes = {};
-
-  // Check if the bitsize is multiple of 8
-  // If so there is no need to mess with bits so we do it all in bytes
-  const handleBytes = fileMetadata.bitsize % 8 === 0;
-  const elementalSize = handleBytes ? fileMetadata.bitsize / 8 : fileMetadata.bitsize;
 
   // Set ranges dimension by dimension
   for (const dimension of dimensions) {
@@ -224,7 +229,7 @@ const handleRanges = (request, parsedRanges, descriptor) => {
     // In this case the byte ranger is already the ranger
     byteRanger = ranger;
     // Set a simple parser
-    range.parseByteRanger = function* () {
+    range.byteRanger = function* () {
       const bitRanges = ranger();
       for (const r of bitRanges) {
         // Yield the current range
@@ -264,6 +269,7 @@ const handleRanges = (request, parsedRanges, descriptor) => {
     // Now we set an additional ranger which will be useful for the parsing
     // Keep as many byte ranges as bit ranges and include the bit offset for each range
     // Include also the number of value per range
+    // Note that this type of ranger is only for bitwise ranges. Byte ranges do not have it
     range.parseByteRanger = function* () {
       const bitRanges = ranger();
       for (const r of bitRanges) {
