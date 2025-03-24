@@ -131,7 +131,7 @@ export function transform(inputOffset: usize, nValues: usize, outputOffset: usiz
             store<u8>(outputIndex++, u8(78)); // N
             store<u8>(outputIndex++, u8(97)); // a
             store<u8>(outputIndex++, u8(78)); // N
-            continue
+            continue;
         }
         // Get the exponent of the float (log base 10 of the absolute value)
         const exponent = value === 0 ? 0 : Math.floor(Math.log10(Math.abs(value)));
@@ -170,10 +170,12 @@ export function transform(inputOffset: usize, nValues: usize, outputOffset: usiz
         if (exponentSign === -1) store<u8>(outputIndex++, MINUS);
         else store<u8>(outputIndex++, PLUS);
         // Write the exponent digits
+        // Remove the negative sign to avoid further problems when converting digits to u8
+        const exponentValue = Math.abs(exponent);
         // Note that according to the float 32 limitations the exponent should never be grater than 38
-        const firstExponentDigit = u8(Math.trunc(exponent / TEN));
+        const firstExponentDigit = u8(Math.trunc(exponentValue / TEN));
         store<u8>(outputIndex++, numberToASCII(firstExponentDigit));
-        const secondExponentDigit = u8(exponent - firstExponentDigit * TEN);
+        const secondExponentDigit = u8(exponentValue - firstExponentDigit * TEN);
         store<u8>(outputIndex++, numberToASCII(secondExponentDigit));
     }
 }
