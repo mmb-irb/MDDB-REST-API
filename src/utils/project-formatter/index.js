@@ -19,7 +19,7 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
     const error = 'The requested MD does not exists. Try with numbers 1-' + projectData.mds.length;
     projectData.headerError = NOT_FOUND;
     projectData.error = error;
-    return { headerError: NOT_FOUND, error: error };
+    return { headerError: NOT_FOUND, error: error, accession: projectData.accession };
   }
   const { name, frames, atoms, warnings, metadata, analyses, files, ...rest } = mdData;
   // Add the mdIndex and the mdNumber to the project itself
@@ -54,6 +54,7 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   projectData.mds = projectData.mds.map(md => md && md.name + (md.removed ? ' (removed)' : ''));
   // Rename the project "_id" as "internalId"
   projectData.internalId = projectData._id;
+  projectData.creationDate = projectData._id.getTimestamp();
   delete projectData._id;
   // Set the identifier
   // This id is the one to be used by the client to ask for more data about the same project
