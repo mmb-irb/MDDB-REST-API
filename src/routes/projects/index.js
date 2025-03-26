@@ -212,8 +212,14 @@ projectRouter.route('/').get(
       if (request.query.sort) {
         const customSort = parseJSON(request.query.sort);
         sortOptions = customSort || sortOptions;
-        // Preserve the _id secondary sort for consistency
-        sortOptions._id = sortOptions._id || 1;
+        // Add _id as secondary for documents that might not have updateDate
+        if (sortOptions.updateDate !== undefined) {
+          sortOptions._id = sortOptions.updateDate; // Use same direction as updateDate
+        }
+        // Otherwise preserve the _id secondary sort for consistency
+        else {
+          sortOptions._id = sortOptions._id || 1;
+        }
       }
       // Finally, perform the mongo query
       // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
