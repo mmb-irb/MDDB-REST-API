@@ -12,6 +12,72 @@ const { REFERENCES, REFERENCE_HEADER } = require('../../../utils/constants');
 
 const router = Router({ mergeParams: true });
 
+// Endpoint to get project growth timeline data
+router.route('/growth').get(
+  handler({
+    async retriever(request) {
+      // Establish database connection and retrieve our custom handler
+      const database = await getDatabase(request);
+      // Set the base filter
+      const finder = database.getBaseFilter();
+      
+      // Get all projects with creation dates and MD counts
+      const cursor = await database.projects.find(
+        finder,
+        {
+          projection: {_id: 1, mds: 1 },
+        },
+      );
+      
+      // Consume the cursor
+      const projects = await cursor.toArray();
+      // Group projects by month with MD counts
+      const monthlyData = {};
+      
+      projects.forEach(project => {
+        const date = project._id.getTimestamp();
+        const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (!monthlyData[yearMonth]) {
+          monthlyData[yearMonth] = { projects: 0, mds: 0 };
+        }
+        
+        monthlyData[yearMonth].projects++;
+        
+        // Count MDs for this project
+        if (project.mds) {
+          monthlyData[yearMonth].mds += project.mds.length;
+        } else {
+          // If using old format, count as 1 MD
+          monthlyData[yearMonth].mds += 1;
+        }
+      });
+      
+      // Convert to array and sort chronologically
+      const sortedMonths = Object.keys(monthlyData).sort();
+      
+      // Calculate cumulative growth for both projects and MDs
+      let cumulativeProjects = 0;
+      let cumulativeMds = 0;
+      
+      const growthData = sortedMonths.map(month => {
+        cumulativeProjects += monthlyData[month].projects;
+        cumulativeMds += monthlyData[month].mds;
+        
+        return {
+          date: month,
+          newProjects: monthlyData[month].projects,
+          totalProjects: cumulativeProjects,
+          newMds: monthlyData[month].mds,
+          totalMds: cumulativeMds
+        };
+      });
+      
+      return growthData;
+    }
+  }),
+);
+
 // This endpoint returns some summary of data contained in the projects collection
 router.route('/').get(
   handler({
