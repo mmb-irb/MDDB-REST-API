@@ -255,6 +255,20 @@ projectRouter.route('/').get(
       // If it must be raw the the mapping function dos nothing
       const projectMapping = isRaw ? project => project : projectFormatter;
 
+      // Count total MDs across all matching projects
+      const countTotalMds = async () => {
+        const aggregation = await database.projects.aggregate([
+          { $match: finder },
+          { $project: { mdsCount: { $size: { $ifNull: ["$mds", []] } } } },
+          { $group: { _id: null, totalMds: { $sum: "$mdsCount" } } }
+        ]).toArray();
+        
+        return aggregation.length > 0 ? aggregation[0].totalMds : 0;
+      };
+      // Only calculate if explicitly requested
+      const shouldCountMds = request.query.countMds === 'true';
+      const totalMdsCount = shouldCountMds ? await countTotalMds() : null;
+
       // 3 variables are declared at the same time
       const [filteredCount, projects] = await Promise.all([
         // filteredCount
@@ -282,7 +296,7 @@ projectRouter.route('/').get(
               .toArray()
           : [],
       ]);
-      return { filteredCount, projects };
+      return { filteredCount, totalMdsCount, projects };
     }
   }),
 );
