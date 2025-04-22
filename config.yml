@@ -31,6 +31,7 @@ hosts:
         description: The main server including all simulations
         accession: MD-A00001
 
+    # Deprecated
     bioexcel-cv19.bsc.es:
         name: BioExcel-CV19
         description: The Covid-19 server
@@ -38,7 +39,21 @@ hosts:
         collection: cv19
         production: true
 
+    # Deprecated
     bioexcel-cv19-dev.bsc.es:
+        name: BioExcel-CV19
+        description: The Covid-19 server
+        accession: MCV1900193
+        collection: cv19
+
+    bioexcel-cv19.mddbr.eu:
+        name: BioExcel-CV19
+        description: The Covid-19 server
+        accession: MCV1900193
+        collection: cv19
+        production: true
+
+    bioexcel-cv19-dev.mddbr.eu:
         name: BioExcel-CV19
         description: The Covid-19 server
         accession: MCV1900193
