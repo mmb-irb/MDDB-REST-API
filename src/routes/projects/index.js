@@ -256,6 +256,7 @@ projectRouter.route('/').get(
       const projectMapping = isRaw ? project => project : projectFormatter;
 
       // Count total MDs across all matching projects
+      // RUBEN: remove when mdcount is in all the databases
       const countTotalMds = async () => {
         const aggregation = await database.projects.aggregate([
           { $match: finder },
