@@ -16,7 +16,9 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   const mdData = projectData.mds[mdIndex];
   // If the corresponding index does not exist then return an error
   if (!mdData) {
-    const error = 'The requested MD does not exists. Try with numbers 1-' + projectData.mds.length;
+    const error = projectData.booked
+      ? 'The requested accession is booked but is not available yet.'
+      : `The requested MD does not exist. Please try with numbers between 1 and ${projectData.mds.length}.`;
     projectData.headerError = NOT_FOUND;
     projectData.error = error;
     return { headerError: NOT_FOUND, error: error, accession: projectData.accession };
