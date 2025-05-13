@@ -40,6 +40,10 @@ projectRouter.route('/').get(
       // Set an object with all the parameters to performe the mongo query
       // Start filtering by published projects only if we are in production environment
       const finder = database.getBaseFilter();
+      // Filter out projects with booked=true
+      if (!finder.$and) finder.$and = [];
+      finder.$and.push({ $or: [{ booked: { $exists: false } }, { booked: false }] });
+
       // Then, search by 'search' parameters
       // Look for the search text in the accession and some metadata/pdbInfo fields
       const search = request.query.search;
@@ -48,8 +52,7 @@ projectRouter.route('/').get(
         const tsearch = escapeRegExp(search.trim());
         // $regex is a mongo command to search for regular expressions inside fields
         // $options: 'i' stands for the search to be case insensitive
-        finder.$and = [
-          {
+        finder.$and.push( {
             $or: [
               { accession: { $regex: tsearch, $options: 'i' } },
               { 'metadata.NAME': { $regex: tsearch, $options: 'i' } },
@@ -58,8 +61,7 @@ projectRouter.route('/').get(
               { 'metadata.GROUPS': { $regex: tsearch, $options: 'i' } },
               { 'metadata.PDBIDS': { $regex: tsearch, $options: 'i' } }
             ],
-          },
-        ];
+          });
       }
       // Then, filter by 'filter' parameters
       // Look for a specified value in any database field
@@ -83,7 +85,6 @@ projectRouter.route('/').get(
             const extract = f.split('+*');
             // Push it to the proper finder array
             // First, check that the array to push exists and, if not, create it
-            if (!finder.$and) finder.$and = [];
             finder.$and.push({ [extract[0]]: parseType(extract[1]) });
           }
           // The filters with '--' stand for 'OR NOT'
@@ -103,7 +104,6 @@ projectRouter.route('/').get(
             const extract = f.split('-*');
             // Push it to the proper finder array
             // First, check that the array to push exists and, if not, create it
-            if (!finder.$and) finder.$and = [];
             finder.$and.push({
               [extract[0]]: { $not: { $eq: parseType(extract[1]) } },
             });
@@ -171,7 +171,6 @@ projectRouter.route('/').get(
             await parseReferencesQuery(projectsQuery, referenceName, reference);
           }
           // Add final reference ids to the global projects query
-          if (!finder.$and) finder.$and = [];
           finder.$and.push(projectsQuery);
         }
       }
