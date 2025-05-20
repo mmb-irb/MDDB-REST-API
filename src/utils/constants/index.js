@@ -53,8 +53,9 @@ module.exports = {
     STANDARD_STRUCTURE_FILENAME: 'structure.pdb',
     // Export references
     REFERENCES,
-    // Set the header for reference queries
+    // Set the headers for some queries
     REFERENCE_HEADER: 'references.',
+    TOPOLOGY_HEADER: 'topology.',
     // Export mongo collection names
     LOCAL_COLLECTION_NAMES,
     GLOBAL_COLLECTION_NAMES,

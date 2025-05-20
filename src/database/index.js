@@ -8,13 +8,14 @@ const dbConnection = process.env.NODE_ENV === 'test'
 const {
     LOCAL_COLLECTION_NAMES,
     GLOBAL_COLLECTION_NAMES,
-    REFERENCES
+    REFERENCES,
+    REFERENCE_HEADER, TOPOLOGY_HEADER
 } = require('../utils/constants');
 const AVAILABLE_REFERENCES = Object.keys(REFERENCES).join(', ');
 // Get a function to clean raw project data to a standard format
 const projectFormatter = require('../utils/project-formatter');
 // Get auxiliar functions
-const { getConfig } = require('../utils/auxiliar-functions');
+const { getConfig, parseJSON } = require('../utils/auxiliar-functions');
 // Standard HTTP response status codes
 const { NOT_FOUND, BAD_REQUEST } = require('../utils/status-codes');
 // The project class is used to handle database data from a specific project
@@ -205,6 +206,139 @@ class Database {
         // Get the reference ids in an array
         const referenceIds = references.map(ref => ref[reference.idField]);
         return referenceIds;
+    }
+
+    // Process a projects query which may include reference and topology fields
+    // Returns an error response if something is wrong
+    processProjectsQuery = async query => {
+        // If there is no query then return an empty object, which applies no filter at all
+        if (!query) return {};
+        // Set a new list of the queries to prevent mutating the original
+        // In case there is a single query it would be a string, not an array, so adapt it
+        const queries = typeof query === 'string' ? [query] : [...query];
+        // Parse queries first, so we can stop as soon as one of them is wrong
+        const parsedQueries = [];
+        for await (const query of queries) {
+            // Parse the string into an object
+            const parsedQuery = parseJSON(query);
+            if (!parsedQuery) return {
+                headerError: BAD_REQUEST,
+                error: 'Wrong query syntax: ' + query
+            };
+            parsedQueries.push(parsedQuery);
+        }
+        // Iterate every separated query parameter
+        // Note that we do not classify queries first since some of them include $and and/or $or operands
+        for await (const parsedQuery of parsedQueries) {
+            // Save query errors here
+            let queryError;
+            // At this point the query object should correspond to a mongo query itself
+            // Find fields which start with 'references'
+            // These fields are actually intended to query references collections
+            // If we found references fields then we must query the references collection
+            // Then each references field will be replaced by its corresponding project field in a new query
+            // e.g. references.proteins -> metadata.REFERENCES
+            // e.g. references.ligands -> metadata.LIGANDS
+            // NEVER FORGET: we can not gather reference ids and query them all together at the end
+            // Some queries may have multiple subqueries, belonging to different reference types
+            const parseReferencesQuery = async queryObject => {
+                // Iterate over the original query fields
+                for (const [field, value] of Object.entries(queryObject)) {
+                    // If the field is actually a list of fields then run the parsing function recursively
+                    if (field === '$and' || field === '$or') {
+                        for (const subquery of value) {
+                            queryError = await parseReferencesQuery(subquery);
+                            if (queryError) return queryError;
+                        } 
+                        return;
+                    }
+                    // If the field does not start with the references header then skip it
+                    if (!field.startsWith(REFERENCE_HEADER)) return;
+                    // Get the name of the field and the reference collection
+                    const fieldSplits = field.split('.');
+                    const referenceName = fieldSplits[1];
+                    const referenceField = fieldSplits[2];
+                    // Get the reference configuration
+                    const reference = REFERENCES[referenceName];
+                    // Set the references query
+                    const referencesQuery = {};
+                    referencesQuery[referenceField] = value;
+                    // Set the reference projector
+                    const referencesProjector = { _id: false };
+                    referencesProjector[reference.idField] = true;
+                    // Query the references collection
+                    // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
+                    const referencesCursor = await this[referenceName]
+                        .find(referencesQuery)
+                        .project(referencesProjector);
+                    const results = await referencesCursor
+                        .map(ref => ref[reference.idField])
+                        .toArray();
+                    // If the query is empty then report it
+                    if (results.length === 0) return {
+                        headerError: NOT_FOUND,
+                        error: `Reference ${referenceName} query "${referenceField}: ${value}" is empty`
+                    }
+                    // Update the original query by removing the original field and adding the parsed one
+                    delete queryObject[field];
+                    queryObject[reference.projectIdsField] = { $in: results };
+                }
+            };
+            // Start the parsing function
+            queryError = await parseReferencesQuery(parsedQuery);
+            if (queryError) return queryError;
+            // Find fields which start with 'topology'
+            // These fields are actually intended to query the topologies collections
+            // If we found topology fields then we must query the topologies collection
+            // Then each topology field will be replaced by the list of project ids matching
+            // NEVER FORGET: we can not gather reference ids and query them all together at the end
+            // Some queries may have multiple subqueries, belonging to different reference types
+            const parseTopologiesQuery = async queryObject => {
+                // Iterate over the original query fields
+                for (const [field, value] of Object.entries(queryObject)) {
+                    // If the field is actually a list of fields then run the parsing function recursively
+                    if (field === '$and' || field === '$or') {
+                        for (const subquery of value) {
+                            queryError = await parseReferencesQuery(subquery);
+                            if (queryError) return queryError;
+                        } 
+                        return;
+                    }
+                    // If the field does not start with the topology header then skip it
+                    if (!field.startsWith(TOPOLOGY_HEADER)) return;
+                    // Get the name of the field
+                    const fieldSplits = field.split('.');
+                    const topologyField = fieldSplits[1];
+                    // Set the topologies query
+                    const topologiesQuery = {};
+                    topologiesQuery[topologyField] = value;
+                    // Set the topology projector
+                    const topologiesProjector = { _id: false, project: true };
+                    topologiesProjector[topologyField] = true;
+                    // Query the topologies collection
+                    // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
+                    const topologiesCursor = await this.topologies
+                        .find(topologiesQuery)
+                        .project(topologiesProjector);
+                    const results = await topologiesCursor
+                        .map(top => top.project)
+                        .toArray();
+                    // If the query is empty then report it
+                    if (results.length === 0) return {
+                        headerError: NOT_FOUND,
+                        error: `Topology query "${topologyField}: ${value}" is empty`
+                    }
+                    // Update the original query by removing the original field and adding the parsed one
+                    delete queryObject[field];
+                    queryObject._id = { $in: results };
+                }
+            };
+            // Start the parsing function
+            queryError = await parseTopologiesQuery(parsedQuery);
+            if (queryError) return queryError;
+        }
+        // Return the modified queries
+        return parsedQueries
     }
 
     // Close the connection to mongo and delete this handler

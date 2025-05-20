@@ -4,11 +4,11 @@ const handler = require('../../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../../database');
 // Standard HTTP response status codes
-const { BAD_REQUEST } = require('../../../utils/status-codes');
+const { BAD_REQUEST, NOT_FOUND } = require('../../../utils/status-codes');
 // Set a error-proof JSON parser
-const { parseJSON, getValueGetter } = require('../../../utils/auxiliar-functions');
+const { getValueGetter } = require('../../../utils/auxiliar-functions');
 // Import references configuration
-const { REFERENCES, REFERENCE_HEADER } = require('../../../utils/constants');
+const { REFERENCES, REFERENCE_HEADER, TOPOLOGY_HEADER } = require('../../../utils/constants');
 
 const router = Router({ mergeParams: true });
 
@@ -24,64 +24,10 @@ router.route('/').get(
       // Handle when there is a mongo query
       let query = request.query.query;
       if (query) {
-        // In case there is a single query it would be a string, not an array, so adapt it
-        if (typeof query === 'string') query = [query];
-        for (const q of query) {
-          // Parse the string into an object
-          const projectsQuery = parseJSON(q);
-          if (!projectsQuery) return {
-            headerError: BAD_REQUEST,
-            error: 'Wrong query syntax: ' + q
-          };
-          // At this point the query object should correspond to a mongo query itself
-          // Find fields which start with 'references'
-          // These fields are actually intended to query references collections
-          // If we found references fields then we must query the references collection
-          // Then each references field will be replaced by its corresponding project field in a new query
-          // e.g. references.proteins -> metadata.REFERENCES
-          // e.g. references.ligands -> metadata.LIGANDS
-          const parseReferencesQuery = async originalQuery => {
-            // Iterate over the original query fields
-            for (const [field, value] of Object.entries(originalQuery)) {
-              // If the field is actually a list of fields then run the parsing function recursively
-              if (field === '$and' || field === '$or') {
-                for (const subquery of value) {
-                  await parseReferencesQuery(subquery);
-                }
-                return;
-              }
-              // If the field does not start with the references header then skip it
-              if (!field.startsWith(REFERENCE_HEADER)) return;
-              // Get the name of the field and the reference collection
-              const fieldSplits = field.split('.');
-              const referenceName = fieldSplits[1];
-              const referenceField = fieldSplits[2];
-              // Get the reference configuration
-              const reference = REFERENCES[referenceName];
-              // Set the references query
-              const referencesQuery = {};
-              referencesQuery[referenceField] = value;
-              // Set the reference projector
-              const referencesProjector = { _id: false };
-              referencesProjector[reference.idField] = true;
-              // Query the references collection
-              // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
-              const referencesCursor = await database[referenceName]
-                .find(referencesQuery)
-                .project(referencesProjector);
-              const results = await referencesCursor
-                .map(ref => ref[reference.idField])
-                .toArray();
-              // Update the original query by removing the original field and adding the parsed one
-              delete originalQuery[field];
-              originalQuery[reference.projectIdsField] = { $in: results };
-            }
-          };
-          // Start the parsing function
-          await parseReferencesQuery(projectsQuery);
-          if (!finder.$and) finder.$and = [];
-          finder.$and.push(projectsQuery);
-        }
+        // Process the mongo query to convert references and topology queries
+        const processedQuery = await database.processProjectsQuery(query);
+        if (!finder.$and) finder.$and = processedQuery;
+        else finder.$and = finder.$and.concat(processedQuery);
       }
       // Get the requested projection
       let projection = request.query.projection;
@@ -93,18 +39,23 @@ router.route('/').get(
       // Set the options object to be returned
       // Then all mined data will be written into it
       const options = {};
-      // Options may be fields both from projects or references collections
+      // Options may be fields from projects, topologies, or references collections
       // Fields in references are headed with the 'references.' label and they are handled separately
       // Start with options from references
       // In case there is any reference we must query the projects collections first
-      const requestedProjections = { projects: [] };
+      const requestedProjections = { projects: [], topologies: [] };
       const availableReferences = Object.keys(REFERENCES);
       availableReferences.forEach(referenceName => { requestedProjections[referenceName] = [] });
       // Keep a set with the references included in the projection
       const requestedReferences = new Set();
       // First separate reference fields from project fields
       for (const field of projection) {
-        // If this field has not the reference header then it is a project field
+        // If this field has the topology header then it is a topology field
+        if (field.startsWith(TOPOLOGY_HEADER)) {
+          requestedProjections.topologies.push(field);
+          continue;
+        }
+        // If this field has not the reference header either then it is a project field
         if (!field.startsWith(REFERENCE_HEADER)) {
           requestedProjections.projects.push(field);
           continue;
@@ -117,6 +68,11 @@ router.route('/').get(
           headerError: BAD_REQUEST,
           error: `Unknown reference "${requestedReference}". Available references: ${availableReferences.join(', ')}`
         };
+        // Make sure there is something after the reference name or we will have a mongo error later
+        if (!field.split('.')[2]) return  {
+          headerError: BAD_REQUEST,
+          error: `Empty reference field in "${field}". Please provide a field name after "${requestedReference}"`
+        }
         // Add the requetsed reference to the set
         requestedReferences.add(requestedReference);
         // Add the requested field to its corresponding reference
@@ -125,9 +81,11 @@ router.route('/').get(
       // First of all make the projects request
       // This requests has 2 goals
       // First, we get the project requested fields
-      // Second, we get reference id fields to further count the number of mathces per reference requested field
+      // Second, we get reference id fields to further count the number of matches per reference requested field
       // Set the projector according to the two previously explained goals
-      const projector = { _id: false };
+      // We will need internal ids if we have to request any topology field
+      const anyTopologyProjection = requestedProjections.topologies.length > 0;
+      const projector = { _id: anyTopologyProjection };
       // Add requested project fields
       requestedProjections.projects.forEach(field => {
         projector[field] = true
@@ -141,6 +99,11 @@ router.route('/').get(
       const projectsCursor = await database.projects.find(finder, { projection: projector });
       // Consume the projects cursor
       const projectsData = await projectsCursor.toArray();
+      // If projects data is empty then stop here
+      if (projectsData.length === 0) return {
+        headerError: NOT_FOUND,
+        error: `Query ${query} is empty`
+      }
       // Start handling references options
       // First of all, make sure there was at least one reference projection request
       const anyReferenceProjectionRequest = requestedReferences.size > 0;
@@ -154,14 +117,14 @@ router.route('/').get(
           // Count the number of reference ids per project
           const referenceIdCounts = {};
           for (const projectData of projectsData) {
-            const projectReferenceIds = projectIdsGetter(projectData, reference.projectIdsField); 
+            const projectReferenceIds = projectIdsGetter(projectData);
             if (!projectReferenceIds) continue;
             projectReferenceIds.forEach(referenceId => {
               if (referenceId in referenceIdCounts) referenceIdCounts[referenceId] += 1;
               else referenceIdCounts[referenceId] = 1;
             });
           }
-          // Get the requested projection fields for the curent reference
+          // Get the requested projection fields for the current reference
           // Remove both the reference header and the reference name from every field to get the actual fields
           // e.g. 'references.proteins.name' -> 'name'
           const referenceRequestedProjections = requestedProjections[referenceName].map(
@@ -234,6 +197,46 @@ router.route('/').get(
           });
         }
       }
+      // Next process topology requests
+      if (anyTopologyProjection) {
+        // Get internal ids from target projects
+        const targetProjectIds = projectsData.map(project => project._id);
+        // Set the topologies projector
+        const topologyFields = requestedProjections.topologies.map(field => field.split('.')[1]);
+        const topologiesProjector = { _id: false };
+        topologyFields.forEach(field => { topologiesProjector[field] = true });
+        // Get target topologies
+        const topologiesCursor = await database.topologies.find(
+          { project: { $in: targetProjectIds }},
+          // Discard the heaviest fields we do not need anyway
+          { projection: topologiesProjector },
+        );
+        // Now get the count of every different value for every projected field
+        const counts = {};
+        topologyFields.forEach(field => { counts[field] = {} });
+        // If there are many topologies we may exceed the memory limit
+        // To avoid this, instead of consuming the whole cursor we will iterate its documents
+        for await (const topologyData of topologiesCursor) {
+          topologyFields.forEach(field => {
+            // Get the unique values in this topology
+            const fieldData = topologyData[field];
+            const uniqueValues = Array.isArray(fieldData)
+              ? new Set(fieldData)
+              : new Set(Object.values(fieldData))
+            // Get the current counts for this field
+            const currentCounts = counts[field];
+            // Add one to the counts for every unique value found
+            uniqueValues.forEach(value => {
+              currentCounts[value] = (currentCounts[value] || 0) + 1
+            })
+          })
+        }
+        // Add final counts to the overall options
+        // Recover the topology field header now
+        Object.entries(counts).forEach(([fieldName, fieldCounts]) => {
+          options[TOPOLOGY_HEADER + fieldName] = fieldCounts;
+        });
+      }
       // Now handle project options
       if (requestedProjections.projects.length !== 0) {
         // For each projected field, get the counts
@@ -270,6 +273,13 @@ router.route('/').get(
           options[field] = counts;
         });
       }
+      // Sort values by count for every projected field
+      Object.entries(options).forEach(([field, counts]) => {
+        const sortedCounts = Object.entries(counts)
+          .sort(([,a],[,b]) => b-a)
+          .reduce((r, [k, v]) => ({ ...r, [k]: v }), {});
+        options[field] = sortedCounts;
+      });
       // Send all mined data
       return options;
     }

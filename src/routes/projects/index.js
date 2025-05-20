@@ -8,8 +8,6 @@ const getDatabase = require('../../database');
 const projectFormatter = require('../../utils/project-formatter');
 // Get auxiliar functions
 const { parseJSON, getConfig } = require('../../utils/auxiliar-functions');
-// Import references configuration
-const { REFERENCES, REFERENCE_HEADER } = require('../../utils/constants');
 // Standard HTTP response status codes
 const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 
@@ -113,66 +111,10 @@ projectRouter.route('/').get(
       // Handle when it is a mongo query itself
       let query = request.query.query;
       if (query) {
-        // In case there is a single query it would be a string, not an array, so adapt it
-        if (typeof query === 'string') query = [query];
-        for (const q of query) {
-          // Parse the string into an object
-          const projectsQuery = parseJSON(q);
-          if (!projectsQuery) return {
-            headerError: BAD_REQUEST,
-            error: `Query "${q}" is not well formatted`
-          };
-          // At this point the query object should correspond to a mongo query itself
-          // Find fields which start with 'references'
-          // These fields are actually intended to query reference collections
-          // If we found references fields then we must query the corresponding reference collection
-          const parseReferencesQuery = async (originalQuery, referenceName, reference) => {
-            // Keep the final reference ids which are present among all reference queries
-            let finalReferences;
-            // Iterate over the original query fields
-            for (const [field, value] of Object.entries(originalQuery)) {
-              // If the field is actually a list of fields then run the parsing function recursively
-              if (field === '$and' || field === '$or') {
-                for (const subquery of value) {
-                  await parseReferencesQuery(subquery);
-                }
-                return;
-              }
-              // If the field does not start with the references header then skip it
-              if (!field.startsWith(REFERENCE_HEADER)) continue;
-              // Get the reference name
-              const currentReferenceName = field.split('.')[1];
-              if (currentReferenceName !== referenceName) continue;
-              // Get the name of the field after substracting the symbolic header
-              const referencesField = field.split('.')[2];
-              const referencesQuery = {};
-              referencesQuery[referencesField] = value;
-              // Query the references collection
-              // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
-              const referencesCursor = await database[referenceName]
-                .find(referencesQuery)
-                .project({ [reference.idField]: true, _id: false });
-              // From the results keep only the reference id
-              const results = await referencesCursor
-                .map(ref => ref[reference.idField])
-                .toArray();
-              // Update the original query by removing the original field and adding the parsed one
-              delete originalQuery[field];
-              // Update final reference ids
-              const currentIds = new Set(results);
-              if (!finalReferences) finalReferences = currentIds;
-              else finalReferences = new Set([...finalReferences].filter(i => currentIds.has(i)));
-            }
-            if (!finalReferences) return;
-            originalQuery[reference.projectIdsField] = { $in: Array.from(finalReferences) };
-          };
-          // Start the parsing function
-          for await(const [referenceName, reference] of Object.entries(REFERENCES)) {
-            await parseReferencesQuery(projectsQuery, referenceName, reference);
-          }
-          // Add final reference ids to the global projects query
-          finder.$and.push(projectsQuery);
-        }
+        // Process the mongo query to convert references and topology queries
+        const processedQuery = await database.processProjectsQuery(query);
+        if (!finder.$and) finder.$and = processedQuery;
+        else finder.$and = finder.$and.concat(processedQuery);
       }
       // Set the projection object for the mongo query
       const projector = {};
