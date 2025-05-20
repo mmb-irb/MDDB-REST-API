@@ -38,10 +38,6 @@ projectRouter.route('/').get(
       // Set an object with all the parameters to performe the mongo query
       // Start filtering by published projects only if we are in production environment
       const finder = database.getBaseFilter();
-      // Filter out projects with booked=true
-      if (!finder.$and) finder.$and = [];
-      finder.$and.push({ $or: [{ booked: { $exists: false } }, { booked: false }] });
-
       // Then, search by 'search' parameters
       // Look for the search text in the accession and some metadata/pdbInfo fields
       const search = request.query.search;

@@ -85,8 +85,10 @@ class Database {
         // Note that unknown hosts (e.g. 'localhost:8000') will get all simulations, with no filter
         const hostCollection = this.config && this.config.collection;
         const collectionFilter = Object.seal(hostCollection ? { 'metadata.COLLECTIONS': hostCollection } : {});
+        // Set the booked filter ro remove booked projects from the query
+        const bookedFilter = Object.seal({ booked: { $ne: true } });
         // Return all filters together, including also the publsihed filter
-        return { ...publishedFilter, ...positedFilter, ...collectionFilter };
+        return { ...publishedFilter, ...positedFilter, ...collectionFilter, ...bookedFilter };
     };
 
     // Given the API request, set the project(s) query by the following steps:
