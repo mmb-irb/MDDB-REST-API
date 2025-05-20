@@ -46,6 +46,7 @@ projectRouter.route('/').get(
         const tsearch = escapeRegExp(search.trim());
         // $regex is a mongo command to search for regular expressions inside fields
         // $options: 'i' stands for the search to be case insensitive
+        if (!finder.$and) finder.$and = [];
         finder.$and.push( {
             $or: [
               { accession: { $regex: tsearch, $options: 'i' } },
@@ -79,6 +80,7 @@ projectRouter.route('/').get(
             const extract = f.split('+*');
             // Push it to the proper finder array
             // First, check that the array to push exists and, if not, create it
+            if (!finder.$and) finder.$and = [];
             finder.$and.push({ [extract[0]]: parseType(extract[1]) });
           }
           // The filters with '--' stand for 'OR NOT'
@@ -98,6 +100,7 @@ projectRouter.route('/').get(
             const extract = f.split('-*');
             // Push it to the proper finder array
             // First, check that the array to push exists and, if not, create it
+            if (!finder.$and) finder.$and = [];
             finder.$and.push({
               [extract[0]]: { $not: { $eq: parseType(extract[1]) } },
             });
