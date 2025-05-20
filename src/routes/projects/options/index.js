@@ -26,6 +26,7 @@ router.route('/').get(
       if (query) {
         // Process the mongo query to convert references and topology queries
         const processedQuery = await database.processProjectsQuery(query);
+        if (processedQuery.error) return processedQuery;
         if (!finder.$and) finder.$and = processedQuery;
         else finder.$and = finder.$and.concat(processedQuery);
       }
@@ -220,6 +221,7 @@ router.route('/').get(
           topologyFields.forEach(field => {
             // Get the unique values in this topology
             const fieldData = topologyData[field];
+            if (!fieldData) return;
             const uniqueValues = Array.isArray(fieldData)
               ? new Set(fieldData)
               : new Set(Object.values(fieldData))

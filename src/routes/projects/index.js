@@ -109,9 +109,11 @@ projectRouter.route('/').get(
       if (query) {
         // Process the mongo query to convert references and topology queries
         const processedQuery = await database.processProjectsQuery(query);
+        if (processedQuery.error) return processedQuery;
         if (!finder.$and) finder.$and = processedQuery;
         else finder.$and = finder.$and.concat(processedQuery);
       }
+      console.log(finder);
       // Set the projection object for the mongo query
       const projector = {};
       // Handle when it is a mongo projection itself
