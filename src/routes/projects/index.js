@@ -116,7 +116,6 @@ projectRouter.route('/').get(
         if (!finder.$and) finder.$and = processedQuery;
         else finder.$and = finder.$and.concat(processedQuery);
       }
-      console.log(finder);
       // Set the projection object for the mongo query
       const projector = {};
       // Handle when it is a mongo projection itself

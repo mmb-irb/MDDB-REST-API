@@ -276,11 +276,9 @@ class Database {
                     const results = await referencesCursor
                         .map(ref => ref[reference.idField])
                         .toArray();
-                    // If the query is empty then report it
-                    if (results.length === 0) return {
-                        headerError: NOT_FOUND,
-                        error: `Reference ${referenceName} query "${referenceField}: ${value}" is empty`
-                    }
+                    // DANI: Although we could return a not found error here if results is empty we don't
+                    // DANI: Thus the final response is an empty list and we are coherent
+                    // DANI: Otherwise every service using this endpoint should learn to handle the error
                     // Update the original query by removing the original field and adding the parsed one
                     delete queryObject[field];
                     queryObject[reference.projectIdsField] = { $in: results };
@@ -325,11 +323,9 @@ class Database {
                     const results = await topologiesCursor
                         .map(top => top.project)
                         .toArray();
-                    // If the query is empty then report it
-                    if (results.length === 0) return {
-                        headerError: NOT_FOUND,
-                        error: `Topology query "${topologyField}: ${value}" is empty`
-                    }
+                    // DANI: Although we could return a not found error here if results is empty we don't
+                    // DANI: Thus the final response is an empty list and we are coherent
+                    // DANI: Otherwise every service using this endpoint should learn to handle the error
                     // Update the original query by removing the original field and adding the parsed one
                     delete queryObject[field];
                     queryObject._id = { $in: results };
