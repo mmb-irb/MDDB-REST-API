@@ -62,6 +62,7 @@ router.route('/').get(
           delete interaction.residues_2;
           delete interaction.interface_1;
           delete interaction.interface_2;
+          delete interaction.type;
         }
       }
       // Set the input mds by removing all generated fields on each MD
