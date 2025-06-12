@@ -6,25 +6,33 @@ const getDatabase = require('../../database');
 // Import references configuration
 const { REFERENCES } = require('../../utils/constants');
 // Standard codes for HTTP responses
-const { BAD_REQUEST } = require('../../utils/status-codes');
+const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 // Import auxiliar functions
 const { getValueGetter } = require('../../utils/auxiliar-functions');
+const { rangeNotation } = require('../../utils/parse-query-range');
 // Set the supported references
 // We exclude chains since it does not make sense, although it should work anyway
 const SUPPORTED_REFERENCES = [ ...Object.keys(REFERENCES) ]
     .filter(value => value !== 'chains');
 const availableReferences = SUPPORTED_REFERENCES.join(', ');
-// Set which references support "coverage"
+// Set which references support "presence"
 // These are references to be residue-assigned in the topology
-// Thus PDB references do not support coverage
-const COVERAGE_SUPPORTED_REFERENCES = [ 'proteins', 'ligands' ];
+// Thus PDB references do not support presence
+const PRESENCE_SUPPORTED_REFERENCES = [ 'proteins', 'ligands' ];
+// Set which references support "coverage"
+// These are references which have multiple residues
+// Thus not all of its residues may be covered in the system
+// Only proteins so far
+const COVERAGE_SUPPORTED_REFERENCES = [ 'proteins' ];
 // Set a list of supported formats
 const SUPPORTED_FORMATS = ['json', 'csv'];
 const availableFormats = SUPPORTED_FORMATS.join(', ');
+// Set the csv separator
+const SEP = ';';
 
 // Set the response when a specific reference is requested
 // Return a list with all available reference ids
-const wholeReferenceResponse = handler({
+const pointersEndpoint = handler({
     async retriever(request) {
         // Stablish database connection and retrieve our custom handler
         const database = await getDatabase(request);
@@ -43,14 +51,20 @@ const wholeReferenceResponse = handler({
             headerError: BAD_REQUEST,
             error: `Not suppoted reference "${referenceName}". Available references: ${availableReferences}`
         }
-        const idsField = reference.projectIdsField;
+        // Check if a specific reference id is requested
+        const targetReferenceId = request.params.id;
+        const hasTarget = targetReferenceId !== undefined;
         // Set a getter function for the project reference ids field
+        const idsField = reference.projectIdsField;
         const projectIdsGetter = getValueGetter(idsField);
         // Set an object with all the parameters to perform the mongo projects query
         // Start filtering by published projects only if we are in production environment
         const projectsFinder = database.getBaseFilter();
         // Make sure the projects we query have the ids field and at least one value
-        projectsFinder[idsField] = { $exists: true, $type: 'array', $ne: [] };
+        // If we have a target id the query only those projects which contain this specific id
+        projectsFinder[idsField] = hasTarget
+            ? targetReferenceId
+            : { $exists: true, $type: 'array', $ne: [] };
         // Set which data is to be return from the query
         // We only need the reference id and the project accession
         const projectsProjector = { projection: {
@@ -60,15 +74,19 @@ const wholeReferenceResponse = handler({
         const projectsCursor = await database.projects.find(projectsFinder, projectsProjector);
         // Consume the projects cursor
         const projectsData = await projectsCursor.toArray();
-        // Check if the requested reference supports 
+        // Check if the requested reference supports "presence" measuring
+        const supportedPresence = PRESENCE_SUPPORTED_REFERENCES.includes(referenceName);
+        // Check if the requested reference supports "coverage" measuring
         const supportedCoverage = COVERAGE_SUPPORTED_REFERENCES.includes(referenceName);
-        // If coverage is supported then we must download topologies as well
+        // If presence is supported then we must download topologies as well
         const projectTopologies = {};
-        if (supportedCoverage) {
+        if (supportedPresence || supportedCoverage) {
             // Set which data is to be return from the query
             // We only need the references and residue reference indices
             const topologiesProjector = { projection: {
-                project: true, references: true, residue_reference_indices: true
+                project: true, references: true,
+                residue_reference_indices: true,
+                residue_reference_numbers: supportedCoverage ? true : undefined,
             }};
             // Set the projects cursor
             const topologiesCursor = await database.topologies.find({}, topologiesProjector);
@@ -77,55 +95,121 @@ const wholeReferenceResponse = handler({
             // Restructure data by setting the projects as keys
             topologiesData.forEach(topology => projectTopologies[topology.project] = topology);
         }
+        // If coverage is supported then measure hte number of residues in every reference
+        const referencesResidueCounts = {};
+        if (supportedCoverage) {
+            // Now download reference data
+            // This is used only to measure the coverage of the reference in the current system
+            const collection = database[referenceName];
+            // Download the target reference only, or all references if there is not target
+            const referencesFinder = hasTarget ? { [reference.idField]: targetReferenceId } : {};
+            // Set which field are to be retrieved
+            // DANI: This is the only hardcoded part
+            // DANI: Since these will always be proteins (so far) I know I want the sequence
+            const referencesProjector = { uniprot: true, sequence: true };
+            // Query the database
+            const referencesCursor = await collection.find(referencesFinder, referencesProjector);
+            // Consume the references cursor
+            const referencesData = await referencesCursor.toArray();
+            // Count the number of residues per references
+            referencesData.forEach(ref => referencesResidueCounts[ref.uniprot] = ref.sequence.length);
+        }
+        // Get the requesting host
+        // It will be used to generate the URLs
+        const host = request.get('host');
         // Classify data per reference id
         const pointers = {};
         // Iterate projects data
         projectsData.forEach(projectData => {
+            const accession = projectData.accession;
             // Get all reference ids included in this project
             const referenceIds = projectIdsGetter(projectData);
             // Get the topology, in case there is a topology
-            // If coverage is supported then proceed to calculate it
+            // If presence is supported then proceed to calculate it
             const topology = projectTopologies[projectData._id];
+            // Check if topology is not available
+            const noTopology = !topology || !topology.references || !topology.residue_reference_indices;
             // Iterate these reference ids
             referenceIds.forEach(referenceId => {
+                // If we have a target reference id then skip anything else
+                if (hasTarget && targetReferenceId !== referenceId) return;
                 // Get the current point
-                let currentPointer = pointers[referenceId];
+                let currentReferenceIdPointers = pointers[referenceId];
                 // Create a new one if this is the first time we search for the current reference id
-                if (!currentPointer) {
-                    currentPointer = { projects : [] };
-                    if (supportedCoverage) currentPointer.coverages = [];
-                    pointers[referenceId] = currentPointer;
+                if (!currentReferenceIdPointers) {
+                    currentReferenceIdPointers = [];
+                    pointers[referenceId] = currentReferenceIdPointers;
                 }
-                // Add the id to the list
-                currentPointer.projects.push(projectData.accession);
-                // If coverange is not supported then we are done
-                if (!supportedCoverage) return;
-                // Make sure the topology is not lacking essential fields
-                if (!topology || !topology.references || !topology.residue_reference_indices) {
-                    currentPointer.coverages.push(null);
-                    return;
-                }
-                // If coverage is supported then proceed to calculate it
+                // Set the new pointer and add it to the pointers list
+                const currentPointer = { id: accession };
+                currentReferenceIdPointers.push(currentPointer);
+                // Add the full URL to access current project data
+                const protocol = host.startsWith('localhost') ? 'http' : 'https';
+                currentPointer.url = `${protocol}://${host}/rest/v1/projects/${accession}`;
+                // If presence and overage are not supported then we are done
+                if (!supportedPresence && !supportedCoverage) return;
+                // Get indices of reference residues in the system
                 const referenceIndex = topology.references.indexOf(referenceId);
-                const residueCount = topology.residue_reference_indices.reduce(
-                    (acc, index) => acc += index === referenceIndex, 0);
-                const coverage = residueCount / topology.residue_reference_indices.length;
-                currentPointer.coverages.push(coverage);
+                const referenceResidueIndicies = topology.residue_reference_indices
+                    .map((refIndex, index) => refIndex === referenceIndex ? index : null)
+                    .filter(i => i != null);
+                // If presence is supported
+                if (supportedPresence) {
+                    // Make sure the topology is not lacking essential fields
+                    if (noTopology) {
+                        currentPointer.present_residues = null;
+                        currentPointer.presence = null;
+                    }
+                    else {
+                        // Also set the range of covered residues
+                        currentPointer.present_residues = rangeNotation(referenceResidueIndicies);
+                        // If presence is supported then proceed to calculate it
+                        // Count the total number of residues in the system
+                        const systemResidueCount = topology.residue_reference_indices.length;
+                        // Count the total number of reference residues in the system
+                        const referenceResidueCount = referenceResidueIndicies.length;
+                        const presence = referenceResidueCount / systemResidueCount;
+                        currentPointer.presence = presence;
+                    }
+                }
+                // If coverage is supported
+                if (supportedCoverage) {
+                    if (referenceId === 'noref' || referenceId === 'notfound') {
+                        currentPointer.covered_residues = null;
+                        currentPointer.coverage = null;
+                    }
+                    else {
+                        // Get covered reference residue numbers
+                        const referenceResidueNumbers = referenceResidueIndicies.map(
+                            residueIndex => topology.residue_reference_numbers[residueIndex]);
+                        // Get unique and sorted numbers
+                        const coveredResidues = [...new Set(referenceResidueNumbers)];
+                        coveredResidues.sort((a,b) => a-b);
+                        // Parse it to ranged notation
+                        currentPointer.covered_residues = rangeNotation(coveredResidues);
+                        // Get the percent of reference residues covered in the system
+                        const referenceResidueCount = referencesResidueCounts[referenceId];
+                        currentPointer.coverage = coveredResidues.length / referenceResidueCount;
+                    }
+                }
             });
         });
         // If there is no output format then return the response as is
-        if (format === 'json') return pointers;
+        if (format === 'json') return hasTarget ? pointers[targetReferenceId] : pointers;
         // At this point (for now) it means the requested format is CSV
-        let csvData = `${reference.idField}, project accession`;
-        if (supportedCoverage) csvData += `,coverage`;
+        let csvData = hasTarget ? '' : `${reference.idField}${SEP}`;
+        csvData += `project accession${SEP}web page url`;
+        if (supportedPresence) csvData += `${SEP}present residues${SEP}presence`;
+        if (supportedCoverage) csvData += `${SEP}covered residues${SEP}coverage`;
         csvData += '\r\n';
-        Object.entries(pointers).forEach(([referenceId, pointerData]) => {
-            pointerData.projects.forEach((accession, a) => {
-                csvData += `${referenceId},${accession}`;
-                if (supportedCoverage) {
-                    const coverage = pointerData.coverages[a];
-                    csvData += `,${coverage}`;
-                }
+        Object.entries(pointers).forEach(([referenceId, pointers]) => {
+            pointers.forEach(pointer => {
+                csvData += hasTarget ? '' : `${referenceId}${SEP}`;
+                csvData += `${pointer.id}${SEP}${pointer.url}`;
+                if (supportedPresence)
+                    csvData += `${SEP}${pointer.present_residues}${SEP}${pointer.presence}`;                    
+                if (supportedCoverage)
+                    csvData += `${SEP}${pointer.covered_residues}${SEP}${pointer.coverage}`;
                 csvData += '\r\n';
             });
         });
@@ -165,6 +249,7 @@ rootRouter.route('/').get((_, response) => {
     // This is just a map so the API user know which options are available
     response.json(`Available reference endpoints: ${availableReferences}`);
 });
-rootRouter.route('/:reference').get(wholeReferenceResponse);
+rootRouter.route('/:reference').get(pointersEndpoint);
+rootRouter.route('/:reference/:id').get(pointersEndpoint);
 
 module.exports = rootRouter;

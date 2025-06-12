@@ -40,6 +40,21 @@ const rangeIndices = indices => {
   return ranges;
 }
 
+// Given an array of unique sorted indices, write them in ranged notation
+// e.g. 1,2,3,5 -> '1-3,5'
+const rangeNotation = indices => {
+  let rangedNotation = '';
+  // Iterate range blocks
+  const rangedIndices = rangeIndices(indices)
+  rangedIndices.forEach(r => {
+    rangedNotation += r.start.toString();
+    if (r.end !== r.start) rangedNotation += `-${r.end}`;
+    rangedNotation += ','
+  })
+  // Remove last coma
+  return rangedNotation.slice(0,-1);
+}
+
 // Parse a query string with ranged meaning to a list of objects with start and end fields
 // Accepted input string formats are start:end:step and e.g. 1,2,3-7
 // If a limit is passed then values beyond this limit are filtered
@@ -114,5 +129,6 @@ const parseQueryRange = (string, limit, dimensionName) => {
 
 module.exports = {
   parseQueryRange,
-  rangeIndices
+  rangeIndices,
+  rangeNotation
 };
