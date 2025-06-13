@@ -6,7 +6,7 @@ const getDatabase = require('../../database');
 // Import references configuration
 const { REFERENCES } = require('../../utils/constants');
 // Standard codes for HTTP responses
-const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
+const { BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND } = require('../../utils/status-codes');
 // Import auxiliar functions
 const { getValueGetter, getBaseURL } = require('../../utils/auxiliar-functions');
 const { rangeNotation } = require('../../utils/parse-query-range');
@@ -74,6 +74,13 @@ const pointersEndpoint = handler({
         const projectsCursor = await database.projects.find(projectsFinder, projectsProjector);
         // Consume the projects cursor
         const projectsData = await projectsCursor.toArray();
+        // If no projects were found then it means some reference id was searched and not found
+        if (projectsData.length === 0) return {
+            headerError: NOT_FOUND,
+            error: targetReferenceId
+                ? `No project was found to include references to "${targetReferenceId}" ${referenceName}`
+                : `There are no references to ${referenceName} at all`
+        }
         // Check if the requested reference supports "presence" measuring
         const supportedPresence = PRESENCE_SUPPORTED_REFERENCES.includes(referenceName);
         // Check if the requested reference supports "coverage" measuring
