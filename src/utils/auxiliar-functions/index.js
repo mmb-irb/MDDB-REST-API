@@ -88,6 +88,21 @@ const getConfig = request => {
     };
 }
 
+// Given the original URL, get only the base URL, before entering in any endpoint
+// WARNING: Note that the URL base may change
+// e.g. in local host it is /rest/... while normally it is /api/rest/...
+const getBaseURL = originalURL => {
+    // Use the 'rest' slot to indetify the core of the URL
+    // This should always be present
+    const slots = originalURL.split('/');
+    const coreIndex = slots.indexOf('rest');
+    // We will take the next slot as well, which corresponds to the versions
+    const versionIndex = coreIndex + 1;
+    // Reconstruct the URL until the version slot
+    const baseURL = slots.slice(0, versionIndex + 1).join('/');
+    return baseURL;
+}
+
 // Given 2 sets, return the intersection between them
 // This should be done using the set intersection function, but this is not implemented in old js versions
 const intersection = (set1, set2) => {
@@ -118,6 +133,7 @@ module.exports = {
     setOutputFilename,
     getValueGetter,
     getConfig,
+    getBaseURL,
     intersection,
     caluclateMean,
     caluclateMeanAndStandardDeviation

@@ -8,7 +8,7 @@ const { REFERENCES } = require('../../utils/constants');
 // Standard codes for HTTP responses
 const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 // Import auxiliar functions
-const { getValueGetter } = require('../../utils/auxiliar-functions');
+const { getValueGetter, getBaseURL } = require('../../utils/auxiliar-functions');
 const { rangeNotation } = require('../../utils/parse-query-range');
 // Set the supported references
 // We exclude chains since it does not make sense, although it should work anyway
@@ -114,9 +114,15 @@ const pointersEndpoint = handler({
             // Count the number of residues per references
             referencesData.forEach(ref => referencesResidueCounts[ref.uniprot] = ref.sequence.length);
         }
-        // Get the requesting host
+        // Get the requesting protocol, host and URL base
         // It will be used to generate the URLs
+        // WARNING: Note that the URL base may change
+        // e.g. in local host it is /rest/... while normally it is /api/rest/...
+        const protocol = request.protocol;
         const host = request.get('host');
+        const baseURL = getBaseURL(request.originalUrl);
+        // Now set the projects URL
+        const projectsURL = `${protocol}://${host}${baseURL}/projects/`;
         // Classify data per reference id
         const pointers = {};
         // Iterate projects data
@@ -144,8 +150,7 @@ const pointersEndpoint = handler({
                 const currentPointer = { id: accession };
                 currentReferenceIdPointers.push(currentPointer);
                 // Add the full URL to access current project data
-                const protocol = host.startsWith('localhost') ? 'http' : 'https';
-                currentPointer.url = `${protocol}://${host}/rest/v1/projects/${accession}`;
+                currentPointer.url = projectsURL + accession;
                 // If presence and overage are not supported then we are done
                 if (!supportedPresence && !supportedCoverage) return;
                 // Get indices of reference residues in the system
