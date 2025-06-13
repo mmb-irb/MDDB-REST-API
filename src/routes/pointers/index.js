@@ -121,8 +121,13 @@ const pointersEndpoint = handler({
         const protocol = request.protocol;
         const host = request.get('host');
         const baseURL = getBaseURL(request.originalUrl);
+        // DANI: Esto es un arreglo temporal
+        // DANI: No hay forma de recuperar la URL original completa desde express
+        // DANI: Las queries que vienen de MDposit llevan el '/api' detrás del host name
+        // DANI: No tengo forma de recuperar esto desde express, así que hago un arreglo por prisa
+        const fix = host.startsWith('localhost') ? '' : '/api';
         // Now set the projects URL
-        const projectsURL = `${protocol}://${host}${baseURL}/projects/`;
+        const projectsURL = `${protocol}://${host}${fix}${baseURL}/projects/`;
         // Classify data per reference id
         const pointers = {};
         // Iterate projects data
