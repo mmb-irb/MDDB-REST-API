@@ -617,6 +617,114 @@ paths:
               schema:
                 $ref: '#/components/schemas/PdbReference'
 
+  /pointers/proteins:
+    get:
+      summary: Get all available UniProt IDs and their pointers with projects including these UniProt ID.
+      description: >
+        Get a list of available UniProt IDs and all projects including each UniProt ID.
+        Include also system residues presence and reference residues coverage.
+      tags:
+        - pointers
+      responses:
+        200:
+          description: >
+            List of UniProt IDs and its associated projects.
+            Keys are UniProt IDs while values are the associated pointers.
+          content:
+            application/json:
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/Pointer'
+
+  /pointers/proteins/{UniProtID}:
+    get:
+      summary: Get a pointer with projects including a specific UniProt ID.
+      description: >
+        Get a list of available UniProt IDs and all projects including each UniProt ID.
+        Include also system residues presence and reference residues coverage.
+      tags:
+        - pointers
+      parameters:
+        - $ref: '#/definitions/arguments/UniProtID'
+      responses:
+        200:
+          description: List of UniProt IDs and its associated projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pointer'
+
+  /pointers/ligands:
+    get:
+      summary: Get all available PubChem IDs and their pointers with projects including these PubChem ID.
+      description: >
+        Get a list of available PubChem IDs and all projects including each PubChem ID.
+        Include also system residues presence.
+      tags:
+        - pointers
+      responses:
+        200:
+          description: >
+            List of PubChem IDs and its associated projects.
+            Keys are PubChem IDs while values are the associated pointers.
+          content:
+            application/json:
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/Pointer'
+
+  /pointers/ligands/{PubChemID}:
+    get:
+      summary: Get a pointer with projects including a specific PubChem ID.
+      description: >
+        Get a list of available PubChem IDs and all projects including each PubChem ID.
+        Include also system residues presence.
+      tags:
+        - pointers
+      parameters:
+        - $ref: '#/definitions/arguments/PubChemID'
+      responses:
+        200:
+          description: List of PubChem IDs and its associated projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pointer'
+
+  /pointers/pdbs:
+    get:
+      summary: Get all available PDB IDs and their pointers with projects including these PDB ID.
+      description: >
+        Get a list of available PDB IDs and all projects including each PDB ID.
+      tags:
+        - pointers
+      responses:
+        200:
+          description: >
+            List of PDB IDs and its associated projects.
+            Keys are PDB IDs while values are the associated pointers.
+          content:
+            application/json:
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/Pointer'
+
+  /pointers/pdbs/{PDBID}:
+    get:
+      summary: Get a pointer with projects including a specific PDB ID.
+      description: >
+        Get a list of available PDB IDs and all projects including each PDB ID.
+      tags:
+        - pointers
+      parameters:
+        - $ref: '#/definitions/arguments/PDBID'
+      responses:
+        200:
+          description: List of PDB IDs and its associated projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pointer'
 
   /projects/{projectAccessionOrID}/files:
     get:
@@ -1620,6 +1728,50 @@ components:
           type: object
           example:
             A: P00918
+
+    Pointer:
+      type: array
+      description: >
+        A pointer is always bound to a reference id.
+        This array has an object for each project which includes the pointer reference id.
+        This object includes the project accession, and URL besides presence and coverage data.
+      items:
+        type: object
+        required:
+        - id
+        - url
+        properties:
+          id:
+            description: Project id/accession
+            type: string
+            example: $ACCESSION
+          url:
+            description: URL to reach the specific project
+            type: string
+          present_residues:
+            description: >
+              [Protein and ligand references only]
+              Ranged notation selection of residues in the system which belong to the reference.
+              Numbers stand for residue indices (0-based).
+            type: string
+            example: "1-9,17"
+          presence:
+            description: >
+              [Protein and ligand references only]
+              Proportion (from 0 to 1) of residues in the system which belong to the reference
+            type: float
+          covered_residues:
+            description: >
+              [Protein references only]
+              Ranged notation selection of residues in the reference which are present in the system.
+              Numbers stand for residue numbers according to the UniProt numeration.
+            type: string
+            example: "1-9,17"
+          coverage:
+            description: >
+              [Protein references only]
+              Proportion (from 0 to 1) of residues in the reference which are present in the system
+            type: float
 
     Interactions:
       type: array
