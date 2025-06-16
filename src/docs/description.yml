@@ -1773,19 +1773,23 @@ components:
       description: >
         A pointer is always bound to a reference id.
         This array has an object for each project which includes the pointer reference id.
-        This object includes the project accession, and URL besides presence and coverage data.
+        This object includes the project accession, and URLs besides presence and coverage data.
       items:
         type: object
         required:
         - id
-        - url
+        - api
+        - web
         properties:
           id:
             description: Project id/accession
             type: string
             example: $ACCESSION
-          url:
-            description: URL to reach the specific project
+          api:
+            description: URL to reach the specific project in the API
+            type: string
+          web:
+            description: URL to reach the specific project in the web page
             type: string
           present_residues:
             description: >

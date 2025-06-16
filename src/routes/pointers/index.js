@@ -133,8 +133,13 @@ const pointersEndpoint = handler({
         // DANI: Las queries que vienen de MDposit llevan el '/api' detrás del host name
         // DANI: No tengo forma de recuperar esto desde express, así que hago un arreglo por prisa
         const fix = host.startsWith('localhost') ? '' : '/api';
-        // Now set the projects URL
+        // Now set the API projects URL
         const projectsURL = `${protocol}://${host}${fix}${baseURL}/projects/`;
+        // Also set the web client URL
+        // DANI: Esto tampoco me acaba de gustar
+        // DANI: El host de la query no tiene por que ser el del cliente
+        // DANI: De hecho una API podría no tener cliente asociado o tener varios
+        const webURL = `${protocol}://${host}/#/id/`;
         // Classify data per reference id
         const pointers = {};
         // Iterate projects data
@@ -162,7 +167,8 @@ const pointersEndpoint = handler({
                 const currentPointer = { id: accession };
                 currentReferenceIdPointers.push(currentPointer);
                 // Add the full URL to access current project data
-                currentPointer.url = projectsURL + accession;
+                currentPointer.api = projectsURL + accession;
+                currentPointer.web = webURL + accession;
                 // If presence and overage are not supported then we are done
                 if (!supportedPresence && !supportedCoverage) return;
                 // Get indices of reference residues in the system
@@ -215,14 +221,14 @@ const pointersEndpoint = handler({
         if (format === 'json') return hasTarget ? pointers[targetReferenceId] : pointers;
         // At this point (for now) it means the requested format is CSV
         let csvData = hasTarget ? '' : `${reference.idField}${SEP}`;
-        csvData += `project accession${SEP}web page url`;
+        csvData += `project accession${SEP}api url${SEP}web client url`;
         if (supportedPresence) csvData += `${SEP}present residues${SEP}presence`;
         if (supportedCoverage) csvData += `${SEP}covered residues${SEP}coverage`;
         csvData += '\r\n';
         Object.entries(pointers).forEach(([referenceId, pointers]) => {
             pointers.forEach(pointer => {
                 csvData += hasTarget ? '' : `${referenceId}${SEP}`;
-                csvData += `${pointer.id}${SEP}${pointer.url}`;
+                csvData += `${pointer.id}${SEP}${pointer.api}${SEP}${pointer.web}`;
                 if (supportedPresence)
                     csvData += `${SEP}${pointer.present_residues}${SEP}${pointer.presence}`;                    
                 if (supportedCoverage)
