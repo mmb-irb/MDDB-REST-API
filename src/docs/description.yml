@@ -625,6 +625,13 @@ paths:
         Include also system residues presence and reference residues coverage.
       tags:
         - pointers
+      parameters:
+        - name: format
+          in: query
+          description: Set the response format.
+          schema:
+            type: string
+            enum: ['json', 'csv']
       responses:
         200:
           description: >
@@ -646,6 +653,12 @@ paths:
         - pointers
       parameters:
         - $ref: '#/definitions/arguments/UniProtID'
+        - name: format
+          in: query
+          description: Set the response format.
+          schema:
+            type: string
+            enum: ['json', 'csv']
       responses:
         200:
           description: List of UniProt IDs and its associated projects
@@ -662,6 +675,13 @@ paths:
         Include also system residues presence.
       tags:
         - pointers
+      parameters:
+        - name: format
+          in: query
+          description: Set the response format.
+          schema:
+            type: string
+            enum: ['json', 'csv']
       responses:
         200:
           description: >
@@ -683,6 +703,12 @@ paths:
         - pointers
       parameters:
         - $ref: '#/definitions/arguments/PubChemID'
+        - name: format
+          in: query
+          description: Set the response format.
+          schema:
+            type: string
+            enum: ['json', 'csv']
       responses:
         200:
           description: List of PubChem IDs and its associated projects
@@ -698,6 +724,13 @@ paths:
         Get a list of available PDB IDs and all projects including each PDB ID.
       tags:
         - pointers
+      parameters:
+        - name: format
+          in: query
+          description: Set the response format.
+          schema:
+            type: string
+            enum: ['json', 'csv']
       responses:
         200:
           description: >
@@ -718,6 +751,12 @@ paths:
         - pointers
       parameters:
         - $ref: '#/definitions/arguments/PDBID'
+        - name: format
+          in: query
+          description: Set the response format.
+          schema:
+            type: string
+            enum: ['json', 'csv']
       responses:
         200:
           description: List of PDB IDs and its associated projects
