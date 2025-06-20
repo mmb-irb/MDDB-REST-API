@@ -1,5 +1,5 @@
 // Regexp formats for string patterns search
-const STEP_FORMAT = /^(?<start>\d+):(?<end>\d+)(:(?<step>\d+))?$/;
+const STEP_FORMAT = /^(?<start>\d+):(?<end>-?\d+)(:(?<step>\d+))?$/;
 const RE = /(^(?<simple>\d+)$)|(^(?<start>\d+)-(?<end>\d+)$)/;
 
 // Standard HTTP response status codes
@@ -69,8 +69,11 @@ const parseQueryRange = (string, limit, dimensionName) => {
   if (stepFormatParsed) {
     const start = +stepFormatParsed.groups.start;
     if (start === 0) return zeroError;
+    let end = +stepFormatParsed.groups.end;
+    // If the end is negative then "flip" the meaning and start counting from the end
+    if (end < 0) end = limit + 1 + end;
     // If the end is less than the start then just use the start
-    const end = Math.max(+stepFormatParsed.groups.end, start);
+    if (end < start) end = start;
     // If no "step" group is found then step is 1
     const step = +(stepFormatParsed.groups.step || 1);
     // If the step is 1 then simply use the range
