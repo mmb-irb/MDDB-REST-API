@@ -39,7 +39,8 @@ Object.entries(REFERENCES).forEach(([referenceName, reference]) => {
 // Global mongo collections in names are for the global API only
 const GLOBAL_COLLECTION_NAMES = {
     projects: 'global.projects',
-    nodes: 'global.nodes'
+    nodes: 'global.nodes',
+    topologies: 'global.topologies',
 };
 // Add global reference collections
 Object.entries(REFERENCES).forEach(([referenceName, reference]) => {
