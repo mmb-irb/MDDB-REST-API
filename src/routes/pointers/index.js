@@ -148,7 +148,6 @@ const pointersEndpoint = handler({
             // Get all reference ids included in this project
             const referenceIds = projectIdsGetter(projectData);
             // Get the topology, in case there is a topology
-            // If presence is supported then proceed to calculate it
             const topology = projectTopologies[projectData._id];
             // Check if topology is not available
             const noTopology = !topology || !topology.references || !topology.residue_reference_indices;
@@ -171,6 +170,9 @@ const pointersEndpoint = handler({
                 currentPointer.web = webURL + accession;
                 // If presence and overage are not supported then we are done
                 if (!supportedPresence && !supportedCoverage) return;
+                // If there is no topology at all we stop here
+                // This should never happen, but you never know
+                if (!topology) return;
                 // Get indices of reference residues in the system
                 const referenceIndex = topology.references.indexOf(referenceId);
                 const referenceResidueIndicies = topology.residue_reference_indices
