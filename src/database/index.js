@@ -72,11 +72,13 @@ class Database {
     getBaseFilter = () => {
         // Check if it is a production API
         const isProduction = this.config.production;
-        // Set the published filter according to the enviornment (.env file)
-        // If the environment is tagged as "production" only published projects are returned from mongo
-        const publishedFilter = Object.seal(isProduction ? { published: true } : {});
         // Check if it is a global API
         const isGlobal = this.config && this.config.global;
+        // Set the published filter according to the host configuration
+        // If the environment is tagged as "production" only published projects are returned from mongo
+        // Note that in the global API we target projects flagged as 'posited' instead of 'published'
+        const productionTargetFlag = isGlobal ? 'posited' : 'published';
+        const publishedFilter = Object.seal(isProduction ? { [productionTargetFlag]: true } : {});
         // Set a filter for the global API to not return unposited projects
         // Note that a non global API is not expected to have this field so it makes not sense applying the filter
         const positedFilter = Object.seal(isGlobal ? { unposited: { $exists: false } } : {});
