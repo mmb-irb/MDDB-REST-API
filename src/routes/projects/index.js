@@ -306,7 +306,6 @@ const redirectHandler = handler({
     // Get the requested MD and add it to the local accession, if any
     const requestedMdIndex = database.requestedMdIndex;
     if (requestedMdIndex !== null) localAccession += `.${requestedMdIndex + 1}`;
-    console.log('REDIRECTED TO ' + localAccession);
     // Find the database thes project belongs to
     const nodeAlias = projectData.node;
     // Get the corresponding node
