@@ -118,9 +118,9 @@ paths:
           in: query
           description: name of the field to be checked for options
           examples:
-            unit:
-              summary: simulation families
-              value: 'metadata.UNIT'
+            authors:
+              summary: simulation authors
+              value: 'metadata.AUTHORS'
             method:
               summary: simulation methods
               value: 'metadata.METHOD'
@@ -632,6 +632,18 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          examples:
+            authors:
+              summary: simulation authors
+              value: 'metadata.AUTHORS'
+            method:
+              summary: simulation methods
+              value: 'metadata.METHOD'
+          schema:
+            type: string
       responses:
         200:
           description: >
@@ -659,6 +671,18 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          examples:
+            authors:
+              summary: simulation authors
+              value: 'metadata.AUTHORS'
+            method:
+              summary: simulation methods
+              value: 'metadata.METHOD'
+          schema:
+            type: string
       responses:
         200:
           description: List of UniProt IDs and its associated projects
@@ -682,6 +706,18 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          examples:
+            authors:
+              summary: simulation authors
+              value: 'metadata.AUTHORS'
+            method:
+              summary: simulation methods
+              value: 'metadata.METHOD'
+          schema:
+            type: string
       responses:
         200:
           description: >
@@ -709,6 +745,18 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          examples:
+            authors:
+              summary: simulation authors
+              value: 'metadata.AUTHORS'
+            method:
+              summary: simulation methods
+              value: 'metadata.METHOD'
+          schema:
+            type: string
       responses:
         200:
           description: List of PubChem IDs and its associated projects
@@ -731,6 +779,18 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          examples:
+            authors:
+              summary: simulation authors
+              value: 'metadata.AUTHORS'
+            method:
+              summary: simulation methods
+              value: 'metadata.METHOD'
+          schema:
+            type: string
       responses:
         200:
           description: >
@@ -757,6 +817,18 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          examples:
+            authors:
+              summary: simulation authors
+              value: 'metadata.AUTHORS'
+            method:
+              summary: simulation methods
+              value: 'metadata.METHOD'
+          schema:
+            type: string
       responses:
         200:
           description: List of PDB IDs and its associated projects

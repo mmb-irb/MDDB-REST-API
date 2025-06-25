@@ -29,6 +29,9 @@ const SUPPORTED_FORMATS = ['json', 'csv'];
 const availableFormats = SUPPORTED_FORMATS.join(', ');
 // Set the csv separator
 const SEP = ';';
+// A text which may include the spearator character would be splitted
+// In order to avoid this, all separators are escaped if they are wrapped in double quotes
+const escape = text => text && `"${text}"`;
 
 // Set the response when a specific reference is requested
 // Return a list with all available reference ids
@@ -67,11 +70,14 @@ const pointersEndpoint = handler({
             : { $exists: true, $type: 'array', $ne: [] };
         // Set which data is to be return from the query
         // We only need the reference id and the project accession
-        const projectsProjector = { projection: {
-            _id: true, accession: true, [idsField]: true
-        }};
+        const projectsProjector = { _id: true, accession: true, [idsField]: true };
+        // Get the requested projection
+        let projection = request.query.projection || [];
+        if (typeof projection === 'string') projection = [projection];
+        // Add the requested field to the project projector
+        projection.forEach(field => projectsProjector[field] = true);
         // Set the projects cursor
-        const projectsCursor = await database.projects.find(projectsFinder, projectsProjector);
+        const projectsCursor = await database.projects.find(projectsFinder).project(projectsProjector);
         // Consume the projects cursor
         const projectsData = await projectsCursor.toArray();
         // If no projects were found then it means some reference id was searched and not found
@@ -81,6 +87,10 @@ const pointersEndpoint = handler({
                 ? `No project was found to include references to "${targetReferenceId}" ${referenceName}`
                 : `There are no references to ${referenceName} at all`
         }
+        // Set projected field value getters for later
+        const projectionValueGetters = Object.fromEntries(
+            projection.map(field => [ field, getValueGetter(field) ])
+        ) 
         // Check if the requested reference supports "presence" measuring
         const supportedPresence = PRESENCE_SUPPORTED_REFERENCES.includes(referenceName);
         // Check if the requested reference supports "coverage" measuring
@@ -168,6 +178,10 @@ const pointersEndpoint = handler({
                 // Add the full URL to access current project data
                 currentPointer.api = projectsURL + accession;
                 currentPointer.web = webURL + accession;
+                // Add additional projected fields
+                projection.forEach(field => {
+                    currentPointer[field] = projectionValueGetters[field](projectData);
+                });
                 // If presence and overage are not supported then we are done
                 if (!supportedPresence && !supportedCoverage) return;
                 // If there is no topology at all we stop here
@@ -222,15 +236,21 @@ const pointersEndpoint = handler({
         // If there is no output format then return the response as is
         if (format === 'json') return hasTarget ? pointers[targetReferenceId] : pointers;
         // At this point (for now) it means the requested format is CSV
+        // Start with the CSV header
         let csvData = hasTarget ? '' : `${reference.idField}${SEP}`;
         csvData += `project accession${SEP}api url${SEP}web client url`;
+        // Add a label in the header for every projected field
+        projection.forEach(field => { csvData += `${SEP}${field}` });
+        // If presence or coverage are supported then add their labels in the header
         if (supportedPresence) csvData += `${SEP}present residues${SEP}presence`;
         if (supportedCoverage) csvData += `${SEP}covered residues${SEP}coverage`;
         csvData += '\r\n';
+        // Now add the actual values for each row
         Object.entries(pointers).forEach(([referenceId, pointers]) => {
             pointers.forEach(pointer => {
                 csvData += hasTarget ? '' : `${referenceId}${SEP}`;
                 csvData += `${pointer.id}${SEP}${pointer.api}${SEP}${pointer.web}`;
+                projection.forEach(field => { csvData += `${SEP}${escape(pointer[field])}` });
                 if (supportedPresence)
                     csvData += `${SEP}${pointer.present_residues}${SEP}${pointer.presence}`;                    
                 if (supportedCoverage)
