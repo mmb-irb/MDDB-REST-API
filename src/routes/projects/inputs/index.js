@@ -100,6 +100,7 @@ router.route('/').get(
         boxtype: metadata.BOXTYPE,
         interactions: interactions,
         pbc_selection: metadata.PBC_SELECTION,
+        cg_selection: metadata.CG_SELECTION,
         forced_references: metadata.FORCED_REFERENCES,
         multimeric: metadata.MULTIMERIC,
         chainnames: metadata.CHAINNAMES,
