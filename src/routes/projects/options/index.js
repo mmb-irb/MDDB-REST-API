@@ -273,13 +273,8 @@ router.route('/').get(
           options[field] = counts;
         });
       }
-      // Sort values by count for every projected field
-      Object.entries(options).forEach(([field, counts]) => {
-        const sortedCounts = Object.entries(counts)
-          .sort(([,a],[,b]) => b-a)
-          .reduce((r, [k, v]) => ({ ...r, [k]: v }), {});
-        options[field] = sortedCounts;
-      });
+      // LORE: We no longer sort the final response, this is now done by the client
+      // LORE: You can not rely in objects order and returning everything as arrays is not efficient
       // Send all mined data
       return options;
     }
