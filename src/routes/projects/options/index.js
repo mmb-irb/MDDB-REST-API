@@ -199,45 +199,43 @@ router.route('/').get(
         }
       }
       // Next process topology requests
+      // LORE: Back in the day we used the 'find' command and then consumed the cursor iteratively
+      // LORE: However this was too slow for residue names, atom names, etc.
+      // LORE: Thus the 'aggregate' command is used instead
       if (anyTopologyProjection) {
+        // Get the topology fields to be checked
+        const topologyFields = requestedProjections.topologies.map(field => field.split('.')[1]);
+        // Iterate every topology field and set the instructions for mongo
+        // We will have to repeat the process for each field
+        const facet = {};
+        for (const topologyField of topologyFields) {
+          facet[topologyField] = [
+            // Getting unique values for the target field
+            { $addFields: { unique: { $setUnion: ['$' + topologyField, []] } } },
+            // Convert every unique value in every different project in a separated document
+            { $unwind: "$unique" },
+            // Create a document for every unique value and count the number of repeated values
+            { $group: { _id: "$unique", total: { $sum: 1 } }},
+          ];
+        }
         // Get internal ids from target projects
         const targetProjectIds = projectsData.map(project => project._id);
-        // Set the topologies projector
-        const topologyFields = requestedProjections.topologies.map(field => field.split('.')[1]);
-        const topologiesProjector = { _id: false };
-        topologyFields.forEach(field => { topologiesProjector[field] = true });
-        // Get target topologies
-        const topologiesCursor = await database.topologies.find(
-          { project: { $in: targetProjectIds }},
-          // Discard the heaviest fields we do not need anyway
-          { projection: topologiesProjector },
-        );
-        // Now get the count of every different value for every projected field
-        const counts = {};
-        topologyFields.forEach(field => { counts[field] = {} });
-        // If there are many topologies we may exceed the memory limit
-        // To avoid this, instead of consuming the whole cursor we will iterate its documents
-        for await (const topologyData of topologiesCursor) {
-          topologyFields.forEach(field => {
-            // Get the unique values in this topology
-            const fieldData = topologyData[field];
-            if (!fieldData) return;
-            const uniqueValues = Array.isArray(fieldData)
-              ? new Set(fieldData)
-              : new Set(Object.values(fieldData))
-            // Get the current counts for this field
-            const currentCounts = counts[field];
-            // Add one to the counts for every unique value found
-            uniqueValues.forEach(value => {
-              currentCounts[value] = (currentCounts[value] || 0) + 1
-            })
-          })
+        // Run an aggregate command and consume the cursor right away
+        // We do this at the end to keep a single call to mongo
+        // Thus we avoid having to repeat the query ($match) every time
+        const result = await database.topologies.aggregate([
+          // Get target topologies
+          { $match: { project: { $in: targetProjectIds }} },
+          // Getting unique values for the target field
+          { $facet: facet },
+        ]).next(); // We expect one document only
+        // Add the counts to the global object
+        for (const topologyField of topologyFields) {
+          const rawCounts = result[topologyField];
+          const counts = {};
+          rawCounts.forEach(raw => { counts[raw._id] = raw.total });
+          options[TOPOLOGY_HEADER + topologyField] = counts;
         }
-        // Add final counts to the overall options
-        // Recover the topology field header now
-        Object.entries(counts).forEach(([fieldName, fieldCounts]) => {
-          options[TOPOLOGY_HEADER + fieldName] = fieldCounts;
-        });
       }
       // Now handle project options
       if (requestedProjections.projects.length !== 0) {
