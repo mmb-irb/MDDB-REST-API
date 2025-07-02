@@ -175,6 +175,17 @@ const handleRanges = (request, parsedRanges, descriptor) => {
   // This will make the trajectory stream not ranged at all
   if (dimensions.every(dim => range[dim].whole)) {
     range.byteSize = descriptor.length;
+    // Set he byte ranger only if we do not care about bits
+    if (handleBytes) range.byteRanger = function* () {
+      const endByte = descriptor.length - 1;
+      yield { start: 0, end: endByte, offset: 0, progress: endByte };
+    }
+    // Set an additional ranger which will be useful for the parsing
+    else range.parseByteRanger = function* () {
+      const endBit = range.nvalues * fileMetadata.bitsize;
+      const bitProgress = endBit - 1;
+      yield { start: 0, end: getBitByte(endBit), offset: 0, progress: bitProgress };
+    };
     return range;
   }
   
