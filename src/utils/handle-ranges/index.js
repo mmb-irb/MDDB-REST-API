@@ -5,7 +5,7 @@ const { parseQueryRange } = require('../parse-query-range');
 const SUPPORTED_DIMENSIONS = ['x', 'y', 'z', 'w'];
 
 // Standard HTTP response status codes
-const { BAD_REQUEST } = require('../status-codes');
+const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../status-codes');
 
 // Prepare a string to be sent back to the user through the header, just info
 const getResponseHeader = (dimension, range, length) => {
@@ -29,6 +29,19 @@ const handleRanges = (request, parsedRanges, descriptor) => {
   const dimensions = SUPPORTED_DIMENSIONS.filter(dimension => fileMetadata[dimension]);
   // If the file has not dimensions then there is nothing to do here
   if (dimensions.length === 0) return {};
+  // Make sure the dimensions and bitsize is coherent with the dimension lengths
+  const totalValuesCount = dimensions.reduce((acc, dim) => acc * fileMetadata[dim].length, 1);
+  const totalBitSize = totalValuesCount * fileMetadata.bitsize;
+  const expectedByteSize = Math.ceil(totalBitSize / 8);
+  if (descriptor.length !== expectedByteSize) return {
+    headerError: INTERNAL_SERVER_ERROR,
+    error: `Uncoherent file metadata: Expected a size of ${expectedByteSize} bytes but`
+      + ` it has ${descriptor.length}. The bit size is ${fileMetadata.bitsize}.`
+      + ` The dimensions are ${dimensions.map(dim => {
+        const meta = fileMetadata[dim];
+        return `${meta.name}: ${meta.length}`
+      }).join(', ')}.`
+  }
   // Search for query parameters with these names in the request
   // We check both the body (in case it is a POST) and the query (in case it is a GET)
   const rangeLocations = request ? [request.body, request.query] : [];
