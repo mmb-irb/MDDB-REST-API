@@ -102,6 +102,12 @@ router.route('/:file').get(
           headerError: BAD_REQUEST,
           error: 'This is not a binary file. Only ".bin" files may be queried to be parsed.'
         };
+        // Make sure it is a "parseable" file
+        // The requirement is to have a bit size so far
+        if (!descriptor.metadata.bitsize) return {
+          headerError: BAD_REQUEST,
+          error: 'This file does not support parsing. Only files with "bitsize" are to be parsed.'
+        };
         // Make sure it is not a byte request
         // It is not possible to support the parsing if we do not know the actual desired values
         if (range.byteRequest) return {
