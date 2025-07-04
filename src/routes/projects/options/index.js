@@ -168,6 +168,10 @@ router.route('/').get(
                   return;
                 }
               }
+              // If the value is a string then make it lower caps
+              // This way we avoid having duplicated values because of different capitalizatioin
+              // This is quiet common in PDB annotations (organism, method, etc.)
+              if (typeof value === 'string') value = value.toLowerCase();
               // If the value exists and it is not an array then add it to the list
               // First create an empty list in case this is the first time we find this value
               if (!referenceIdsPerValue[value]) referenceIdsPerValue[value] = [];
