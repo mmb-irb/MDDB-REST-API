@@ -6,7 +6,7 @@ const handler = require('../../../utils/generic-handler');
 const getDatabase = require('../../../database');
 const consumeStream = require('../../../utils/consume-stream');
 // Standard HTTP response status codes
-const { INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
+const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-codes');
 // Get the standard name of the structure file
 const { STANDARD_STRUCTURE_FILENAME } = require('../../../utils/constants');
 // Get a function to issue a standard output filename
@@ -39,14 +39,25 @@ const structureHandler = handler({
     const fileId = structureDescriptor._id;
     // Open a stream with the corresponding ID
     let stream = bucket.openDownloadStream(fileId);
+    // Get the NGL atom selection, if any
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
     const selection = request.body.selection || request.query.selection;
-    // In case of selection query we will produce a filtered PDB
+    // The user may request directly a list of atom indices instead through a POST
+    let atomIndices = request.body.atomindices;
+    // These arguments are not compatible
+    if (selection && atomIndices) return {
+      headerError: BAD_REQUEST,
+      error: `Arguments "selection" and "atomindices" are not compatible. Use one of them only.`
+    }
+    // In case of selection query we will produce a filtered PDB and then parse it to atom indices
     if (selection) {
       // Open a stream and save it completely into memory
       const pdbFile = await consumeStream(bucket.openDownloadStream(fileId));
       // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
-      const atomIndices = await getAtomIndices(pdbFile, selection);
+      atomIndices = await getAtomIndices(pdbFile, selection);
+    }
+    // In case of selection query we will produce a filtered PDB
+    if (atomIndices) {
       // Get the topology data
       const topologyData = await project.getTopologyData();
       // Get reference frame coordinates
