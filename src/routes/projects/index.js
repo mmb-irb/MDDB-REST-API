@@ -322,8 +322,12 @@ const redirectHandler = handler({
     const replacedPath = splittedPath.join('/');
     // Build the new forwarded URL using the corresponding node API url
     const forwardedRef = node.api_url + replacedPath;
-    //console.log(forwardedRef);
-    return forwardedRef;
+    // The response code must change depending on the request method
+    let code;
+    if (request.method === 'GET') code = 302;
+    else if (request.method === 'POST') code = 307;
+    else throw new Error(`Unsupported method ${request.method}`);
+    return { code, url: forwardedRef };
   },
   // Handle the response body
   body(response, retrieved) {
@@ -333,7 +337,7 @@ const redirectHandler = handler({
     // If there is any error in the body then just send the error
     if (retrieved.error) return response.json(retrieved.error);
     // Send the response
-    response.redirect(retrieved);
+    response.redirect(retrieved.code, retrieved.url);
   },
 });
 
