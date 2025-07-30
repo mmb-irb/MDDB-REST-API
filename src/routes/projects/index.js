@@ -301,6 +301,7 @@ const redirectHandler = handler({
     const database = await getDatabase(request);
     // Get the project
     const projectData = await database.getProjectData();
+    if (projectData.error) return projectData;
     // Set the local id to ask
     let localAccession = projectData.local;
     // Get the requested MD and add it to the local accession, if any
