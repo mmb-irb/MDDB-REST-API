@@ -11,6 +11,11 @@ const REFERENCES = {
         idField: 'pubchem',
         projectIdsField: 'metadata.LIGANDS'
     },
+    inchikeys: {
+        collectionName: 'inchikey_refs',
+        idField: 'inchikey',
+        projectIdsField: 'metadata.INCHIKEYS'
+    },
     pdbs: {
         collectionName: 'pdb_refs',
         idField: 'id',
