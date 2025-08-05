@@ -119,3 +119,20 @@ hosts:
         name: JSC node
         description: The JSC federated node server at Jülich
         accession: A0001
+
+    dynarepo.lhs.loria.fr:
+        name: Inria node
+        description: The Inria federated node server at the Lorraine University
+        accession: A000A
+    inria.mddbr.eu:
+        name: Inria node
+        description: The Inria federated node server at the Lorraine University
+        accession: A000A
+    dynarepo.inria.fr:
+        name: Inria node
+        description: The Inria federated node server at the Lorraine University
+        accession: A000A
+    dynarepo.lhs.inria.fr:
+        name: Inria node
+        description: The Inria federated node server at the Lorraine University
+        accession: A000A
