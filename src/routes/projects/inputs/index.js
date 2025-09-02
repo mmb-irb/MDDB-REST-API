@@ -19,6 +19,9 @@ const supportedFormats = {
 // Set the defualt format for the inputs file
 const defaultFormat = 'yaml';
 
+// Set a regular expression to match any possible files in the database
+const TOPOLOGY_FILENAME_REGEXP = /(^topology.(prmtop|top|psf|tpr)$)/;
+
 const router = Router({ mergeParams: true });
 
 // Root
@@ -66,13 +69,20 @@ router.route('/').get(
         }
       }
       // Set the input mds by removing all generated fields on each MD
+      // Also include explicit structure and trajectory path for each MD
       projectData.mds.forEach(md => {
         delete md.atoms;
         delete md.frames;
         delete md.analyses;
         delete md.files;
         delete md.warnings;
+        md.directory = md.name.replace(' ','_');
+        md.input_structure_filepath = `${md.directory}/structure.pdb`;
+        md.input_trajectory_filepaths = `${md.directory}/trajectory.xtc`;
       })
+      // Set the input topology file
+      const topologyFile = projectData.files.find(file => TOPOLOGY_FILENAME_REGEXP.exec(file.name));
+      const topologyFilename = (topologyFile && topologyFile.name) || 'topology.json';
       // Prepare the inputs json file to be sent
       const inputs = {
         name: metadata.NAME,
@@ -111,11 +121,7 @@ router.route('/').get(
         collections: metadata.COLLECTIONS,
         mds: projectData.mds,
         mdref: projectData.mdref,
-        // Input file paths are written to the json file for coherence
-        // However they are left as none since the workflow will use defaults
-        input_structure_filepath: null,
-        input_trajectory_filepaths: null,
-        input_topology_filepath: null
+        input_topology_filepath: topologyFilename
       };
       // Add collection specific fields
       if (metadata.COLLECTIONS == 'cv19') {
@@ -137,7 +143,9 @@ router.route('/').get(
       // WARNING: Note that parsing to json makes disappear all fields set as 'undefined'
       if (retrieved.format === 'json') response.json(retrieved.inputs);
       // WARNING: Note that the YAML file has no comments as when it is generated from the workflow
-      else if (retrieved.format === 'yaml') response.end(yaml.stringify(retrieved.inputs));
+      // The second argument in the stringify is the nexting limit to switch to one-line notation
+      // However, nowadays, there should be nothing nested deeper than 3
+      else if (retrieved.format === 'yaml') response.end(yaml.stringify(retrieved.inputs, 4));
       else throw new Error(`Format not supported ${retrieved.format}`);
     },
   }),
