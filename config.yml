@@ -26,6 +26,7 @@ hosts:
         accession: MD-A00001
         global: true
 
+    # Deprecated
     mdposit-dev.bsc.es:
         name: MDposit (obsolete)
         description: The main server including all simulations
@@ -98,6 +99,11 @@ hosts:
         description: The IRB federated node server
         accession: A0001
         production: true
+
+    bsc.mddbr.eu:
+        name: BSC node
+        description: The BSC federated node server
+        accession: A001S
 
     oxford-dev.mddbr.eu:
         name: Oxford node
