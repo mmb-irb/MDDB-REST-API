@@ -99,10 +99,6 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   swaggerResponses[host] = { swaggerHtmlResponse, swaggerUiInitJs };
 });
 
-const getSwaggerDocs = request => {
-  // Get the hostname from the request
-  const host = request.get('host');
-  return swaggerResponses[host] || swaggerResponses[null];
-};
+const getSwaggerDocs = host => swaggerResponses[host] || swaggerResponses[null];
 
 module.exports = getSwaggerDocs;

@@ -85,8 +85,11 @@ app.use('/rest/current', routes);
 //      El problema es que cada una de las request extras puede ir a parar una instancia distinta del pm2
 //        Esto hace que a pesar de que el header esté bien, todo el body pueda ser el de otro swagger distinto
 app.use('/rest/docs', (request, response, next) => {
+  // Get the hostname from the request
+  const host = request.get('host');
+  response.set('internal-hostname', host); // This is usefull for debug
   // Get the swagger responses which correspond to the requesting host
-  const swaggerResponses = getSwaggerDocs(request);
+  const swaggerResponses = getSwaggerDocs(host);
   const { swaggerHtmlResponse, swaggerUiInitJs } = swaggerResponses;
   // Send the html swagger base only in the first request
   if (request.url === '/') {
