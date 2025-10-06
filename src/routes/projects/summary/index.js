@@ -193,14 +193,14 @@ router.route('/').get(
       summary['totalAnalyses'] = totalAnalyses;
 
       // Get database statistics
-      const dbStats = await database.db.command({ dbStats: 1, scale: 1024}); // Results in MB
+      const dbStats = await database.db.command({ dbStats: 1, scale: 1000}); // Results in MB
       // Create a formatted response with values in TB
       const storageStats = {
         // databaseName: dbStats.db,
-        dataSizeInTB: +(dbStats.dataSize / 1e9).toFixed(3),
-        storageUsedInTB: +(dbStats.storageSize / 1e9).toFixed(3),
-        indexSizeInTB: +(dbStats.indexSize / 1e9).toFixed(3),
-        totalSizeInTB: +((dbStats.storageSize + dbStats.indexSize) / 1e9).toFixed(3),
+        dataSizeInTB: +(dbStats.dataSize / 1e9).toFixed(2),
+        storageUsedInTB: +(dbStats.storageSize / 1e9).toFixed(2),
+        indexSizeInTB: +(dbStats.indexSize / 1e9).toFixed(2),
+        totalSizeInTB: +((dbStats.storageSize + dbStats.indexSize) / 1e9).toFixed(2),
         // objectCount: dbStats.objects,
         // collections: dbStats.collections,
         // indexes: dbStats.indexes
