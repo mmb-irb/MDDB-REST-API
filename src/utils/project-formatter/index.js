@@ -10,6 +10,11 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
     headerError: INTERNAL_SERVER_ERROR,
     error: 'Project is missing mds. Is it in an old format?'
   };
+  // If the project has not the 'metadata' field then it is wrong
+  if (!projectData.metadata) return {
+    headerError: INTERNAL_SERVER_ERROR,
+    error: 'Project is missing metadata, which should never happen. Was it added manually?'
+  };
   // Get the index of the MD to remain
   const mdIndex = requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
   // Set the corresponding MD data as the project data
