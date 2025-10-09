@@ -66,7 +66,11 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   replaceAnywhere(swaggerDocs, '$DATABASE', config.name);
   const accessionExample = config.accession || '< No example available >';
   replaceAnywhere(swaggerDocs, '$ACCESSION', accessionExample);
-
+  // If optimade is not to be shown then remove this part from the docs
+  if (!config.optimade) {
+    const optimadeRegExp = new RegExp("<br />.*OPTIMADE API</a>.");
+    swaggerDocs.info.description = swaggerDocs.info.description.replace(optimadeRegExp, '');
+  }
   // Remove the nodes endpoint documentation if this is not a global host
   if (!config.global) delete swaggerDocs.paths['/nodes'];
 
