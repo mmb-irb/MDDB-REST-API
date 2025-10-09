@@ -46,6 +46,7 @@ Object.entries(hostConfig).forEach(([host, config]) => {
     url = `http://${host}/rest/{version}`;
   }
   else {
+    if (config.hostfix) host = config.hostfix
     // Otherwise do not specify the protocol
     url = `{protocol}://${host}/api/rest/{version}`;
   }

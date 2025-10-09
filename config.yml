@@ -149,3 +149,4 @@ hosts:
         name: Inria node
         description: The Inria federated node server at the Lorraine University
         accession: A000A
+        hostfix: inria.mddbr.eu
