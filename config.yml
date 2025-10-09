@@ -82,6 +82,7 @@ hosts:
         name: MMB node
         description: The MMB federated node server
         accession: A0001
+        optimade: true
 
     mmb.mddbr.eu:
         name: MMB node
@@ -93,6 +94,7 @@ hosts:
         name: IRB node
         description: The IRB federated node server
         accession: A0001
+        optimade: true
 
     irb.mddbr.eu:
         name: IRB node
@@ -139,6 +141,11 @@ hosts:
         description: The Inria federated node server at the Lorraine University
         accession: A000A
     dynarepo.lhs.inria.fr:
+        name: Inria node
+        description: The Inria federated node server at the Lorraine University
+        accession: A000A
+    # TEMPORAL HARDCODE: this is the internal value in INRIA (at least)
+    'rest:3000':
         name: Inria node
         description: The Inria federated node server at the Lorraine University
         accession: A000A
