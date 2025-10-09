@@ -327,8 +327,8 @@ paths:
             Specify a frame range for the returned trajectory.<br>
             The user can request only specific frames instead of the whole file.<br>
             Ranges are defined by dashes, and multiple ranges can be defined
-            separated by commas. It can also be defined as the start:end:step
-            format.<br>
+            separated by commas. It can also be defined as the -start:end:step
+            format, with '-1' to select the last frame.<br>
             1-based numbering.
           examples:
             firstFrame:
@@ -419,8 +419,8 @@ paths:
             Specify a frame range for the returned trajectory.<br>
             The user can request only specific frames instead of the whole file.<br>
             Ranges are defined by dashes, and multiple ranges can be defined
-            separated by commas. It can also be defined as the start:end:step
-            format.<br>
+            separated by commas. It can also be defined as the -start:end:step
+            format, with '-1' to select the last frame.<br>
             1-based numbering.
           examples:
             firstFrame:
@@ -886,8 +886,8 @@ paths:
             Specify a range of values for the returned file.<br>
             The user can request only specific values instead of the whole file.<br>
             Ranges are defined by dashes, and multiple ranges can be defined
-            separated by commas. It can also be defined as the start:end:step
-            format.<br>
+            separated by commas. It can also be defined as the -start:end:step
+            format, with '-1' to select the last frame.<br>
             1-based numbering.
           examples:
             firstFrame:
