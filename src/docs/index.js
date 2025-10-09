@@ -38,17 +38,16 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   // Swagger documentation parsed to an object
   const swaggerDocs = yaml.load(`${__dirname}/../docs/description.yml`);
   // Set the servers
-  let url;
+  let url = `{protocol}://${host}/api/rest/{version}`;
   if (host === `localhost`) {
     // Rewrite the host with the listen port
     host = `localhost:${process.env.LISTEN_PORT}`;
     // If this is the local host then use http to avoid problems
     url = `http://${host}/rest/{version}`;
   }
-  else {
-    if (config.hostfix) host = config.hostfix
+  else if (config.hostfix) {
     // Otherwise do not specify the protocol
-    url = `{protocol}://${host}/api/rest/{version}`;
+    url = `{protocol}://${config.hostfix}/api/rest/{version}`;
   }
   
   swaggerDocs.servers = [
@@ -63,7 +62,7 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   ];
 
   // Adapt the documentation to the current database name and accession example by replacing some parts of the docs
-  replaceAnywhere(swaggerDocs, '$CLIENT_URL', host);
+  replaceAnywhere(swaggerDocs, '$CLIENT_URL', config.hostfix || host);
   replaceAnywhere(swaggerDocs, '$DATABASE', config.name);
   const accessionExample = config.accession || '< No example available >';
   replaceAnywhere(swaggerDocs, '$ACCESSION', accessionExample);
