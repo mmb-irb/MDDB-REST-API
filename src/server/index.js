@@ -7,6 +7,8 @@ const getSwaggerDocs = require(`${__dirname}/../docs`);
 const swaggerSpec = require(`${__dirname}/../docs/specification`);
 const boxen = require('boxen');
 const chalk = require('chalk');
+// logging for grafana
+const swStats = require('swagger-stats');
 
 const routes = require('../routes');
 //const getCustomTimeout = require('../middlewares/custom-timeout');
@@ -21,6 +23,7 @@ const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 
 const app = express();
+app.use(swStats.getMiddleware({swaggerSpec:swaggerSpec}));
 
 // Disable this header
 app.disable('x-powered-by');
