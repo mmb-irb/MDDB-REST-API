@@ -7,7 +7,6 @@
   "scripts": {
     "start": "npm-run-all --silent --print-label --parallel asbuild:watch server:watch",
     "build": "npm run asbuild:crdparse; npm run asbuild:binparse; npm run asbuild:f32parse; npm run asbuild:chemfiles",
-    "build:dev": "NODE_ENV=development npm run asbuild:crdparse && npm run asbuild:binparse && npm run asbuild:f32parse && npm run asbuild:chemfiles",
     "server:watch": "nodemon --inspect --ext js,json,yml index.js",
     "serve": "node index.js",
     "lint": "eslint '**/*.js'",
