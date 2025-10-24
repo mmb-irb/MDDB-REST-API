@@ -1,6 +1,7 @@
 const express = require('express');
 const paginate = require('express-paginate');
 const cors = require('cors');
+const os = require('os');
 const swaggerUI = require('swagger-ui-express');
 const serveStatic = swaggerUI.serve[1];
 const getSwaggerDocs = require(`${__dirname}/../docs`);
@@ -23,7 +24,7 @@ const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 
 const app = express();
-if (process.env.NODE_ENV == 'development') {
+if (os.hostname().includes('dev')) {
   app.use(swStats.getMiddleware({swaggerSpec:swaggerSpec}));
 }
 // Disable this header
