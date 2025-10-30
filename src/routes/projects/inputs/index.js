@@ -68,6 +68,8 @@ router.route('/').get(
           delete interaction.type;
         }
       }
+      // Filter away removed MDs
+      projectData.mds = projectData.mds.filter(md => !md.removed);
       // Set the input mds by removing all generated fields on each MD
       // Also include explicit structure and trajectory path for each MD
       projectData.mds.forEach(md => {
