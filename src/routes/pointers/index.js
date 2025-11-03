@@ -32,6 +32,9 @@ const SEP = ';';
 // A text which may include the spearator character would be splitted
 // In order to avoid this, all separators are escaped if they are wrapped in double quotes
 const escape = text => text && `"${text}"`;
+// Set forbidden reference value
+// These values will be excluded from the results when encountered
+const FORBIDDEN_REFERENCES = new Set([ undefined, 'noref', 'notfound' ]);
 
 // Set the response when a specific reference is requested
 // Return a list with all available reference ids
@@ -165,6 +168,8 @@ const pointersEndpoint = handler({
             referenceIds.forEach(referenceId => {
                 // If we have a target reference id then skip anything else
                 if (hasTarget && targetReferenceId !== referenceId) return;
+                // If the reference id is among the forbidden values then skip it
+                if (FORBIDDEN_REFERENCES.has(referenceId)) return;
                 // Get the current point
                 let currentReferenceIdPointers = pointers[referenceId];
                 // Create a new one if this is the first time we search for the current reference id

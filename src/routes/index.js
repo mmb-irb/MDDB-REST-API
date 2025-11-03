@@ -19,6 +19,7 @@ rootRouter.route('/').get((request, response) => {
 rootRouter.use('/projects', require('./projects'));
 rootRouter.use('/references', require('./references'));
 rootRouter.use('/pointers', require('./pointers'));
+rootRouter.use('/uniprot', require('./uniprot'));
 rootRouter.use('/links', require('./links'));
 rootRouter.use('/nodes', require('./nodes'));
 rootRouter.use('/knowledge', require('./knowledge'));
