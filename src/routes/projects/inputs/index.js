@@ -5,6 +5,8 @@ const handler = require('../../../utils/generic-handler');
 const getDatabase = require('../../../database');
 // Standard HTTP response status codes
 const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
+// Get auxiliar functions
+const { getRequestUrl } = require('../../../utils/auxiliar-functions');
 
 // Import yaml parsing tool
 const yaml = require('yamljs');
@@ -68,6 +70,13 @@ router.route('/').get(
           delete interaction.type;
         }
       }
+      // Set the URL to request files from this API
+      // Set the project endpoint by removing the '/inputs' at the end
+      const inputsEndpoint = getRequestUrl(request);
+      const projectEndpoint = inputsEndpoint.slice(0, inputsEndpoint.length - 7);
+      const projectFilesEndpoint = `${projectEndpoint}/files`;
+      // Numberate MDs before removing some of them
+      projectData.mds.forEach((md, index) => md.num = index + 1);
       // Filter away removed MDs
       projectData.mds = projectData.mds.filter(md => !md.removed);
       // Set the input mds by removing all generated fields on each MD
@@ -79,12 +88,14 @@ router.route('/').get(
         delete md.files;
         delete md.warnings;
         md.directory = md.name.replace(' ','_');
-        md.input_structure_filepath = `${md.directory}/structure.pdb`;
-        md.input_trajectory_filepaths = `${md.directory}/trajectory.xtc`;
+        const mdFilesEndpoint = `${projectEndpoint}.${md.num}/files`;
+        md.input_structure_filepath = `${mdFilesEndpoint}/structure.pdb`;
+        md.input_trajectory_filepaths = `${mdFilesEndpoint}/trajectory.xtc`;
       })
       // Set the input topology file
       const topologyFile = projectData.files.find(file => TOPOLOGY_FILENAME_REGEXP.exec(file.name));
       const topologyFilename = (topologyFile && topologyFile.name) || 'topology.json';
+      const topologyFilepath = `${projectFilesEndpoint}/${topologyFilename}`;
       // Prepare the inputs json file to be sent
       const inputs = {
         name: metadata.NAME,
@@ -123,7 +134,7 @@ router.route('/').get(
         collections: metadata.COLLECTIONS,
         mds: projectData.mds,
         mdref: projectData.mdref,
-        input_topology_filepath: topologyFilename
+        input_topology_filepath: topologyFilepath
       };
       // Add collection specific fields
       if (metadata.COLLECTIONS == 'cv19') {

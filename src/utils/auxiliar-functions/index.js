@@ -5,6 +5,17 @@ const hostConfig = yaml.load(`${__dirname}/../../../config.yml`).hosts;
 
 // Functions to be used widely along the code
 
+// Get the request original URL
+// DISCLAIMER: There is no straight forward way to reconstruct the original URL
+// DISCLAIMER: However this should work most of the times
+const getRequestUrl = request => {
+    const protocol = request.protocol;
+    const host = request.get('host');
+    const hostEndpoint = host === 'localhost:8000' ? '' : '/api';
+    const apiEndpoint = request.originalUrl;
+    return `${protocol}://${host}${hostEndpoint}${apiEndpoint}`;
+}
+
 // Try to parse JSON and return the bad request error in case it fails
 const parseJSON = string => {
     try {
@@ -127,6 +138,7 @@ const caluclateMeanAndStandardDeviation = values => {
 }
 
 module.exports = {
+    getRequestUrl,
     parseJSON,
     isObjectId,
     isIterable,
