@@ -29,9 +29,6 @@ if (process.env.NODE_ENV === 'development') {
 // Disable this header
 app.disable('x-powered-by');
 
-// This is done for the request.protocol to correctly deliver 'http' or 'https'
-app.enable('trust proxy');
-
 // custom timeout middleware
 // DANI: He quitado esto porque si no sabes que está aquí te mata las descargas largas silenciosamente
 // app.use(

@@ -9,9 +9,15 @@ const hostConfig = yaml.load(`${__dirname}/../../../config.yml`).hosts;
 // DISCLAIMER: There is no straight forward way to reconstruct the original URL
 // DISCLAIMER: However this should work most of the times
 const getRequestUrl = request => {
-    const protocol = request.protocol;
+    // The host is not always to be trusted. Some proxies overwrite it as 'localhost' or 'rest'
     const host = request.get('host');
-    const hostEndpoint = host === 'localhost:8000' ? '' : '/api';
+    const isLocalHost = host === 'localhost:8000'
+    // The request.protocol may be 'http' when using 'https' do not trust it
+    const protocol = isLocalHost ? 'http' : 'https';
+    // There is no easy way to know where the API is, under the host URL
+    // In our nodes the structure is clear, but in others theis may change
+    const hostEndpoint = isLocalHost ? '' : '/api';
+    // This is the only value to be trusted
     const apiEndpoint = request.originalUrl;
     return `${protocol}://${host}${hostEndpoint}${apiEndpoint}`;
 }
