@@ -5,7 +5,11 @@ const handler = require('../../../utils/generic-handler');
 const getDatabase = require('../../../database');
 // Standard HTTP response status codes
 const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
-const { caluclateMeanAndStandardDeviation } = require('../../../utils/auxiliar-functions');
+const { PROTEIN_RESIDUE_NAME_LETTERS } = require('../../../utils/constants');
+const {
+    caluclateMeanAndStandardDeviation,
+    min, max, round2tenths
+} = require('../../../utils/auxiliar-functions');
 
 // Instantiate the router
 const router = Router({ mergeParams: true });
@@ -51,8 +55,18 @@ router.route('/').get( handler({ async retriever(request) {
         else atomCountPerResidue[residueIndex] = 1;
     });
     // Set the sites list to add further data
-    let site_count = 1;
-    const sites = [];
+    const sites = [
+        {
+            site_id: 1,
+            label: 'SAS mean',
+            unit: 'Å²'
+        },
+        {
+            site_id: 2,
+            label: 'SAS standard deviation',
+            unit: 'Å²'
+        },
+    ];
     // To do so we must anotate data in PDB reference PDB chains and residues
     // Get chain data according to the FunPDBe schema
     const pdbChains = [];
@@ -101,15 +115,13 @@ router.route('/').get( handler({ async retriever(request) {
                 aa_type: residueName,
                 site_data: [
                     {
-                        site_id_ref: site_count,
-                        raw_score: mean,
-                        raw_score_unit: 'Å²',
+                        site_id_ref: 1,
+                        raw_score: round2tenths(mean),
                         confidence_classification: "medium",
                     },
                     {
-                        site_id_ref: site_count + 1,
-                        raw_score: stdv,
-                        raw_score_unit: 'Å²',
+                        site_id_ref: 2,
+                        raw_score: round2tenths(stdv),
                         confidence_classification: "medium",
                     }
                 ],
@@ -135,8 +147,8 @@ router.route('/').get( handler({ async retriever(request) {
         chains: pdbChains,
         sites: sites,
         evidence_code_ontology: [{
-            "eco_term": "computational evidence",
-            "eco_code": "ECO_0007672"
+            "eco_term": "molecular dynamics evidence used in automatic assertion",
+            "eco_code": "ECO_0006373"
         }],
     };
 }}));

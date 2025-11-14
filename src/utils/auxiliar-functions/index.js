@@ -143,6 +143,18 @@ const caluclateMeanAndStandardDeviation = values => {
     return { mean, stdv };
 }
 
+// Find the maximum value in a list
+// Using the reduce function we can handle very large arrays, while Math.max can not
+const max = array => array.reduce((cv, nv) => Math.max(cv, nv), -Infinity);
+
+// Find the minimum value in a list
+// Using the reduce function we can handle very large arrays, while Math.min can not
+const min = array => array.reduce((cv, nv) => Math.min(cv, nv), Infinity);
+
+// Round a numbers
+const round2tenths = number => Math.round(number * 10) / 10;
+const round2cents = number => Math.round(number * 100) / 100;
+
 module.exports = {
     getRequestUrl,
     parseJSON,
@@ -154,5 +166,9 @@ module.exports = {
     getBaseURL,
     intersection,
     caluclateMean,
-    caluclateMeanAndStandardDeviation
+    caluclateMeanAndStandardDeviation,
+    max,
+    min,
+    round2tenths,
+    round2cents,
 }
