@@ -119,9 +119,9 @@ const uniprotEndpoint = handler({
         Object.entries(pointers).forEach(([referenceId, pointers]) => {
             pointers.forEach(pointer => {
                 response += `${referenceId}${UNIPROT_SEP}${pointer.id}${UNIPROT_SEP}`;
-                response += `${pointer['metadata.METHOD'] || 'NA'}${UNIPROT_SEP}`;
-                response += `${pointer['metadata.FRAMESTEP'] || 'NA'}${UNIPROT_SEP}`;
-                response += `${pointer.chains.join(',')}\n`;
+                response += `'${pointer['metadata.METHOD'] || 'NA'}'${UNIPROT_SEP}`;
+                response += `'${pointer['metadata.FRAMESTEP'] || 'NA'} ns'${UNIPROT_SEP}`;
+                response += `'${pointer.chains.join(',')}'\n`;
             });
         });
         // Return the formated response
