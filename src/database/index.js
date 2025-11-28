@@ -102,18 +102,27 @@ class Database {
         const query = { ...this.getBaseFilter() };
         // Get the project id or accession
         const idOrAccession = this.request.params.project;
-        if (!idOrAccession) return new Error('No project ir or accession in the request');
+        if (!idOrAccession) return new Error('No project id or accession in the request');
         const project = idOrAccession.split('.')[0];
+        // Check if we are a global API
+        const isGlobal = this.config && this.config.global;
         // Check if the idOrAccession is a mongo internal object id
         if (isObjectId(project)) {
-            // Check if it is a global API
-            const isGlobal = this.config && this.config.global;
             // If so, we must complain
             if (isGlobal) return new Error('Internal identifiers are not supported by the global API');
             query._id = ObjectId(project);
         }
+        // This is a patch to support finding a project by its global but temporal non-persistent id
+        // These IDs have the following format: <node>-<local accession>
+        else if (isGlobal && project.includes('-')) {
+            const splits = project.split('-')
+            const node = splits[0];
+            const local = splits.slice(1).join('')
+            query.$or = [{ accession: project }, { node: node, local: local }];
+        }
         // Otherwise we asume it is an accession
         else query.accession = project;
+        console.log(query);
         // Return the query
         return query;
     };
