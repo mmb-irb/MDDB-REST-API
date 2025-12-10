@@ -82,8 +82,10 @@ router.route('/').get(
       // Set the input mds by removing all generated fields on each MD
       // Also include explicit structure and trajectory path for each MD
       projectData.mds.forEach(md => {
+        delete md.num;
         delete md.atoms;
         delete md.frames;
+        delete md.refframe;
         delete md.analyses;
         delete md.files;
         delete md.warnings;
