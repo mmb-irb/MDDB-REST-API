@@ -82,6 +82,7 @@ router.route('/').get(
       // Set the input mds by removing all generated fields on each MD
       // Also include explicit structure and trajectory path for each MD
       projectData.mds.forEach(md => {
+        md.directory = md.name ? md.name.replace(' ','_') : 'replica_'+md.num;
         delete md.num;
         delete md.atoms;
         delete md.frames;
@@ -89,7 +90,6 @@ router.route('/').get(
         delete md.analyses;
         delete md.files;
         delete md.warnings;
-        md.directory = md.name.replace(' ','_');
         const mdFilesEndpoint = `${projectEndpoint}.${md.num}/files`;
         md.input_structure_filepath = `${mdFilesEndpoint}/structure.pdb`;
         md.input_trajectory_filepaths = `${mdFilesEndpoint}/trajectory.xtc`;
