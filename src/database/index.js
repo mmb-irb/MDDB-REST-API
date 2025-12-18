@@ -122,7 +122,6 @@ class Database {
         }
         // Otherwise we asume it is an accession
         else query.accession = project;
-        console.log(query);
         // Return the query
         return query;
     };
