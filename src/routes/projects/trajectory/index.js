@@ -70,6 +70,9 @@ const acceptTransformFormat = requestedFormat => {
   if (!requestedFormat) return trajectoryFormats.bin;
   const _requestedFormat = requestedFormat.toLowerCase();
   // _requested is a string sent by the header which includes the names of all accepted formats
+  if (_requestedFormat === 'bin') {
+    return trajectoryFormats.bin;
+  }
   if (_requestedFormat === 'crd' || _requestedFormat === 'mdcrd') {
     return trajectoryFormats.mdcrd;
   }
