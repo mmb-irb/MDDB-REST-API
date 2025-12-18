@@ -8,7 +8,7 @@ const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../../utils/status-code
 const { PROTEIN_RESIDUE_NAME_LETTERS } = require('../../../utils/constants');
 const {
     caluclateMeanAndStandardDeviation,
-    min, max, round2tenths
+    min, max, round2tenths, getHost
 } = require('../../../utils/auxiliar-functions');
 
 // Instantiate the router
@@ -186,7 +186,7 @@ router.route('/').get( handler({ async retriever(request) {
     // Get the requesting protocol, host and URL base
     // It will be used to generate the URLs
     const protocol = request.protocol;
-    const host = request.get('host');
+    const host = getHost(request);
     // Add the cliente equivalent project URL as it has been suggested
     // HARDCODE: El host de la query no tiene por que ser el del cliente
     // HARDCODE: De hecho una API podría no tener cliente asociado o tener varios

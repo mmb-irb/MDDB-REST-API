@@ -85,6 +85,17 @@ const getValueGetter = path => {
     return valueGetter;
 };
 
+// Get the request host
+// This may be read from the request itself or it may be forced in the environment
+// IMPORTANT: Make sure to always use this function to get the host to have a coherent behaviour
+// NEVER FORGET: For the host to be inherited you may need to configure your apache
+// Add the line 'ProxyPreserveHost On' in the API location settings
+// NEVER FORGET: Some machines are under restrictive proxies which make impossible to read this value
+// In these cases the host is set to 'localhost' or 'rest' usually
+// Since this may have no solution the host may be forced in the .env file
+// e.g. HOST=myhost.mddbr.eu
+const getHost = request => process.env.HOST || request.get('host');
+
 // Get the request host and then get the host configuration
 // Configurations are defined in the config.yml file in the root
 // Note that localhost has to do some extra logic to match the configuration
@@ -92,7 +103,7 @@ const getValueGetter = path => {
 // Add the line 'ProxyPreserveHost On' in the API location settings
 const getConfig = request => {
     // Get the request host
-    const host = request.get('host');
+    const host = getHost(request);
     // Get host configuration
     const config = hostConfig[host];
     if (config) return config;
@@ -162,6 +173,7 @@ module.exports = {
     isIterable,
     setOutputFilename,
     getValueGetter,
+    getHost,
     getConfig,
     getBaseURL,
     intersection,

@@ -7,6 +7,8 @@ const getDatabase = require('../../../database');
 const { REFERENCES } = require('../../../utils/constants');
 // Standard codes for HTTP responses
 const { BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND } = require('../../../utils/status-codes');
+// Auxiliar functions
+const { getHost } = require('../../../utils/auxiliar-functions');
 // Set the supported references
 // We exclude chains since it does not make sense, although it should work anyway
 const SUPPORTED_REFERENCES = [ ...Object.keys(REFERENCES) ]
@@ -45,7 +47,7 @@ const pointerLinksEndpoint = handler({
         // Get the requesting protocol, host and URL base
         // It will be used to generate the URLs
         const protocol = request.protocol;
-        const host = request.get('host');
+        const host = getHost(request);
         // Get from the database all reference ids
         const referencesFinder = targetReferenceId ? { [reference.idField]: targetReferenceId } : {};
         const referencesProjector = { [reference.idField]: true };

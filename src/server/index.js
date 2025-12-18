@@ -13,6 +13,9 @@ const swStats = require('swagger-stats');
 const routes = require('../routes');
 //const getCustomTimeout = require('../middlewares/custom-timeout');
 
+// Auxiliar functions
+const { getHost } = require('../utils/auxiliar-functions');
+
 const PORT = process.env.LISTEN_PORT;
 if (!PORT) throw new Error('Missing listen port in env');
 const DEFAULT_LIMIT = 10;
@@ -90,7 +93,7 @@ app.use('/rest/current', routes);
 //        Esto hace que a pesar de que el header esté bien, todo el body pueda ser el de otro swagger distinto
 app.use('/rest/docs', (request, response, next) => {
   // Get the hostname from the request
-  const host = request.get('host');
+  const host = getHost(request);
   response.set('internal-hostname', host); // This is usefull for debug
   // Get the swagger responses which correspond to the requesting host
   const swaggerResponses = getSwaggerDocs(host);

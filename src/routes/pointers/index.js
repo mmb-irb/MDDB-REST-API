@@ -8,7 +8,7 @@ const { REFERENCES } = require('../../utils/constants');
 // Standard codes for HTTP responses
 const { BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND } = require('../../utils/status-codes');
 // Import auxiliar functions
-const { getValueGetter, getBaseURL } = require('../../utils/auxiliar-functions');
+const { getValueGetter, getBaseURL, getHost } = require('../../utils/auxiliar-functions');
 const { rangeNotation } = require('../../utils/parse-query-range');
 // Set the supported references
 // We exclude chains since it does not make sense, although it should work anyway
@@ -139,7 +139,7 @@ const pointersEndpoint = handler({
         // WARNING: Note that the URL base may change
         // e.g. in local host it is /rest/... while normally it is /api/rest/...
         const protocol = request.protocol;
-        const host = request.get('host');
+        const host = getHost(request);
         const baseURL = getBaseURL(request.originalUrl);
         // DANI: Esto es un arreglo temporal
         // DANI: No hay forma de recuperar la URL original completa desde express
