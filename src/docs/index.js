@@ -10,7 +10,11 @@ hostConfig[null] = {
   name: '(Unknown service)',
   description:
     'The requesting URL is not recognized, all simulations will be returned',
+  accession: 'A0001'
 };
+// Set a placeholder for the host name
+// This is internal and should not be seen by the final user
+const UNKNOWN_HOST_PLACEHOLDER = 'UNKNOWN_HOST';
 
 // Set a function to replace a string anywhere in a object/array full of nested strings
 const replaceAnywhere = (targetObject, targetString, replaceString) => {
@@ -48,6 +52,9 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   else if (config.hostfix) {
     // Otherwise do not specify the protocol
     url = `{protocol}://${config.hostfix}/api/rest/{version}`;
+  }
+  else if (host === 'null') {
+    url = `{protocol}://${UNKNOWN_HOST_PLACEHOLDER}/api/rest/{version}`;
   }
   
   swaggerDocs.servers = [
@@ -103,6 +110,19 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   swaggerResponses[host] = { swaggerHtmlResponse, swaggerUiInitJs };
 });
 
-const getSwaggerDocs = host => swaggerResponses[host] || swaggerResponses[null];
+// Handle when we receive an unknown host
+const getUnkownHostConfig = host => {
+  const unkownSwaggerResponse = swaggerResponses[null];
+  // Note that the response is not a single string but an object
+  // This object contains two string fields: 'swaggerHtmlResponse' and 'swaggerUiInitJs'
+  // The one which contains the host placeholder to be replaced is the 'swaggerUiInitJs'
+  // Replace the unkown host placeholder everywhere
+  const fixedJavascript = unkownSwaggerResponse['swaggerUiInitJs']
+    .replaceAll(UNKNOWN_HOST_PLACEHOLDER, host);
+  unkownSwaggerResponse['swaggerUiInitJs'] = fixedJavascript;
+  return unkownSwaggerResponse;
+}
+
+const getSwaggerDocs = host => swaggerResponses[host] || getUnkownHostConfig(host);
 
 module.exports = getSwaggerDocs;
