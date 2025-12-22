@@ -148,6 +148,18 @@ router.route('/').get(
       // Return the inputs object to be sent as response and the output format
       return { inputs, format }
     },
+    headers(response, retrieved) {
+      // There should always be a retrieved object
+      if (!retrieved) return response.sendStatus(INTERNAL_SERVER_ERROR);
+      // If there is any specific header error in the retrieved then send it
+      // Note that we do not end the response here since the body may contain useful error logs
+      if (retrieved.headerError) response.status(retrieved.headerError);
+      // Set response header for length and type
+      response.set('content-length', retrieved.length * 4);
+      // NEVER FORGET: This header prevents accents to being converted to weird characters
+      // This error is visible in web browsers, but not when written
+      response.set('content-type', 'text/plain');
+    },
     // If there is retrieved and the retrieved has metadata then send the inputs file
     body(response, retrieved) {
       // If nothing is retrieved then end the response
@@ -160,7 +172,10 @@ router.route('/').get(
       // WARNING: Note that the YAML file has no comments as when it is generated from the workflow
       // The second argument in the stringify is the nexting limit to switch to one-line notation
       // However, nowadays, there should be nothing nested deeper than 3
-      else if (retrieved.format === 'yaml') response.end(yaml.stringify(retrieved.inputs, 4));
+      else if (retrieved.format === 'yaml') {
+        const stringResponse = yaml.stringify(retrieved.inputs, 4);
+        response.end(stringResponse);
+      }
       else throw new Error(`Format not supported ${retrieved.format}`);
     },
   }),
