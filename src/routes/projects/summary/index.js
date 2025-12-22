@@ -141,7 +141,7 @@ router.route('/').get(
             return acc + curr;
           } else return acc;
         }, 0);
-      summary['totalTime'] = totalTime;
+      summary['totalTime'] = totalTime.toFixed(2);
       // Get the total MD number of frames
       const totalFrames = data
         .map(project => {
@@ -192,6 +192,8 @@ router.route('/').get(
         }, 0);
       summary['totalAnalyses'] = totalAnalyses;
 
+      // OBSOLETE: To get this information please use the /stats endpoint instead
+      // OBSOLETE: I'll let this here for a few weeks while we update the old web clients
       // Get database statistics
       const dbStats = await database.db.command({ dbStats: 1, scale: 1000}); // Results in MB
       // Create a formatted response with values in TB

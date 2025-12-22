@@ -11,6 +11,8 @@ rootRouter.route('/').get((request, response) => {
   const isGlobal = config && config.global;
   // If so then add the 'nodes' route
   if (isGlobal) availableRoutes.push('nodes');
+  // Otherwise add the stats endpoint
+  else availableRoutes.push('stats');
   // Return the available routes
   response.json({ endpoints: availableRoutes });
 });
@@ -22,6 +24,7 @@ rootRouter.use('/pointers', require('./pointers'));
 rootRouter.use('/uniprot', require('./uniprot'));
 rootRouter.use('/links', require('./links'));
 rootRouter.use('/nodes', require('./nodes'));
+rootRouter.use('/stats', require('./stats'));
 rootRouter.use('/knowledge', require('./knowledge'));
 
 module.exports = rootRouter;
