@@ -162,6 +162,8 @@ projectRouter.route('/').get(
           sortOptions._id = sortOptions._id || 1;
         }
       }
+      // Get the number of projects to be matched with the current query
+      let projectCount = await database.projects.countDocuments(finder);
       // Finally, perform the mongo query
       // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
       // e.g. cursor.toArray()
@@ -173,12 +175,14 @@ projectRouter.route('/').get(
         .sort(sortOptions);
       // If there are no results, we try it with the mongo internal ids
       // This only works with the full object id, not partial ids
-      if ((await cursor.count()) === 0 && /[a-z0-9]{24}/.test(search)) {
+      if (projectCount === 0 && /[a-z0-9]{24}/.test(search)) {
         const id = ObjectId(search.match(/[a-z0-9]{24}/)[0]);
-        cursor = await database.projects.find({ _id: id });
+        const newFinder = { _id: id };
+        projectCount = await database.projects.countDocuments(newFinder);
+        cursor = await database.projects.find(newFinder);
       }
-      // If we still having no results, return here
-      if (cursor.count() === 0) return;
+      // If we still having no results then return here
+      if (projectCount === 0) return { filteredCount: 0, totalMdsCount: 0, projects: [] };
 
       // Get the limit of projects to be returned according to the query
       // If the query has no limit it is set to 10 by default
@@ -216,7 +220,7 @@ projectRouter.route('/').get(
         // filteredCount
         // WARNING: We must count before the limit or the count will be affected
         // WARNING: This was not like this in mongodb 3.3, but it changed when updated to mongodb 4.5
-        cursor.count(),
+        projectCount,
         // If the request (URL) contains a limit query (i.e. ...?limit=x)
         limit
           ? cursor

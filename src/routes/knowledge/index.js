@@ -29,16 +29,18 @@ router.route('/:pdbid').get(
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
-      // Return a list with accessions from all the available projects including the PDB id
+      // Count the amount of projects including the target PDB id
       const pdbId = request.params.pdbid;
-      const cursor = await database.projects.find(
-        { 'metadata.PDBIDS': pdbId },
-        { 'accession': true, '_id': false }
-      );
-      if (await cursor.count() === 0) return {
+      const projectsQuery = { 'metadata.PDBIDS': pdbId };
+      const projectsCount = await database.projects.countDocuments(projectsQuery);
+      // If there are no projects at all then re
+      if (projectsCount === 0) return {
         headerError: NOT_FOUND,
         error: `No project were found for PDB id ${pdbId}`
       };
+      // Return a list with accessions from all the available projects including the PDB id
+      const projectsProjection = { 'accession': true, '_id': false };
+      const cursor = await database.projects.find(projectsQuery, projectsProjection);
       // Consume the cursor
       const projects = await cursor.toArray();
       return projects.map(project => project.accession);
