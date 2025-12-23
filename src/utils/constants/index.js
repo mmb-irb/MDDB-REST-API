@@ -142,6 +142,8 @@ module.exports = {
     // Set the headers for some queries
     REFERENCE_HEADER: 'references.',
     TOPOLOGY_HEADER: 'topology.',
+    // Set the project fields which store dates
+    DATE_FIELDS: new Set([ 'updateDate' ]),
     // Export mongo collection names
     LOCAL_COLLECTION_NAMES,
     GLOBAL_COLLECTION_NAMES,

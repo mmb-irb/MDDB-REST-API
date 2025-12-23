@@ -9,7 +9,8 @@ const {
     LOCAL_COLLECTION_NAMES,
     GLOBAL_COLLECTION_NAMES,
     REFERENCES,
-    REFERENCE_HEADER, TOPOLOGY_HEADER
+    REFERENCE_HEADER, TOPOLOGY_HEADER,
+    DATE_FIELDS,
 } = require('../utils/constants');
 const AVAILABLE_REFERENCES = Object.keys(REFERENCES).join(', ');
 // Get a function to clean raw project data to a standard format
@@ -224,7 +225,7 @@ class Database {
     // Returns an error response if something is wrong
     processProjectsQuery = async query => {
         // If there is no query then return an empty object, which applies no filter at all
-        if (!query) return {};
+        if (!query) return [];
         // Set a new list of the queries to prevent mutating the original
         // In case there is a single query it would be a string, not an array, so adapt it
         const queries = typeof query === 'string' ? [query] : [...query];
@@ -343,6 +344,35 @@ class Database {
             };
             // Start the parsing function
             queryError = await parseTopologiesQuery(parsedQuery);
+            if (queryError) return queryError;
+            // Parse those field which aim for dates by parsing the date string into actual dates
+            const parseDateQuery = async queryObject => {
+                // Iterate over the original query fields
+                for (const [field, value] of Object.entries(queryObject)) {
+                    // If the field is actually a list of fields then run the parsing function recursively
+                    if (field === '$and' || field === '$or') {
+                        for (const subquery of value) {
+                            queryError = await parseReferencesQuery(subquery);
+                            if (queryError) return queryError;
+                        } 
+                        return;
+                    }
+                    // If the field is not among date fields then skip it
+                    if (!DATE_FIELDS.has(field)) return;
+                    // Parse the date string into a date
+                    // Mongo will handle it as an ISODate
+                    if (typeof value === 'string') {
+                        queryObject[field] = new Date(value);
+                        continue;
+                    }
+                    // If it is an object with mongo operators then convert every value inside
+                    for (const [k, v] of Object.entries(value)) {
+                        value[k] = new Date(v);
+                    }
+                }
+            };
+            // Start the parsing function
+            queryError = await parseDateQuery(parsedQuery);
             if (queryError) return queryError;
         }
         // Return the modified queries
