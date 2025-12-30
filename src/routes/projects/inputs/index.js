@@ -83,6 +83,9 @@ router.route('/').get(
       // Also include explicit structure and trajectory path for each MD
       projectData.mds.forEach(md => {
         md.directory = md.name ? md.name.replace(' ','_') : 'replica_'+md.num;
+        const mdFilesEndpoint = `${projectEndpoint}.${md.num}/files`;
+        md.input_structure_filepath = `${mdFilesEndpoint}/structure.pdb`;
+        md.input_trajectory_filepaths = `${mdFilesEndpoint}/trajectory.xtc`;
         delete md.num;
         delete md.atoms;
         delete md.frames;
@@ -90,9 +93,6 @@ router.route('/').get(
         delete md.analyses;
         delete md.files;
         delete md.warnings;
-        const mdFilesEndpoint = `${projectEndpoint}.${md.num}/files`;
-        md.input_structure_filepath = `${mdFilesEndpoint}/structure.pdb`;
-        md.input_trajectory_filepaths = `${mdFilesEndpoint}/trajectory.xtc`;
       })
       // Set the input topology file
       const topologyFile = projectData.files.find(file => TOPOLOGY_FILENAME_REGEXP.exec(file.name));
