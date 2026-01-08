@@ -154,8 +154,6 @@ router.route('/').get(
       // If there is any specific header error in the retrieved then send it
       // Note that we do not end the response here since the body may contain useful error logs
       if (retrieved.headerError) response.status(retrieved.headerError);
-      // Set response header for length and type
-      response.set('content-length', retrieved.length * 4);
       // NEVER FORGET: This header prevents accents to being converted to weird characters
       // This error is visible in web browsers, but not when written
       response.set('content-type', 'text/plain');
