@@ -76,16 +76,17 @@ router.route('/').get(
       const projectEndpoint = inputsEndpoint.slice(0, inputsEndpoint.length - 7);
       const projectFilesEndpoint = `${projectEndpoint}/files`;
       // Numberate MDs before removing some of them
+      // IMPORTANT: Do not filter away removed MDs or the indices will not match later
       projectData.mds.forEach((md, index) => md.num = index + 1);
-      // Filter away removed MDs
-      projectData.mds = projectData.mds.filter(md => !md.removed);
       // Set the input mds by removing all generated fields on each MD
       // Also include explicit structure and trajectory path for each MD
       projectData.mds.forEach(md => {
-        md.directory = md.name ? md.name.replace(' ','_') : 'replica_'+md.num;
-        const mdFilesEndpoint = `${projectEndpoint}.${md.num}/files`;
-        md.input_structure_filepath = `${mdFilesEndpoint}/structure.pdb`;
-        md.input_trajectory_filepaths = `${mdFilesEndpoint}/trajectory.xtc`;
+        if (!md.removed) {
+          md.directory = md.name ? md.name.replace(' ','_') : 'replica_'+md.num;
+          const mdFilesEndpoint = `${projectEndpoint}.${md.num}/files`;
+          md.input_structure_filepath = `${mdFilesEndpoint}/structure.pdb`;
+          md.input_trajectory_filepaths = `${mdFilesEndpoint}/trajectory.xtc`;
+        }
         delete md.num;
         delete md.atoms;
         delete md.frames;
