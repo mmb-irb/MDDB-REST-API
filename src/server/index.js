@@ -12,6 +12,7 @@ const swStats = require('swagger-stats');
 
 const routes = require('../routes');
 //const getCustomTimeout = require('../middlewares/custom-timeout');
+const { version } = require('../../package.json');
 
 // Auxiliar functions
 const { getHost } = require('../utils/auxiliar-functions');
@@ -70,7 +71,8 @@ app.get('/rest', (_, res) =>
     'api versions': ['v1', 'current'],
     'current version': 'v1',
     documentation: 'docs',
-    'federated specification': 'spec'
+    'federated specification': 'spec',
+    'software version': version,
   }),
 );
 

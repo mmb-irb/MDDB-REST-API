@@ -1,0 +1,58 @@
+name: Version Check
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for all tags
+      
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          # Get the latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No tags found in repository"
+            echo "latest_tag=none" >> $GITHUB_OUTPUT
+          else
+            echo "Latest tag: $LATEST_TAG"
+            # Remove 'v' prefix if present
+            TAG_VERSION=${LATEST_TAG#v}
+            echo "latest_tag=$TAG_VERSION" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Get package.json version
+        id: get_version
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "Package version: $PACKAGE_VERSION"
+          echo "package_version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Compare versions
+        run: |
+          LATEST_TAG="${{ steps.get_tag.outputs.latest_tag }}"
+          PACKAGE_VERSION="${{ steps.get_version.outputs.package_version }}"
+          
+          if [ "$LATEST_TAG" = "$PACKAGE_VERSION" ]; then
+            echo "✅ Version match! package.json ($PACKAGE_VERSION) matches latest tag ($LATEST_TAG)"
+          else
+            echo "❌ Version mismatch!"
+            echo "   package.json version: $PACKAGE_VERSION"
+            echo "   Latest git tag: $LATEST_TAG"
+            echo ""
+            echo "Please update package.json version to match the tag or create a new tag."
+            exit 1
+          fi
