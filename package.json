@@ -1,6 +1,6 @@
 {
   "name": "MoDEL-CNS_REST_API",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "description": "MoDEL-CNS REST API",
   "main": "index.js",
   "private": true,
@@ -23,7 +23,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "[git@mmb.pcb.ub.es:22123]:aluciani/MoDEL-CNS_REST_API.git"
+    "url": "git@github.com:mmb-irb/MDDB-REST-API.git"
   },
   "keywords": [
     "model",
