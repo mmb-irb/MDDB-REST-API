@@ -25,6 +25,11 @@ const REFERENCES = {
         collectionName: 'chain_refs',
         idField: 'sequence',
         projectIdsField: 'metadata.PROTSEQ'
+    },
+    collections: {
+        collectionName: 'collection_refs',
+        idField: 'id',
+        projectIdsField: 'metadata.COLLECTIONS'
     }
 };
 
