@@ -82,9 +82,11 @@ class Project {
         for await (const [referenceName, reference] of Object.entries(REFERENCES)) {
             // Set a nested value miner
             const valueGetter = getValueGetter(reference.projectIdsField);
-            const projectReferenceIds = valueGetter(this.data);
+            let projectReferenceIds = valueGetter(this.data);
             // If there are no references then send an empty list
             if (!projectReferenceIds || projectReferenceIds.length == 0) continue;
+            // DANI: projectReferenceIds debería ser una lista, pero por si acaso es un string...
+            if (typeof projectReferenceIds === 'string') projectReferenceIds = [projectReferenceIds];
             // Set up the db query with all reference ids
             const queries = projectReferenceIds.map(referenceId => {
                 return { [reference.idField]: referenceId };
