@@ -7,7 +7,7 @@ const getDatabase = require('../../database');
 const { REFERENCES } = require('../../utils/constants');
 const availableReferences = Object.keys(REFERENCES).join(', ');
 // Standard codes for HTTP responses
-const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
+const { BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 
 // Set the response when a specific reference is requested
 // Return a list with all available reference ids
@@ -17,8 +17,59 @@ const wholeReferenceResponse = handler({
         const database = await getDatabase(request);
         // Get the requested reference configuration
         const referenceName = request.params.reference;
-        // Use the database function
-        return await database.getReferenceAvailableIds(referenceName);
+        // Get the requested query, if any
+        const query = request.query.query;
+        const parsedQuery = (query && JSON.parse(query)) || {};
+        // Check if we are to return only the available ids
+        // If so then there is no need for pagination or projections
+        // LORE: This was the original behaviour of this endpoint
+        const justIds = request.query.justids;
+        const returnJustIds = justIds !== undefined && justIds !== 'false';
+        if (returnJustIds) return await database.getReferenceAvailableIds(referenceName, parsedQuery);
+        // Otherwise we must paginate and handle possible projections
+        // Set the projection object for the mongo query
+        const projector = {};
+        // Handle when it is a mongo projection itself
+        // Note that when a projection is requested the project data is not formatted
+        let projection = request.query.projection;
+        if (projection) {
+            // In case there is a single query it would be a string, not an array, so adapt it
+            if (typeof projection === 'string') projection = [projection];
+            for (const p of projection) {
+                // Parse the string into a json object
+                const objectProjection = parseJSON(p);
+                if (!objectProjection) return {
+                    headerError: BAD_REQUEST,
+                    error: `Projection "${p}" is not well formatted`
+                };
+                // Append the specified projection to the projector object
+                Object.assign(projector, objectProjection);
+            }
+        }
+        // Set the target mongo collection
+        const collection = database[referenceName];
+        // Get the number of references to be matched with the current query
+        const referencesCount = await collection.countDocuments(parsedQuery);
+        // Finally, perform the mongo query
+        // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
+        // e.g. cursor.toArray()
+        const cursor = await collection.find(parsedQuery).project(projector);
+        // Handle the pagination
+        // Get the limit of references to be returned
+        // If the query has no limit then use a defualt value
+        // If the query limit is grater than the limit then set it as the limit
+        // If the limit is negative (which makes not sense) it is set to 0
+        // This is defined in the src/server/index.js script
+        let limit = request.query.limit;
+        // Finally consume the cursor
+        const references = await cursor
+            // Avoid the first results when a page is provided in the request (URL)
+            .skip(request.skip)
+            // Avoid the last results when a limit is provided in the request query (URL)
+            .limit(limit)
+            // Changes the type from Cursor into Array, then saving data in memory
+            .toArray();
+        return { referencesCount, references };
     }
 });
 

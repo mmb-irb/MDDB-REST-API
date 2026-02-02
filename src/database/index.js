@@ -201,7 +201,7 @@ class Database {
     }
 
     // Get all ids available in a given reference
-    getReferenceAvailableIds = async referenceName => {
+    getReferenceAvailableIds = async (referenceName, query = {}) => {
         // Get the requested reference configuration
         const reference = REFERENCES[referenceName];
         if (!reference) return {
@@ -211,7 +211,7 @@ class Database {
         // Set the target mongo collection
         const collection = this[referenceName];
         // Get all references, but only their reference ids
-        const cursor = await collection.find({},
+        const cursor = await collection.find(query,
             { projection: { _id: false, [reference.idField]: true } },
         );
         // Consume the cursor

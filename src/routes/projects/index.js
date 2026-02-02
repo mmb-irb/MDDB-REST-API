@@ -187,8 +187,8 @@ projectRouter.route('/').get(
       // Get the limit of projects to be returned according to the query
       // If the query has no limit it is set to 10 by default
       // If the query limit is grater than 100 it is set to 100
-      // This is defined in the src/server/index.js script
       // If the limit is negative (which makes not sense) it is set to 0
+      // This is defined in the src/server/index.js script
       let limit = request.query.limit;
 
       // Check if the raw flag has been passed
@@ -215,34 +215,28 @@ projectRouter.route('/').get(
       const shouldCountMds = request.query.countMds === 'true';
       const totalMdsCount = shouldCountMds ? await countTotalMds() : null;
 
-      // 3 variables are declared at the same time
-      const [filteredCount, projects] = await Promise.all([
-        // filteredCount
-        // WARNING: We must count before the limit or the count will be affected
-        // WARNING: This was not like this in mongodb 3.3, but it changed when updated to mongodb 4.5
-        projectCount,
-        // If the request (URL) contains a limit query (i.e. ...?limit=x)
-        limit
-          ? cursor
-              // WARNING: Sorting by _id in second place is crucial for projects without accession, no never remove it
-              // WARNING: Otherwise the sort may be totally inconsistent, which is very dangerous in combination with the 'skip'
-              // We sort again. This time alphabetically by accession (*previous sort may be redundant)
-              .sort(sortOptions)
-              // Allow mongo to create temporally local files to handle the sort operation when reaching its 100Mb memory limit
-              .allowDiskUse()
-              // Avoid the first results when a page is provided in the request (URL)
-              .skip(request.skip)
-              // Avoid the last results when a limit is provided in the request query (URL)
-              .limit(limit)
-              // Each project is cleaned (some attributes are renamed or removed)
-              // WARNING: Do not leave this line as 'map(projectMapping)' or you will have a bug
-              // WARNING: The map function index is passed as requested MD index to the projectFormatter function
-              .map(project => projectMapping(project))
-              // Changes the type from Cursor into Array, then saving data in memory
-              .toArray()
-          : [],
-      ]);
-      return { filteredCount, totalMdsCount, projects };
+      // If the limit is set to 0 then return here
+      if (limit === 0) return { projectCount, totalMdsCount, projects: [] };
+
+      // Finally consume the cursor
+      const projects = await cursor
+        // WARNING: Sorting by _id in second place is crucial for projects without accession, no never remove it
+        // WARNING: Otherwise the sort may be totally inconsistent, which is very dangerous in combination with the 'skip'
+        // We sort again. This time alphabetically by accession (*previous sort may be redundant)
+        .sort(sortOptions)
+        // Allow mongo to create temporally local files to handle the sort operation when reaching its 100Mb memory limit
+        .allowDiskUse()
+        // Avoid the first results when a page is provided in the request (URL)
+        .skip(request.skip)
+        // Avoid the last results when a limit is provided in the request query (URL)
+        .limit(limit)
+        // Each project is cleaned (some attributes are renamed or removed)
+        // WARNING: Do not leave this line as 'map(projectMapping)' or you will have a bug
+        // WARNING: The map function index is passed as requested MD index to the projectFormatter function
+        .map(project => projectMapping(project))
+        // Changes the type from Cursor into Array, then saving data in memory
+        .toArray();
+      return { projectCount, totalMdsCount, projects };
     }
   }),
 );
