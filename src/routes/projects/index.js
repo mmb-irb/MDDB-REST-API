@@ -216,7 +216,7 @@ projectRouter.route('/').get(
       const totalMdsCount = shouldCountMds ? await countTotalMds() : null;
 
       // If the limit is set to 0 then return here
-      if (limit === 0) return { projectCount, totalMdsCount, projects: [] };
+      if (limit === 0) return { filteredCount: projectCount, totalMdsCount, projects: [] };
 
       // Finally consume the cursor
       const projects = await cursor
