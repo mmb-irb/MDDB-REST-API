@@ -163,7 +163,7 @@ projectRouter.route('/').get(
         }
       }
       // Get the number of projects to be matched with the current query
-      let projectCount = await database.projects.countDocuments(finder);
+      let filteredCount = await database.projects.countDocuments(finder);
       // Finally, perform the mongo query
       // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
       // e.g. cursor.toArray()
@@ -175,14 +175,14 @@ projectRouter.route('/').get(
         .sort(sortOptions);
       // If there are no results, we try it with the mongo internal ids
       // This only works with the full object id, not partial ids
-      if (projectCount === 0 && /[a-z0-9]{24}/.test(search)) {
+      if (filteredCount === 0 && /[a-z0-9]{24}/.test(search)) {
         const id = ObjectId(search.match(/[a-z0-9]{24}/)[0]);
         const newFinder = { _id: id };
-        projectCount = await database.projects.countDocuments(newFinder);
+        filteredCount = await database.projects.countDocuments(newFinder);
         cursor = await database.projects.find(newFinder);
       }
       // If we still having no results then return here
-      if (projectCount === 0) return { filteredCount: 0, totalMdsCount: 0, projects: [] };
+      if (filteredCount === 0) return { filteredCount: 0, totalMdsCount: 0, projects: [] };
 
       // Get the limit of projects to be returned according to the query
       // If the query has no limit it is set to 10 by default
@@ -216,7 +216,7 @@ projectRouter.route('/').get(
       const totalMdsCount = shouldCountMds ? await countTotalMds() : null;
 
       // If the limit is set to 0 then return here
-      if (limit === 0) return { filteredCount: projectCount, totalMdsCount, projects: [] };
+      if (limit === 0) return { filteredCount, totalMdsCount, projects: [] };
 
       // Finally consume the cursor
       const projects = await cursor
@@ -236,7 +236,7 @@ projectRouter.route('/').get(
         .map(project => projectMapping(project))
         // Changes the type from Cursor into Array, then saving data in memory
         .toArray();
-      return { projectCount, totalMdsCount, projects };
+      return { filteredCount, totalMdsCount, projects };
     }
   }),
 );
