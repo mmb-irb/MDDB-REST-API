@@ -27,9 +27,9 @@ const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 
 const app = express();
-if (process.env.NODE_ENV === 'development') {
-  app.use(swStats.getMiddleware({swaggerSpec:swaggerSpec}));
-}
+
+app.use(swStats.getMiddleware({swaggerSpec:swaggerSpec}));
+
 // Disable this header
 app.disable('x-powered-by');
 
