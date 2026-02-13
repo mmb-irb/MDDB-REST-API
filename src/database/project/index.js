@@ -114,8 +114,10 @@ class Project {
         const targetFrame = frame === undefined ? this.referenceFrame : frame;
         // Set ranges depending on the frame and atom indices requested
         const parsedRanges = { z: [ { start: targetFrame, end: targetFrame } ] };
+        // Make sure atom indices are ranged
+        const sortedAtomIndices = atomIndices && atomIndices.sort((a,b) => a - b);
         // Get ranged atom indices
-        const rangedAtoms = atomIndices && rangeIndices(atomIndices);
+        const rangedAtoms = sortedAtomIndices && rangeIndices(sortedAtomIndices);
         if (rangedAtoms) parsedRanges.y = rangedAtoms;
         // Download the main trajectory file descriptor
         const trajectoryDescriptor = await this.getTrajectorFileDescriptor();
@@ -137,7 +139,7 @@ class Project {
         const rawCoordinates = Buffer.concat(chunks);
         // Buffer size must be equal to the number of coordinates * the number of bytes per coordinate (4)
         const bufferSize = rawCoordinates.length;
-        const nAtoms = atomIndices ? atomIndices.length : trajectoryDescriptor.atoms;
+        const nAtoms = sortedAtomIndices ? sortedAtomIndices.length : trajectoryDescriptor.atoms;
         const nCoordinates = nAtoms * 3;
         if (bufferSize != nCoordinates * 4) return {
             headerError: INTERNAL_SERVER_ERROR,
