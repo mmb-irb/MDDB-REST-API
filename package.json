@@ -1,6 +1,6 @@
 {
   "name": "MoDEL-CNS_REST_API",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "MoDEL-CNS REST API",
   "main": "index.js",
   "private": true,
