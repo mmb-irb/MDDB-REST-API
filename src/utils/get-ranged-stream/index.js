@@ -4,18 +4,16 @@ const PassThrough = require('stream').PassThrough;
 const { isIterable } = require('../auxiliar-functions');
 
 // Found experimentally
-const chunkSize = 4194304;
+const CHUNK_SIZE = 4194304; // bytes
 
-// Stream only specific ranges of bytes from a file
-const getRangedStream = (bucket, objectId, range) => {
-  // If there is not range or range is not iterable then just return the whole stream
-  if (!range || !isIterable(range)) return bucket.openDownloadStream(objectId);
-  // If range is iterable it means we have to return only specific chunks of the input stream
-  const outputStream = new PassThrough();
-  // Group ranges which may fit in one single chunk according to chunkSize
+// Given a list of ranges, group them in sets of a certain size (CHUNK_SIZE)
+// Add also to every group the overalll start and end range values
+const groupRanges = ranges => {
   const rangeGroups = [];
   let currentGroup;
-  for (const { start, end } of range) {
+  // Iterate ranges
+  for (const { start, end } of ranges) {
+    //console.log(`from ${start} to ${end}`);
     // If there is no current group then set it with current range parameters
     if (!currentGroup) {
       currentGroup = {
@@ -25,26 +23,25 @@ const getRangedStream = (bucket, objectId, range) => {
       };
       // If the current range is already bigger than the ckunk size set it alone
       const size = end - start;
-      if (size >= chunkSize) {
+      if (size >= CHUNK_SIZE) {
         rangeGroups.push(currentGroup);
         currentGroup = null;
       }
       continue;
     }
-    // In case there is an existing current group, check if this range fits on it
+    // Check if this range fits in the current group
     const size = end - currentGroup.start;
     // If the current group with the current range would overcome the limit...
     // Then save the current group and create a new one for the current range
-    if (size >= chunkSize) {
+    if (size >= CHUNK_SIZE) {
       rangeGroups.push(currentGroup);
       currentGroup = {
-        start: start,
-        end: end,
+        start: start, end: end,
         ranges: [{ start, end }],
       };
       // If the current range is already bigger than the ckunk size set it alone
       const size = end - start;
-      if (size >= chunkSize) {
+      if (size >= CHUNK_SIZE) {
         rangeGroups.push(currentGroup);
         currentGroup = null;
       }
@@ -56,16 +53,30 @@ const getRangedStream = (bucket, objectId, range) => {
   }
   // Save last group
   if (currentGroup) rangeGroups.push(currentGroup);
+  return rangeGroups;
+}
 
+// Stream only specific ranges of bytes from a file
+// WARNING: Make sure ranges are ordered or this function will silently fail
+const getRangedStream = (bucket, objectId, range) => {
+  // If there is not range or range is not iterable then just return the whole stream
+  if (!range || !isIterable(range)) return bucket.openDownloadStream(objectId);
+  // If range is iterable it means we have to return only specific chunks of the input stream
+  const outputStream = new PassThrough();
+  // Given a list of ranges, group them in sets of a certain size
+  // This allows to process several small input chunks in bigger compacted output chunks
+  // This dramatically improves the efficiency when sending response chunks thorugh the internet
+  const rangeGroups = groupRanges(range);
   // Note that the async function MUST be here
   // The await of the promise that the stream has been consumed is to avoid opening several download streams
   // We wait for one stream to finish before opening the next one
   (async () => {
     // Now, open a mongo download stream for each ranges group
     // Then split the data chunks according to ranges inside the group
-    for (const rangeGroup of rangeGroups) {
+    for await (const rangeGroup of rangeGroups) {
       // create a new stream bound to this specific range part
-      const rangedStream = bucket.openDownloadStream(objectId, { start: rangeGroup.start, end: rangeGroup.end + 1 });
+      const rangedStream = bucket.openDownloadStream(objectId,
+        { start: rangeGroup.start, end: rangeGroup.end + 1 });
       // Set a promise to be resolved when the ranged stream data has been fully consumed
       let resolveStreamConsumed;
       const streamConsumed = new Promise(resolve => { resolveStreamConsumed = resolve });
@@ -83,7 +94,6 @@ const getRangedStream = (bucket, objectId, range) => {
         const dataStart = progress;
         const dataLength = data.length;
         const dataEnd = dataStart + dataLength + 1;
-        //console.log('data: (' + dataStart + ' - ' + dataEnd + ')');
         // Get the required part of the data according to ranges
         for (let r = nrange; r < rangeGroup.ranges.length; r++) {
           // Get current range limits
