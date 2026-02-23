@@ -64,6 +64,12 @@ app.use(paginate.middleware(DEFAULT_LIMIT, MAX_LIMIT));
 // Parse POST request bodies
 app.use(express.json());
 
+// Set a directory for public files, if required
+const PUBLIC_DIR = process.env.PUBLIC_DIR;
+console.log(PUBLIC_DIR);
+if (PUBLIC_DIR)
+  app.use('/public', express.static(PUBLIC_DIR));
+
 // Root routes
 app.get('/', (_, res) => res.json({ 'api types': ['rest'] }));
 app.get('/rest', (_, res) =>

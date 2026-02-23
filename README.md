@@ -54,6 +54,9 @@ Note that the API processes must be stopped and run again for new code to be eff
 | DB_AUTH_PASSWORD | string                        | db password               |
 | DB_AUTHSOURCE    | string                        | authentication db         |
 | LISTEN_PORT      | number                        | port to query the API     |
+| HOST             | string                        | forced hostname           |
+| PUBLIC_DIR       | string                        | path to public directory  |
+
 
 ### config.yml file
 
