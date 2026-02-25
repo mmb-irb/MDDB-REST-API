@@ -54,7 +54,8 @@ projectRouter.route('/').get(
               { 'metadata.DESCRIPTION': { $regex: tsearch, $options: 'i' } },
               { 'metadata.AUTHORS': { $regex: tsearch, $options: 'i' } },
               { 'metadata.GROUPS': { $regex: tsearch, $options: 'i' } },
-              { 'metadata.PDBIDS': { $regex: tsearch, $options: 'i' } }
+              { 'metadata.PDBIDS': { $regex: tsearch, $options: 'i' } },
+              { 'metadata.SYSKEYS': { $regex: tsearch, $options: 'i' } },
             ],
           });
       }
