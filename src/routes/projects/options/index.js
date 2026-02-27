@@ -285,6 +285,18 @@ router.route('/').get(
           options[field] = counts;
         });
       }
+      // This is the moment to do any last changes to the results
+      // Here are the hardcodes to solve silly issues or not "good looking" numbers
+      // Remove MD interaction-analyses with the numerated name
+      const mdAnalysesKey = 'mds.analyses.name';
+      const numeratedAnalysisPattern = /-[0-9]*$/;
+      if (mdAnalysesKey in options) {
+        const mdAnalyses = options[mdAnalysesKey];
+        Object.keys(mdAnalyses).forEach(key => {
+          // If it ends in '-xx' where xx is any number of numeric characters
+          if (key.match(numeratedAnalysisPattern)) delete mdAnalyses[key];
+        });
+      }
       // LORE: We no longer sort the final response, this is now done by the client
       // LORE: You can not rely in objects order and returning everything as arrays is not efficient
       // Send all mined data
