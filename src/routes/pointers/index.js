@@ -192,6 +192,10 @@ const pointersEndpoint = handler({
                 // If there is no topology at all we stop here
                 // This should never happen, but you never know
                 if (!topology) return;
+                // Make sure the topology is well formated or stop here as well
+                if (!topology.references) return;
+                if (!topology.residue_reference_indices) return;
+                if (!topology.residue_reference_numbers) return;
                 // Get indices of reference residues in the system
                 const referenceIndex = topology.references.indexOf(referenceId);
                 const referenceResidueIndicies = topology.residue_reference_indices
