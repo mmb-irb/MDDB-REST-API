@@ -8,7 +8,7 @@ const { REFERENCES } = require('../../utils/constants');
 // Standard codes for HTTP responses
 const { BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND } = require('../../utils/status-codes');
 // Import auxiliar functions
-const { getValueGetter, getBaseURL, getHost } = require('../../utils/auxiliar-functions');
+const { getValueGetter, getBaseURL, getHost, round2tenths } = require('../../utils/auxiliar-functions');
 const { rangeNotation } = require('../../utils/parse-query-range');
 // Set the supported references
 // We exclude chains since it does not make sense, although it should work anyway
@@ -216,7 +216,7 @@ const pointersEndpoint = handler({
                         const systemResidueCount = topology.residue_reference_indices.length;
                         // Count the total number of reference residues in the system
                         const referenceResidueCount = referenceResidueIndicies.length;
-                        const presence = referenceResidueCount / systemResidueCount;
+                        const presence = round2tenths(referenceResidueCount / systemResidueCount);
                         currentPointer.presence = presence;
                     }
                 }
@@ -237,9 +237,61 @@ const pointersEndpoint = handler({
                         currentPointer.covered_residues = rangeNotation(coveredResidues);
                         // Get the percent of reference residues covered in the system
                         const referenceResidueCount = referencesResidueCounts[referenceId];
-                        currentPointer.coverage = coveredResidues.length / referenceResidueCount;
+                        const coverage = round2tenths(coveredResidues.length / referenceResidueCount);
+                        currentPointer.coverage = coverage;
                     }
                 }
+            });
+        });
+        // Now get data from the pointers collections
+        // This collection contains minimal metadata to external non-MDDB simulations (e.g. ATLAS)
+        // Set the pointers cursor
+        const externalPointersFinder = hasTarget
+            ? { [`${referenceName}.${reference.idField}`]: targetReferenceId }
+            : { [referenceName]: { $exists: true, $not: { $size: 0 } } };
+        const externalPointersCursor = await database.pointers.find(externalPointersFinder);
+        // Consume the pointers cursor
+        const externalPointersData = await externalPointersCursor.toArray();
+        // Add the external pointers to the overall pointers
+        externalPointersData.forEach(externalPointerData => {
+            const externalPointer = {
+                id: externalPointerData.accession,
+                api: externalPointerData.api,
+                web: externalPointerData.web,
+            };
+            // Add projection fields if they are present in the external pointer data
+            projection.forEach(field => {
+                if (field in externalPointerData)
+                    externalPointer[field] = externalPointerData[field];
+            })
+            // Get refeence data
+            const referenceData = externalPointerData[referenceName];
+            // "present_residues":"0-414", "presence":1,
+            // "covered_residues": "5-419", "coverage":0.9431818181818182,
+            // Add the external pointer to every pertinent reference
+            referenceData.forEach(ref => {
+                // If only une reference is requested then ignore others
+                const referenceId = ref[reference.idField];
+                if (hasTarget && targetReferenceId !== referenceId) return;
+                // Duplicate the pointer so we do not mutate the original
+                const referenceExternalPointer = { ...externalPointer };
+                // Add presence and or coverage when supported and available
+                if (supportedPresence) {
+                    if (ref.present_residues)
+                        referenceExternalPointer.present_residues = ref.present_residues;
+                    if (ref.presence)
+                        referenceExternalPointer.presence = ref.presence;
+                }
+                // Check if the requested reference supports "coverage" measuring
+                if (supportedCoverage) {
+                    if (ref.covered_residues)
+                        referenceExternalPointer.covered_residues = ref.covered_residues;
+                    if (ref.coverage)
+                        referenceExternalPointer.coverage = ref.coverage;
+                }
+                // Add the pointer to the overall pointers dict
+                if (referenceId in pointers) pointers[referenceId].push(externalPointer);
+                else pointers[referenceId] = [ externalPointer ];
             });
         });
         // If there is no output format then return the response as is
