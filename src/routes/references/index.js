@@ -21,32 +21,40 @@ const wholeReferenceResponse = handler({
         if (!reference) return {
             headerError: NOT_FOUND,
             error: `Unknown reference "${referenceName}". Available references: ${availableReferences}`
-        };        
-        // Get a list with all reference ids which are to be returned according to the available projects
-        // Note that less references are to be returned if this is the production API
-        const projectQuery = database.getProjectQuery();
-        const distinctResult = await database.projects.distinct(
-            reference.projectIdsField, projectQuery);
-        let availableReferenceIds = new Set(distinctResult);
-        // Get the number of references to be matched with the current query
-        const referencesCount = availableReferenceIds.length;
+        };
         // Set the target mongo collection
-        const collection = database[referenceName];
+        const referenceCollection = database[referenceName];
+        // Set the reference query
+        let referenceQuery = {}
         // Get the requested query, if any
         const query = request.query.query;
-        // If a query was passed then filter references and get the remaining reference ids
-        if (query) {
-            // Parse the query
-            const parsedQuery = JSON.parse(query);
-            // Query all references and get only their reference ids
-            const cursor = await collection.find(parsedQuery)
-                .project({ _id: false, [reference.idField]: true });
-            const filteredReferenceIds = new Set(cursor.map(ref => ref[reference.idField]));
-            // Keep only reference ids which are both available and filtered
-            availableReferenceIds = availableReferenceIds.intersection(filteredReferenceIds);
-        }
+        // If a query was passed then parse it and overwrite the reference query
+        if (query) referenceQuery = JSON.parse(query);
+        // Query references and get only their reference ids
+        const referenceCursor = await referenceCollection
+            .find(referenceQuery)
+            .project({ _id: false, [reference.idField]: true })
+            .map(ref => ref[reference.idField]);
+        const referenceIds = await referenceCursor.toArray();
+        // Get reference ids alone
+        // WARNING: We must always start from these ids collected from references
+        // WARNING: Note that projects may have reference ids for references which do not exist
+        // WARNING: Although they shouldn't
+        let availableReferenceIds = new Set(referenceIds);
+        // Get a list with all reference ids which are to be returned according to the available projects
+        // Note that less references are to be returned if this is the production API
+        const projectsQuery = database.getBaseFilter();
+        const distinctResult = await database.projects.distinct(
+            reference.projectIdsField, projectsQuery);
+        const coveredReferenceIds = new Set(distinctResult);
+        // Filter away references which are not covered by the available projects
+        availableReferenceIds = new Set(
+            [...availableReferenceIds].filter(id => coveredReferenceIds.has(id))
+        );
         // Sort the available reference ids
         const sortedReferenceIds = Array.from(availableReferenceIds).sort();
+        // Get the number of references to be matched after all
+        const referencesCount = sortedReferenceIds.length;
         // Check if we are to return only the available ids
         // If so then there is no need for pagination or projections
         // LORE: This was the original behaviour of this endpoint
@@ -82,9 +90,10 @@ const wholeReferenceResponse = handler({
         const skip = request.skip;
         const limit = request.query.limit; // The limit will never be greater than 100
         const paginatedReferenceIds = sortedReferenceIds.splice(skip, limit);
+        //console.log(paginatedReferenceIds);
         const paginatedReferencesQuery = { [reference.idField]: { $in: paginatedReferenceIds } };
         // Finally, perform the final mongo query
-        const cursor = await collection.find(paginatedReferencesQuery).project(projector);
+        const cursor = await referenceCollection.find(paginatedReferencesQuery).project(projector);
         // Finally consume the cursor
         const references = await cursor.toArray();
         return { referencesCount, references };
@@ -105,11 +114,11 @@ const specificReferenceResponse = handler({
             error: `Unknown reference "${referenceName}". Available references: ${availableReferences}`
         };
         // Set the target mongo collection
-        const collection = database[referenceName];
+        const referenceCollection = database[referenceName];
         // Get the requested id
         const referenceId = request.params.id;
         // Return the reference which matches the request id
-        const result = await collection.findOne(
+        const result = await referenceCollection.findOne(
             // Set the query
             { [reference.idField]: referenceId },
             // Set the projection
