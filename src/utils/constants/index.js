@@ -40,7 +40,6 @@ const LOCAL_COLLECTION_NAMES = {
     analyses: 'analyses',
     files: 'fs.files',
     old_chains: 'chains',
-    pointers: 'pointers',
 };
 // Add local reference collections
 Object.entries(REFERENCES).forEach(([referenceName, reference]) => {
@@ -52,6 +51,9 @@ const GLOBAL_COLLECTION_NAMES = {
     projects: 'global.projects',
     nodes: 'global.nodes',
     topologies: 'global.topologies',
+    // Pointers could work in a local node anyway (at least the IRB one)
+    // However to keep local nodes coherent we make it only available in the global
+    pointers: 'pointers',
 };
 // Add global reference collections
 Object.entries(REFERENCES).forEach(([referenceName, reference]) => {
