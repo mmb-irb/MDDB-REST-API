@@ -35,6 +35,9 @@ const escape = text => text && `"${text}"`;
 // Set forbidden reference value
 // These values will be excluded from the results when encountered
 const FORBIDDEN_REFERENCES = new Set([ undefined, 'noref', 'notfound' ]);
+// Set which reference have all-caps ids
+// Thus for these references, if the user asks for an id with no caps then we can fix it
+const ALL_CAPS_ID_REFERENCES = new Set([ 'proteins', 'inchikeys', 'pdbs', 'chains' ]);
 
 // Set the response when a specific reference is requested
 // Return a list with all available reference ids
@@ -58,7 +61,10 @@ const pointersEndpoint = handler({
             error: `Not suppoted reference "${referenceName}". Available references: ${availableReferences}`
         }
         // Check if a specific reference id is requested
-        const targetReferenceId = request.params.id;
+        let targetReferenceId = request.params.id;
+        // Make the reference ids upper when pertinent
+        if (targetReferenceId && ALL_CAPS_ID_REFERENCES.has(referenceName))
+            targetReferenceId = targetReferenceId.toUpperCase();
         const hasTarget = targetReferenceId !== undefined;
         // Set a getter function for the project reference ids field
         const idsField = reference.projectIdsField;
@@ -84,12 +90,7 @@ const pointersEndpoint = handler({
         // Consume the projects cursor
         const projectsData = await projectsCursor.toArray();
         // If no projects were found then it means some reference id was searched and not found
-        if (projectsData.length === 0) return {
-            headerError: NOT_FOUND,
-            error: targetReferenceId
-                ? `No project was found to include references to "${targetReferenceId}" ${referenceName}`
-                : `There are no references to ${referenceName} at all`
-        }
+        // However there may be external pointers with the requested reference id so we must keep going
         // Set projected field value getters for later
         const projectionValueGetters = Object.fromEntries(
             projection.map(field => [ field, getValueGetter(field) ])
@@ -296,6 +297,13 @@ const pointersEndpoint = handler({
                     else pointers[referenceId] = [ externalPointer ];
                 });
             });
+        }
+        // If no pointers were found after all then complain
+        if (Object.keys(pointers).length === 0) return {
+            headerError: NOT_FOUND,
+            error: targetReferenceId
+                ? `No project or external pointer was found to include references to "${targetReferenceId}" ${referenceName}`
+                : `There are no references to ${referenceName} at all`
         }
         // If there is no output format then return the response as is
         if (format === 'json') return hasTarget ? pointers[targetReferenceId] : pointers;
