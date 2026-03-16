@@ -88,25 +88,40 @@ class Database {
         // Note that unknown hosts (e.g. 'localhost:8000') will get all simulations, with no filter
         const hostCollection = this.config && this.config.collection;
         const collectionFilter = Object.seal(hostCollection ? { 'metadata.COLLECTIONS': hostCollection } : {});
-        // Set the booked filter ro remove booked projects from the query
+        // Set the starting base filter
+        // This is a strict filter and it is applied even when a specific project is requested
+        const baseFilter = { ...publishedFilter, ...positedFilter, ...collectionFilter };
+        // Set if a specific project id or accession was requested
+        const requestedAccession = Boolean(this.request.params.project);
+        // If a specific project was requested then the base filter is returned as it is
+        if (requestedAccession) return baseFilter;
+        // If no specific project was requested then the filter is extended
+        // We hide booked and deleted projects
+        // Note that these are not hidden when asking specifically for them
+        // Set the booked filter to remove booked projects from the query
+        // These are projects which are not yet uploaded
         const bookedFilter = Object.seal({ booked: { $ne: true } });
+        // Set the deleted filter to remove deleted projects from the query
+        // These are projects which were deleted but the entry is kept to preserve the persistent id
+        const deletedFilter = Object.seal({ deleted: { $ne: true } });
         // Return all filters together, including also the publsihed filter
-        return { ...publishedFilter, ...positedFilter, ...collectionFilter, ...bookedFilter };
+        return { ...baseFilter, ...bookedFilter, ...deletedFilter };
     };
 
     // Given the API request, set the project(s) query by the following steps:
     // 1 - Set a published filter according to if it we are in a development or production environment
     // 2 - Set a collection filter based on the origin of the call
-    // 3 - Set a project and md filter based on the id or accession in the request
+    // 3 - Exclude booked or deleted entries unless a specific accession is requested
+    // 4 - Set a project and md filter based on the id or accession in the request
     getProjectQuery = () => {
-        // Add the base filter to the query
-        const query = { ...this.getBaseFilter() };
         // Get the project id or accession
         const idOrAccession = this.request.params.project;
         if (!idOrAccession) return new Error('No project id or accession in the request');
         const project = idOrAccession.split('.')[0];
         // Check if we are a global API
         const isGlobal = this.config && this.config.global;
+        // Add the base filter to the query
+        const query = { ...this.getBaseFilter() };
         // Check if the idOrAccession is a mongo internal object id
         if (isObjectId(project)) {
             // If so, we must complain
