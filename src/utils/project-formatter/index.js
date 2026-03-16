@@ -7,6 +7,11 @@ const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../status-codes');
 const projectFormatter = (projectData, requestedMdIndex = null) => {
   // Set the identifier to be used in error logs
   const identifier = projectData.accession || projectData._id;
+  // If the project was deleted then return it as is
+  if (projectData.deleted) return {
+    headerError: NOT_FOUND,
+    error: `Project ${identifier} was deleted and is no longer available.`
+  }
   // If the project has not the 'mds' field then it is wrong
   if (!projectData.mds) return {
     headerError: INTERNAL_SERVER_ERROR,
