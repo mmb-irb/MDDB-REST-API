@@ -5,15 +5,17 @@ const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../status-codes');
 // Some project and MD files are merged such as metadata, metadata warnings, files and analyses
 // Note that the input object is modified
 const projectFormatter = (projectData, requestedMdIndex = null) => {
+  // Set the identifier to be used in error logs
+  const identifier = projectData.accession || projectData._id;
   // If the project has not the 'mds' field then it is wrong
   if (!projectData.mds) return {
     headerError: INTERNAL_SERVER_ERROR,
-    error: 'Project is missing mds. Is it in an old format?'
+    error: `Project ${identifier} is missing mds. Is it in an old format?`
   };
   // If the project has not the 'metadata' field then it is wrong
   if (!projectData.metadata) return {
     headerError: INTERNAL_SERVER_ERROR,
-    error: 'Project is missing metadata, which should never happen. Was it added manually?'
+    error: `Project ${identifier} is missing metadata, which should never happen. Was it added manually?`
   };
   // Get the index of the MD to remain
   const mdIndex = requestedMdIndex !== null ? requestedMdIndex : projectData.mdref;
@@ -22,8 +24,8 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   // If the corresponding index does not exist then return an error
   if (!mdData) {
     const error = projectData.booked
-      ? 'The requested accession is booked but is not available yet.'
-      : `The requested MD does not exist. Please try with numbers between 1 and ${projectData.mds.length}.`;
+      ? `Project ${identifier} is booked but is not available yet.`
+      : `The requested MD does not exist in project ${identifier}. Please try with numbers between 1 and ${projectData.mds.length}.`;
     projectData.headerError = NOT_FOUND;
     projectData.error = error;
     return { headerError: NOT_FOUND, error: error, accession: projectData.accession };
@@ -63,9 +65,9 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   projectData.internalId = projectData._id;
   projectData.creationDate = projectData._id.getTimestamp();
   delete projectData._id;
-  // Set the identifier
+  // Add the identifier
   // This id is the one to be used by the client to ask for more data about the same project
-  projectData.identifier = projectData.accession || projectData.internalId;
+  projectData.identifier = identifier;
   // Return the modified object just for the map function to work properly
   return projectData;
 };
