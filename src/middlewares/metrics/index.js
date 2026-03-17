@@ -108,7 +108,7 @@ function normalizePath(urlPath, matchers) {
 
 // Returns an Express middleware that records metrics for every response.
 // Pass the parsed OpenAPI spec and the base paths used by the router.
-function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = true) {
+function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = false) {
   if (!Array.isArray(basePaths)) {
     basePaths = ['/rest/current', '/rest/v1'];
   }
