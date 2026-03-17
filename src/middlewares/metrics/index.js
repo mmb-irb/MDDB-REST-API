@@ -1,8 +1,8 @@
 const client = require('prom-client');
 const yaml = require('yamljs');
 const geoip = require('geoip-lite');
-const rawSpec = yaml.load(`${__dirname}/../../docs/specification/description.yml`);
-
+const rawSpec = yaml.load(`${__dirname}/../../docs/description.yml`);
+const { getHost } = require('../../utils/auxiliar-functions');
 // ---------------------------------------------------------------------------
 // Registry & default metrics
 // ---------------------------------------------------------------------------
@@ -17,14 +17,14 @@ client.collectDefaultMetrics({ register });
 const httpRequestsTotal = new client.Counter({
   name: 'http_requests_total',
   help: 'Total number of HTTP requests',
-  labelNames: ['method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID', 'PubChemID', 'PDBID', 'filename', 'analysisName'],
+  labelNames: ['host', 'method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID', 'PubChemID', 'PDBID', 'filename', 'analysisName'],
   registers: [register],
 });
 
 const httpRequestDuration = new client.Histogram({
   name: 'http_request_duration_seconds',
   help: 'Duration of HTTP requests in seconds',
-  labelNames: ['method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID', 'PubChemID', 'PDBID', 'filename', 'analysisName'],
+  labelNames: ['host', 'method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID', 'PubChemID', 'PDBID', 'filename', 'analysisName'],
   buckets: [ 1, 50, 100, 500],
   registers: [register],
 });
@@ -32,7 +32,7 @@ const httpRequestDuration = new client.Histogram({
 const httpGeoRequestsTotal = new client.Counter({
   name: 'http_geo_requests_total',
   help: 'Total number of HTTP requests by geographic location',
-  labelNames: ['ip', 'country', 'region', 'city'],
+  labelNames: ['host', 'ip', 'country', 'region', 'city'],
   registers: [register],
 });
 
@@ -143,7 +143,9 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
     res.on('finish', () => {
       const { route, params } = normalizePath(fullPath, matchers);
       if (print) console.log(`Normalized request: ${route}`);
+      const host = getHost(req).split(':')[0];
       const labels = {
+        host: host,
         // Disabled until we see if we can get real IPs under local network
         // ip: req.geoStats.anonIp,  
         method: req.method,
@@ -155,6 +157,7 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
       httpRequestsTotal.inc(labels);
       httpRequestDuration.observe(labels, (Date.now() - startMs) / 1000);
       httpGeoRequestsTotal.inc({
+        host: host,
         ip: req.geoStats.anonIp,
         country: req.geoStats.country,
         region: req.geoStats.region,
