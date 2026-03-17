@@ -32,7 +32,7 @@ const httpRequestDuration = new client.Histogram({
 const httpGeoRequestsTotal = new client.Counter({
   name: 'http_geo_requests_total',
   help: 'Total number of HTTP requests by geographic location',
-  labelNames: ['country', 'region', 'city'],
+  labelNames: ['ip', 'country', 'region', 'city'],
   registers: [register],
 });
 
@@ -155,6 +155,7 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
       httpRequestsTotal.inc(labels);
       httpRequestDuration.observe(labels, (Date.now() - startMs) / 1000);
       httpGeoRequestsTotal.inc({
+        ip: req.geoStats.anonIp,
         country: req.geoStats.country,
         region: req.geoStats.region,
         city: req.geoStats.city
