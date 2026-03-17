@@ -505,6 +505,8 @@ paths:
                     - $ref: '#/components/schemas/ProteinReference'
                     - $ref: '#/components/schemas/LigandReference'
                     - $ref: '#/components/schemas/PdbReference'
+                    - $ref: '#/components/schemas/InChIKeyReference'
+                    - $ref: '#/components/schemas/ChainReference'
 
   /references/proteins:
     get:
@@ -616,6 +618,129 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PdbReference'
+
+  /references/inchikeys:
+    get:
+      summary: Get all available InChIKey reference IDs.
+      description: >
+        Get a list of InChIKey references including their InChI string, PubChem,
+        SwissLipids and LipidMaps data.
+      tags:
+        - references
+      responses:
+        200:
+          description: Object with a count and an array of InChIKey references
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  referencesCount:
+                    type: integer
+                    example: 850
+                  references:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InChIKeyReference'
+
+  /references/inchikeys/{InChIKey}:
+    get:
+      summary: Get a specific InChIKey reference.
+      description: >
+        Get reference data for the specified InChIKey.
+      tags:
+        - references
+      parameters:
+        - $ref: '#/definitions/arguments/InChIKey'
+      responses:
+        200:
+          description: InChIKey reference data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InChIKeyReference'
+
+  /references/chains:
+    get:
+      summary: Get all available chain sequence references.
+      description: >
+        Get a list of chain sequence references including their InterProScan
+        analysis results.
+      tags:
+        - references
+      responses:
+        200:
+          description: Object with a count and an array of chain sequence references
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  referencesCount:
+                    type: integer
+                    example: 2378
+                  references:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChainReference'
+
+  /references/chains/{ChainSequence}:
+    get:
+      summary: Get a specific chain sequence reference.
+      description: >
+        Get reference data for the specified chain amino acid sequence.
+      tags:
+        - references
+      parameters:
+        - $ref: '#/definitions/arguments/ChainSequence'
+      responses:
+        200:
+          description: Chain sequence reference data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChainReference'
+
+  /references/collections:
+    get:
+      summary: Get all available collection references.
+      description: >
+        Get a list of dataset collections available in the database,
+        including metadata such as name, type, description, image, citation and summary.
+      tags:
+        - references
+      responses:
+        200:
+          description: Object with a count and an array of collection references
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  referencesCount:
+                    type: integer
+                    example: 9
+                  references:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CollectionReference'
+
+  /references/collections/{CollectionID}:
+    get:
+      summary: Get a specific collection reference.
+      description: >
+        Get reference data for the specified collection ID.
+      tags:
+        - references
+      parameters:
+        - $ref: '#/definitions/arguments/CollectionID'
+      responses:
+        200:
+          description: Collection reference data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionReference'
 
   /pointers/proteins:
     get:
@@ -832,6 +957,174 @@ paths:
       responses:
         200:
           description: List of PDB IDs and its associated projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pointer'
+
+  /pointers/inchikeys:
+    get:
+      summary: Get all available InChIKeys and their pointers with projects including these InChIKey.
+      description: >
+        Get a list of available InChIKeys and all projects including each InChIKey.
+      tags:
+        - pointers
+      parameters:
+        - name: format
+          in: query
+          description: Set the response format.
+          schema:
+            type: string
+            enum: ['json', 'csv']
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          schema:
+            type: string
+      responses:
+        200:
+          description: >
+            List of InChIKeys and its associated projects.
+            Keys are InChIKeys while values are the associated pointers.
+          content:
+            application/json:
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/Pointer'
+
+  /pointers/inchikeys/{InChIKey}:
+    get:
+      summary: Get a pointer with projects including a specific InChIKey.
+      description: >
+        Get a list of all projects including the specified InChIKey.
+      tags:
+        - pointers
+      parameters:
+        - $ref: '#/definitions/arguments/InChIKey'
+        - name: format
+          in: query
+          description: Set the response format.
+          schema:
+            type: string
+            enum: ['json', 'csv']
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          schema:
+            type: string
+      responses:
+        200:
+          description: List of projects associated to the specified InChIKey
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pointer'
+
+  /pointers/chains:
+    get:
+      summary: Get all available chain sequences and their pointers with projects including these chain sequences.
+      description: >
+        Get a list of available chain sequences and all projects including each chain sequence.
+      tags:
+        - pointers
+      parameters:
+        - name: format
+          in: query
+          description: Set the response format.
+          schema:
+            type: string
+            enum: ['json', 'csv']
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          schema:
+            type: string
+      responses:
+        200:
+          description: >
+            List of chain sequences and their associated projects.
+            Keys are chain sequences while values are the associated pointers.
+          content:
+            application/json:
+
+  /pointers/chains/{ChainSequence}:
+    get:
+      summary: Get a pointer with projects including a specific chain sequence.
+      description: >
+        Get a list of all projects including the specified chain sequence.
+      tags:
+        - pointers
+      parameters:
+        - $ref: '#/definitions/arguments/ChainSequence'
+        - name: format
+          in: query
+          description: Set the response format.
+          schema:
+            type: string
+            enum: ['json', 'csv']
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          schema:
+            type: string
+      responses:
+        200:
+          description: List of projects associated to the specified chain sequence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pointer'
+
+  /pointers/collections:
+    get:
+      summary: Get all available collection IDs and their pointers with projects belonging to each collection.
+      description: >
+        Get a list of available collection IDs and all projects belonging to each collection.
+      tags:
+        - pointers
+      parameters:
+        - name: format
+          in: query
+          description: Set the response format.
+          schema:
+            type: string
+            enum: ['json', 'csv']
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          schema:
+            type: string
+      responses:
+        200:
+          description: >
+            List of collection IDs and their associated projects.
+            Keys are collection IDs while values are the associated pointers.
+          content:
+            application/json:
+
+  /pointers/collections/{CollectionID}:
+    get:
+      summary: Get a pointer with projects belonging to a specific collection.
+      description: >
+        Get a list of all projects belonging to the specified collection.
+      tags:
+        - pointers
+      parameters:
+        - $ref: '#/definitions/arguments/CollectionID'
+        - name: format
+          in: query
+          description: Set the response format.
+          schema:
+            type: string
+            enum: ['json', 'csv']
+        - name: projection
+          in: query
+          description: name of the field to be checked for options
+          schema:
+            type: string
+      responses:
+        200:
+          description: List of projects associated to the specified collection
           content:
             application/json:
               schema:
@@ -1784,6 +2077,133 @@ components:
           type: array
           items:
             type: integer
+
+    InChIKeyReference:
+      type: object
+      required:
+        - inchikey
+        - inchi
+      properties:
+        inchikey:
+          description: InChIKey identifier
+          type: string
+          example: AAKJLRGGTJKAMG-UHFFFAOYSA-N
+        inchi:
+          description: IUPAC International Chemical Identifier (InChI) string
+          type: string
+          example: InChI=1S/C22H23N3O4/...
+        swisslipids:
+          description: SwissLipids cross-reference data
+          type: object
+        lipidmaps:
+          description: LIPID MAPS cross-reference data
+          type: object
+        pubchem:
+          description: PubChem cross-reference data including molecular formula, InChI, mol block, and fingerprints
+          type: object
+          properties:
+            chembl:
+              description: ChEMBL id
+              type: string
+              nullable: true
+            drugbank:
+              description: DrugBank id
+              type: string
+              nullable: true
+            formula:
+              description: Molecular formula
+              type: string
+              example: C22H23N3O4
+            inchi:
+              description: InChI string from PubChem
+              type: string
+            mol_block:
+              description: MDL Molfile block
+              type: string
+            mordred:
+              description: Mordred molecular descriptors
+              type: object
+              nullable: true
+            morgan:
+              description: Morgan fingerprint
+              type: array
+              nullable: true
+              items:
+                type: integer
+            morgan_fp_bit_array:
+              description: Morgan fingerprint as a bit array
+              type: array
+              items:
+                type: integer
+
+    ChainReference:
+      type: object
+      required:
+        - sequence
+        - interproscan
+      properties:
+        sequence:
+          description: Amino acid sequence (also serves as the unique identifier)
+          type: string
+          example: STIEEQAKTFLDKFNHEAEDLFYQS...
+        interproscan:
+          description: InterProScan analysis results for the chain sequence
+          type: object
+          properties:
+            results:
+              description: List of InterProScan result objects per sequence
+              type: array
+              items:
+                type: object
+        version:
+          description: Data version
+          type: string
+          example: "0.1"
+
+    CollectionReference:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - description
+        - summary
+      properties:
+        id:
+          description: Unique collection identifier
+          type: string
+          example: cv19
+        name:
+          description: Human-readable collection name
+          type: string
+          example: BioExcel COVID-19
+        type:
+          description: Collection type
+          type: string
+          example: dataset
+        description:
+          description: Full description of the collection
+          type: string
+        summary:
+          description: Short summary of the collection
+          type: string
+        image:
+          description: URL to a representative image for the collection
+          type: string
+        citation:
+          description: DOI or citation string for the collection
+          type: string
+          example: "doi: 10.1093/nar/gkad991"
+        links:
+          description: Additional related links
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              url:
+                type: string
 
     PdbReference:
       type: object
@@ -2769,6 +3189,33 @@ definitions:
       schema:
         type: string
       example: 12CA
+    InChIKey:
+      name: InChIKey
+      in: path
+      description: >
+        InChIKey identifier (IUPAC International Chemical Identifier hash key)
+      required: true
+      schema:
+        type: string
+      example: AAKJLRGGTJKAMG-UHFFFAOYSA-N
+    ChainSequence:
+      name: ChainSequence
+      in: path
+      description: >
+        Amino acid sequence of the chain (used as the unique chain reference identifier)
+      required: true
+      schema:
+        type: string
+      example: STIEEQAKTFLDKFNHEAEDLFYQS
+    CollectionID:
+      name: CollectionID
+      in: path
+      description: >
+        Collection identifier (e.g. cv19, model, abc)
+      required: true
+      schema:
+        type: string
+      example: cv19
   bin format:
     type: string
     format: binary

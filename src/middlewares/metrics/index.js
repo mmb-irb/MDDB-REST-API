@@ -14,17 +14,22 @@ client.collectDefaultMetrics({ register });
 // Custom HTTP metrics
 // ---------------------------------------------------------------------------
 
+const labelNames = [
+  'host', 'method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID',
+  'PubChemID', 'PDBID', 'InChIKey', 'ChainSequence', 'CollectionID', 'filename', 
+  'analysisName'
+];
 const httpRequestsTotal = new client.Counter({
   name: 'http_requests_total',
   help: 'Total number of HTTP requests',
-  labelNames: ['host', 'method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID', 'PubChemID', 'PDBID', 'filename', 'analysisName'],
+  labelNames: labelNames,
   registers: [register],
 });
 
 const httpRequestDuration = new client.Histogram({
   name: 'http_request_duration_seconds',
   help: 'Duration of HTTP requests in seconds',
-  labelNames: ['host', 'method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID', 'PubChemID', 'PDBID', 'filename', 'analysisName'],
+  labelNames: labelNames,
   buckets: [ 1, 50, 100, 500],
   registers: [register],
 });
