@@ -107,6 +107,69 @@ function normalizePath(urlPath, matchers) {
   return { route, params: {} };
 }
 
+// Prefer proxy-provided client IPs when available.
+function sanitizeIp(rawIp) {
+  if (!rawIp) return '';
+
+  let ip = String(rawIp).trim();
+  if (!ip) return '';
+
+  // Handle IPv4-mapped IPv6 values (e.g. ::ffff:192.168.0.1).
+  if (ip.startsWith('::ffff:')) {
+    ip = ip.slice('::ffff:'.length);
+  }
+
+  // Handle bracketed IPv6 with port (e.g. [2001:db8::1]:12345).
+  const bracketedIpv6 = ip.match(/^\[([^\]]+)\](?::\d+)?$/);
+  if (bracketedIpv6) {
+    ip = bracketedIpv6[1];
+  }
+
+  // Handle IPv4 with port (e.g. 192.168.0.1:12345).
+  const ipv4WithPort = ip.match(/^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/);
+  if (ipv4WithPort) {
+    ip = ipv4WithPort[1];
+  }
+
+  return ip;
+}
+
+function getClientIp(req) {
+  const xForwardedFor = req.headers && req.headers['x-forwarded-for'];
+
+  if (typeof xForwardedFor === 'string' && xForwardedFor.trim()) {
+    // X-Forwarded-For can be a list: client, proxy1, proxy2
+    return sanitizeIp(xForwardedFor.split(',')[0]);
+  }
+
+  if (Array.isArray(xForwardedFor) && xForwardedFor.length > 0) {
+    return sanitizeIp(String(xForwardedFor[0]).split(',')[0]);
+  }
+
+  return sanitizeIp(
+    req.ip
+    || (req.socket && req.socket.remoteAddress)
+    || (req.connection && req.connection.remoteAddress)
+    || ''
+  );
+}
+
+function anonymizeIp(ip) {
+  if (!ip) return 'Unknown';
+
+  if (ip.includes('.')) {
+    const octets = ip.split('.');
+    if (octets.length >= 2) return `${octets[0]}.${octets[1]}.0.0`;
+  }
+
+  if (ip.includes(':')) {
+    const parts = ip.split(':').filter(Boolean);
+    if (parts.length >= 2) return `${parts[0]}:${parts[1]}::`;
+  }
+
+  return 'Unknown';
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -121,29 +184,26 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
 
   return function trackMetrics(req, res, next) {
     const startMs = Date.now();
-    
-    // IP and Geolocation logic
-    const ip = req.ip || (req.connection && req.connection.remoteAddress) || '';
-    if (debug) console.log('ip', ip);
-    const geo = geoip.lookup(ip);
-    if (debug) console.log('geo', geo);
-    
-    req.geoStats = {
-      country: geo ? geo.country : 'Unknown',
-      region: geo ? geo.region : 'Unknown',
-      city: geo ? geo.city : 'Unknown',
-      // Anonymize IP by keeping only the first two octets (e.g. 192.168.x.x)
-      // This way we can still get some geographic info without needing consent
-      anonIp: ip.length > 0 ? ip.split('.').slice(0, 2).join('.') + '.0.0' : 'Unknown'
-    };
-    if (debug) console.log('ip', req.geoStats);
-
     // Capture the full path NOW — req.path is mutated by Express after sub-router
     // dispatch, but req.originalUrl is always the original unmodified path.
     const fullPath = req.originalUrl.split('?')[0];
     const isFaviconRequest = fullPath.includes('favicon');
     const print = debug && !isFaviconRequest;
     if (print) console.log(`Received request: ${req.method} ${fullPath}, path ${req.path}, url ${req.url}`)
+    
+    // IP and Geolocation logic
+    const ip = getClientIp(req);
+    if (debug) console.log('Client IP', ip);
+    const geo = geoip.lookup(ip);
+    if (debug) console.log('Geo Data', geo);
+    
+    req.geoStats = {
+      country: geo ? geo.country : '',
+      region: geo ? geo.region : '',
+      city: geo ? geo.city : '',
+      // Keep a coarse-grained anonymized IP in labels.
+      anonIp: anonymizeIp(ip)
+    };
 
     res.on('finish', () => {
       const { route, params } = normalizePath(fullPath, matchers);
@@ -158,7 +218,8 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
         status_code: String(res.statusCode),
         ...params
       };
-      if (print) console.log('labels', labels);
+      if (print) console.log('Labels:', labels);
+      if (print) console.log('geoStats', req.geoStats);
       httpRequestsTotal.inc(labels);
       httpRequestDuration.observe(labels, (Date.now() - startMs) / 1000);
       httpGeoRequestsTotal.inc({
