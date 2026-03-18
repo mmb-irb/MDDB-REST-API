@@ -15,7 +15,7 @@ client.collectDefaultMetrics({ register });
 // ---------------------------------------------------------------------------
 
 const labelNames = [
-  'host', 'method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID',
+  'host', 'base_path', 'method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID',
   'PubChemID', 'PDBID', 'InChIKey', 'ChainSequence', 'CollectionID', 'filename', 
   'analysisName'
 ];
@@ -78,11 +78,11 @@ function buildMatchers(basePaths) {
 function normalizePath(urlPath, matchers) {
   // Strip the API base prefix so we can match raw spec paths
   let stripped = urlPath;
-  let appliedBase = '';
+  let basePath = 'none';
   for (const base of matchers.basePaths) {
-    if (urlPath.startsWith(base)) {
+    if (urlPath === base || urlPath.startsWith(`${base}/`)) {
       stripped = urlPath.slice(base.length) || '/';
-      appliedBase = base;
+      basePath = base;
       break;
     }
   }
@@ -90,21 +90,21 @@ function normalizePath(urlPath, matchers) {
   for (const { specPath, re, paramNames } of matchers.compiled) {
     const match = re.exec(stripped);
     if (match) {
-      const params = {};
+      const params = {base_path: basePath};
       paramNames.forEach((name, i) => {
         params[name] = match[i + 1];
       });
-      return { route: appliedBase + specPath, params };
+      return { route: specPath, params };
     }
   }
 
   // No spec match — return a sanitised version to avoid high-cardinality labels
   // (replace values that look like IDs / filenames with a placeholder)
-  const route = urlPath
+  const route = stripped
     .replace(/\/[a-fA-F0-9]{24}(\/|$)/g, '/{id}$1')   // MongoDB ObjectIds
     .replace(/\/[A-Z0-9]+\.[0-9]+(\/|$)/g, '/{accession}$1'); // accessions like A01X6.1
 
-  return { route, params: {} };
+  return { route, basePath, params: {base_path: basePath} };
 }
 
 // Prefer proxy-provided client IPs when available.
@@ -187,9 +187,10 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
     // Capture the full path NOW — req.path is mutated by Express after sub-router
     // dispatch, but req.originalUrl is always the original unmodified path.
     const fullPath = req.originalUrl.split('?')[0];
-    const isFaviconRequest = fullPath.includes('favicon');
-    const print = debug && !isFaviconRequest;
-    if (print) console.log(`Received request: ${req.method} ${fullPath}, path ${req.path}, url ${req.url}`)
+    if (fullPath.includes('favicon')) {
+      return next();
+    }
+    if (debug) console.log(`Received request: ${req.method} ${fullPath}, path ${req.path}, url ${req.url}`)
     
     // IP and Geolocation logic
     const ip = getClientIp(req);
@@ -207,7 +208,7 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
 
     res.on('finish', () => {
       const { route, params } = normalizePath(fullPath, matchers);
-      if (print) console.log(`Normalized request: ${route}`);
+      if (debug) console.log(`Normalized request: ${route}`);
       const host = getHost(req).split(':')[0];
       const labels = {
         host: host,
@@ -218,8 +219,8 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
         status_code: String(res.statusCode),
         ...params
       };
-      if (print) console.log('Labels:', labels);
-      if (print) console.log('geoStats', req.geoStats);
+      if (debug) console.log('Labels:', labels);
+      if (debug) console.log('geoStats', req.geoStats);
       httpRequestsTotal.inc(labels);
       httpRequestDuration.observe(labels, (Date.now() - startMs) / 1000);
       httpGeoRequestsTotal.inc({
