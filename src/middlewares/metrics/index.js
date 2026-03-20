@@ -16,7 +16,7 @@ client.collectDefaultMetrics({ register });
 const labelNames = [
   'host', 'base_path', 'method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID',
   'PubChemID', 'PDBID', 'InChIKey', 'ChainSequence', 'CollectionID', 'filename', 
-  'analysisName'
+  'analysisName', 'md_num'
 ];
 const httpRequestsTotal = new client.Counter({
   name: 'http_requests_total',
@@ -231,10 +231,20 @@ function normalizePath(urlPath, matchers) {
   for (const { specPath, re, paramNames } of matchers.compiled) {
     const match = re.exec(normalizedStripped);
     if (match) {
-      const params = {base_path: basePath};
+      const params = { base_path: basePath, md_num: '' };
       paramNames.forEach((name, i) => {
         params[name] = match[i + 1];
       });
+
+      // Split accessions like A0224.1 into accession + md number label.
+      if (typeof params.projectAccessionOrID === 'string') {
+        const mdMatch = params.projectAccessionOrID.match(/^(.+)\.(\d+)$/);
+        if (mdMatch) {
+          params.projectAccessionOrID = mdMatch[1];
+          params.md_num = mdMatch[2];
+        }
+      }
+
       return { route: specPath, params };
     }
   }
@@ -245,7 +255,7 @@ function normalizePath(urlPath, matchers) {
     .replace(/\/[a-fA-F0-9]{24}(\/|$)/g, '/{id}$1')   // MongoDB ObjectIds
     .replace(/\/[A-Z0-9]+\.[0-9]+(\/|$)/g, '/{accession}$1'); // accessions like A01X6.1
 
-  return { route, basePath, params: {base_path: basePath} };
+  return { route, basePath, params: { base_path: basePath, md_num: '' } };
 }
 
 // Prefer proxy-provided client IPs when available.
