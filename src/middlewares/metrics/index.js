@@ -3,7 +3,7 @@ const yaml = require('yamljs');
 const client = require('prom-client');
 const geoip = require('geoip-lite');
 const rawSpec = yaml.load(`${__dirname}/../../docs/description.yml`);
-const { getHost } = require('../../utils/auxiliar-functions');
+const { getHost, getConfig } = require('../../utils/auxiliar-functions');
 
 
 // ---------------------------------------------------------------------------
@@ -311,19 +311,28 @@ function anonymizeIp(ip) {
   return 'Unknown';
 }
 
+function isMetricsEnabled(request) {
+  const config = getConfig(request);
+  return Boolean(config && config.metrics === true);
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
 // Returns an Express middleware that records metrics for every response.
 // Pass the parsed OpenAPI spec and the base paths used by the router.
-function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = true) {
+function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = false) {
   if (!Array.isArray(basePaths)) {
     basePaths = ['/rest/current', '/rest/v1'];
   }
   const matchers = buildMatchers(basePaths);
 
   return function trackMetrics(req, res, next) {
+    if (!isMetricsEnabled(req)) {
+      return next();
+    }
+
     const startMs = Date.now();
     // Capture the full path NOW — req.path is mutated by Express after sub-router
     // dispatch, but req.originalUrl is always the original unmodified path.
@@ -380,6 +389,10 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = tr
 // Express route handler that serves the Prometheus text exposition format.
 // Supports PM2 cluster mode by aggregating metrics from all instances.
 async function metricsEndpoint(req, res) {
+  if (!isMetricsEnabled(req)) {
+    return res.status(404).json({ error: 'Not Found' });
+  }
+
   try {
     let aggregatedRegistry = register;
 

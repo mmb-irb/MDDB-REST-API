@@ -12,6 +12,7 @@ hosts:
         name: MDposit (local)
         description: The main server including all simulations
         accession: A0001
+        metrics: true
 
     mdposit.mddbr.eu:
         name: MDposit
@@ -25,6 +26,7 @@ hosts:
         description: The main server including all simulations
         accession: MD-A00001
         global: true
+        metrics: true
 
     # Deprecated
     mdposit-dev.bsc.es:
@@ -59,6 +61,7 @@ hosts:
         description: The Covid-19 server
         accession: MCV1900193
         collection: cv19
+        metrics: true
 
     model-cns-dev.bsc.es:
         name: MoDEL-CNS
@@ -83,6 +86,7 @@ hosts:
         description: The MMB federated node server
         accession: A0001
         optimade: true
+        metrics: true
 
     mmb.mddbr.eu:
         name: MMB node
@@ -95,6 +99,7 @@ hosts:
         description: The IRB federated node server
         accession: A0001
         optimade: true
+        metrics: true
 
     irb.mddbr.eu:
         name: IRB node

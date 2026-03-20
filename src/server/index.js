@@ -28,7 +28,7 @@ const HOUR = 60 * MINUTE;
 
 const app = express();
 
-// Middleware to track endopoint usage and response times
+// Middleware to track endpoint usage and response times
 app.use(metricsMiddleware());
 
 // Disable this header
