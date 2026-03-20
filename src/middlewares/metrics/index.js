@@ -1,18 +1,17 @@
-const client = require('prom-client');
+const pm2 = require('pm2');
 const yaml = require('yamljs');
+const client = require('prom-client');
 const geoip = require('geoip-lite');
 const rawSpec = yaml.load(`${__dirname}/../../docs/description.yml`);
 const { getHost } = require('../../utils/auxiliar-functions');
+
+
 // ---------------------------------------------------------------------------
-// Registry & default metrics
+// Prometheus registry, default metrics & custom HTTP metrics
 // ---------------------------------------------------------------------------
 
 const register = new client.Registry();
 client.collectDefaultMetrics({ register });
-
-// ---------------------------------------------------------------------------
-// Custom HTTP metrics
-// ---------------------------------------------------------------------------
 
 const labelNames = [
   'host', 'base_path', 'method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID',
@@ -41,6 +40,143 @@ const httpGeoRequestsTotal = new client.Counter({
   registers: [register],
 });
 
+
+// ---------------------------------------------------------------------------
+// PM2 Cluster Registry Aggregation
+// ---------------------------------------------------------------------------
+// Reference: https://gist.github.com/yekver/34c9d41c1c4ea478151574ea539e9953
+
+let pm2Bus;
+const PM2_METRICS_TOPIC = 'get_prom_register';
+
+function pm2exec(cmd, ...args) {
+  if (!pm2) return Promise.reject(new Error('pm2 not initialized'));
+  return new Promise((resolve, reject) => {
+    pm2[cmd](...args, (err, resp) => (err ? reject(err) : resolve(resp)));
+  });
+}
+
+// Filters for running PM2 instances
+function getOnlineInstances(instancesData) {
+  return instancesData.filter(({ pm2_env }) => pm2_env.status === 'online');
+}
+
+// Returns current instance's metrics
+function getCurrentRegistry() {
+  // Use AggregatorRegistry to prepare metrics for aggregation across instances
+  return client.AggregatorRegistry.aggregate([register.getMetricsAsJSON()]);
+}
+
+// Requests metrics from all other PM2 instances by sending a message to each
+function requestMetricsFromNeighbours(instancesData) {
+  const targetInstanceId = Number(process.env.pm_id);
+  const data = { topic: PM2_METRICS_TOPIC, data: { targetInstanceId } };
+
+  Object.values(instancesData).forEach(({ pm_id }) => {
+    if (pm_id !== targetInstanceId) {
+      pm2exec('sendDataToProcessId', pm_id, data).catch(e => {
+        console.error(`Failed to request metrics from instance #${pm_id}: ${e.message}`);
+      });
+    }
+  });
+}
+
+// Collects and aggregates metrics from all online instances across PM2 cluster
+async function getAggregatedRegistry(instancesData) {
+  const onlineInstances = getOnlineInstances(instancesData);
+  
+  if (onlineInstances.length <= 1) {
+    // Not in cluster or only one instance running
+    return getCurrentRegistry();
+  }
+
+  const registryPromise = new Promise(async (resolve, reject) => {
+    const registersList = [];
+    const instanceId = Number(process.env.pm_id);
+    const eventName = `process:${instanceId}`;
+    let responsesCount = 1;
+    let timeoutId;
+
+    function sendResult() {
+      if (pm2Bus) {
+        pm2Bus.off(eventName);
+      }
+      resolve(client.AggregatorRegistry.aggregate(registersList));
+    }
+
+    function kickNoResponseTimeout() {
+      timeoutId = setTimeout(() => {
+        console.warn(
+          `Metrics aggregation timeout. Only received from ${responsesCount} of ${onlineInstances.length} instances.`
+        );
+        sendResult();
+      }, 1000);
+    }
+
+    try {
+      // Add current instance's metrics
+      registersList[instanceId] = getCurrentRegistry().getMetricsAsJSON();
+
+      // Connect to PM2 bus if not already connected
+      if (!pm2Bus) {
+        pm2Bus = await pm2exec('launchBus');
+      }
+
+      // Set up listener for incoming metrics from other instances
+      pm2Bus.on(eventName, packet => {
+        if (packet.data && packet.data.register) {
+          registersList[packet.data.instanceId] = packet.data.register;
+          responsesCount++;
+          clearTimeout(timeoutId);
+
+          if (responsesCount === onlineInstances.length) {
+            sendResult();
+          } else {
+            kickNoResponseTimeout();
+          }
+        }
+      });
+
+      kickNoResponseTimeout();
+      
+      // Request metrics from other instances
+      requestMetricsFromNeighbours(onlineInstances);
+    } catch (e) {
+      console.error(`Error during metrics aggregation: ${e.message}`);
+      reject(e);
+    }
+  });
+
+  return registryPromise;
+}
+
+// ---------------------------------------------------------------------------
+// PM2 Message Handler - Share metrics on request
+// ---------------------------------------------------------------------------
+
+if (pm2 && typeof process.env.pm_id !== 'undefined') {
+  process.on('message', packet => {
+    if (packet && packet.topic === PM2_METRICS_TOPIC) {
+      try {
+        process.send({
+          type: `process:${packet.data.targetInstanceId}`,
+          data: {
+            instanceId: Number(process.env.pm_id),
+            register: register.getMetricsAsJSON(),
+          },
+        });
+      } catch (e) {
+        console.error(`Error sending metrics to PM2: ${e.message}`);
+      }
+    }
+  });
+
+  // Initialize PM2 connection
+  pm2exec('connect').catch(e => {
+    console.debug(`PM2 connection error: ${e.message}`);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Path normalizer built from the OpenAPI spec
 // ---------------------------------------------------------------------------
@@ -50,11 +186,13 @@ const httpGeoRequestsTotal = new client.Counter({
 // the template.  More-specific paths (fewer placeholders) are tried first.
 function buildMatchers(basePaths) {
   const specPaths = Object.keys((rawSpec && rawSpec.paths) || {});
-
+  // Add inputs path manually as it is not documented
+  specPaths.push('/projects/{projectAccessionOrID}/inputs');
   // Pre-compile each spec path once
   const compiled = specPaths.map(specPath => {
     const paramNames = [];
     const regexSource = specPath
+      // Captures text wrapped in curly braces, while replacing it with a regex group
       .replace(/\{([^}]+)\}/g, (_, name) => {
         paramNames.push(name);
         return '([^/]+)';
@@ -87,8 +225,11 @@ function normalizePath(urlPath, matchers) {
     }
   }
 
+  // Canonicalize trailing slash so /foo and /foo/ map to the same route label.
+  const normalizedStripped = stripped === '/' ? '/' : (stripped.replace(/\/+$/g, '') || '/');
+
   for (const { specPath, re, paramNames } of matchers.compiled) {
-    const match = re.exec(stripped);
+    const match = re.exec(normalizedStripped);
     if (match) {
       const params = {base_path: basePath};
       paramNames.forEach((name, i) => {
@@ -100,7 +241,7 @@ function normalizePath(urlPath, matchers) {
 
   // No spec match — return a sanitised version to avoid high-cardinality labels
   // (replace values that look like IDs / filenames with a placeholder)
-  const route = stripped
+  const route = normalizedStripped
     .replace(/\/[a-fA-F0-9]{24}(\/|$)/g, '/{id}$1')   // MongoDB ObjectIds
     .replace(/\/[A-Z0-9]+\.[0-9]+(\/|$)/g, '/{accession}$1'); // accessions like A01X6.1
 
@@ -176,7 +317,7 @@ function anonymizeIp(ip) {
 
 // Returns an Express middleware that records metrics for every response.
 // Pass the parsed OpenAPI spec and the base paths used by the router.
-function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = false) {
+function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = true) {
   if (!Array.isArray(basePaths)) {
     basePaths = ['/rest/current', '/rest/v1'];
   }
@@ -237,9 +378,37 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
 }
 
 // Express route handler that serves the Prometheus text exposition format.
+// Supports PM2 cluster mode by aggregating metrics from all instances.
 async function metricsEndpoint(req, res) {
-  res.setHeader('Content-Type', register.contentType);
-  res.end(await register.metrics());
+  try {
+    let aggregatedRegistry = register;
+
+    // Check if running in PM2 cluster mode and aggregate metrics if available
+    if (pm2 && typeof process.env.pm_id !== 'undefined') {
+      try {
+        const instancesData = await pm2exec('list');
+        const onlineInstances = getOnlineInstances(instancesData);
+        
+        if (onlineInstances.length > 1) {
+          // Multiple instances running - aggregate metrics
+          aggregatedRegistry = await getAggregatedRegistry(instancesData);
+        }
+      } catch (e) {
+        console.warn(`Failed to aggregate PM2 metrics, using local registry: ${e.message}`);
+        // Fall back to local registry
+      }
+    }
+
+    res.setHeader('Content-Type', aggregatedRegistry.contentType || register.contentType);
+    const metrics = typeof aggregatedRegistry.metrics === 'function' 
+      ? await aggregatedRegistry.metrics() 
+      : aggregatedRegistry.metrics();
+    res.end(metrics);
+  } catch (err) {
+    console.error(`Error in metricsEndpoint: ${err.message}`);
+    res.setHeader('Content-Type', register.contentType);
+    res.status(500).end('Internal Server Error: Failed to collect metrics');
+  }
 }
 
 module.exports = { 
