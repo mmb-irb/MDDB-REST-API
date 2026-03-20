@@ -3,7 +3,7 @@ const yaml = require('yamljs');
 const client = require('prom-client');
 const geoip = require('geoip-lite');
 const rawSpec = yaml.load(`${__dirname}/../../docs/description.yml`);
-const { getHost, getConfig } = require('../../utils/auxiliar-functions');
+const { getHost } = require('../../utils/auxiliar-functions');
 
 
 // ---------------------------------------------------------------------------
@@ -321,9 +321,8 @@ function anonymizeIp(ip) {
   return 'Unknown';
 }
 
-function isMetricsEnabled(request) {
-  const config = getConfig(request);
-  return Boolean(config && config.metrics === true);
+function isMetricsEnabled() {
+  return process.env.NODE_ENV === 'development';
 }
 
 // ---------------------------------------------------------------------------
@@ -339,7 +338,7 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
   const matchers = buildMatchers(basePaths);
 
   return function trackMetrics(req, res, next) {
-    if (!isMetricsEnabled(req)) {
+    if (!isMetricsEnabled()) {
       return next();
     }
 
@@ -399,7 +398,7 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
 // Express route handler that serves the Prometheus text exposition format.
 // Supports PM2 cluster mode by aggregating metrics from all instances.
 async function metricsEndpoint(req, res) {
-  if (!isMetricsEnabled(req)) {
+  if (!isMetricsEnabled()) {
     return res.status(404).json({ error: 'Not Found' });
   }
 
