@@ -56,6 +56,7 @@ Note that the API processes must be stopped and run again for new code to be eff
 | LISTEN_PORT      | number                        | port to query the API     |
 | HOST             | string                        | forced hostname           |
 | PUBLIC_DIR       | string                        | path to public directory  |
+| DEBUG            | boolean                       | log every request         |
 
 
 ### config.yml file
