@@ -13,10 +13,13 @@ const { getHost } = require('../../utils/auxiliar-functions');
 const register = new client.Registry();
 client.collectDefaultMetrics({ register });
 
+const REQUEST_SOURCE_HEADER = 'x-mddb-request-source';
+const REQUEST_SOURCE_DEFAULT = 'direct-api';
+
 const labelNames = [
   'host', 'base_path', 'method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID',
   'PubChemID', 'PDBID', 'InChIKey', 'ChainSequence', 'CollectionID', 'filename', 
-  'analysisName', 'md_num'
+  'analysisName', 'md_num', 'source'
 ];
 const httpRequestsTotal = new client.Counter({
   name: 'http_requests_total',
@@ -36,7 +39,7 @@ const httpRequestDuration = new client.Histogram({
 const httpGeoRequestsTotal = new client.Counter({
   name: 'http_geo_requests_total',
   help: 'Total number of HTTP requests by geographic location',
-  labelNames: ['host', 'ip', 'country', 'region', 'city'],
+  labelNames: ['host', 'ip', 'country', 'region', 'city', 'source'],
   registers: [register],
 });
 
@@ -321,6 +324,24 @@ function anonymizeIp(ip) {
   return 'Unknown';
 }
 
+function getRequestSource(req) {
+  const rawSource = req.headers && req.headers[REQUEST_SOURCE_HEADER];
+  const source = Array.isArray(rawSource) ? rawSource[0] : rawSource;
+
+  if (!source || !String(source).trim()) {
+    return REQUEST_SOURCE_DEFAULT;
+  }
+
+  // Keep labels low-cardinality and Prometheus-safe.
+  const normalized = String(source)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '_')
+    .slice(0, 64);
+
+  return normalized || REQUEST_SOURCE_DEFAULT;
+}
+
 function isMetricsEnabled() {
   return process.env.NODE_ENV === 'development';
 }
@@ -353,7 +374,9 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
     
     // IP and Geolocation logic
     const ip = getClientIp(req);
+    const requestSource = getRequestSource(req);
     if (debug) console.log('Client IP', ip);
+    if (debug) console.log('Request source', requestSource);
     const geo = geoip.lookup(ip);
     if (debug) console.log('Geo Data', geo);
     
@@ -376,6 +399,7 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
         method: req.method,
         route,
         status_code: String(res.statusCode),
+        source: requestSource,
         ...params
       };
       if (debug) console.log('Labels:', labels);
@@ -387,7 +411,8 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
         ip: req.geoStats.anonIp,
         country: req.geoStats.country,
         region: req.geoStats.region,
-        city: req.geoStats.city
+        city: req.geoStats.city,
+        source: requestSource,
       });
     });
 
