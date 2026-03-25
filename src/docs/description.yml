@@ -515,6 +515,8 @@ paths:
         Get a list of UniProt IDs with an ID for each protein reference in the database.
       tags:
         - references
+      parameters:
+        - $ref: '#/definitions/arguments/proteinReferenceQuery'
       responses:
         200:
           description: List of UniProt IDs
@@ -552,6 +554,8 @@ paths:
         Get a list of PubChem IDs with an ID for each ligand reference in the database.
       tags:
         - references
+      parameters:
+        - $ref: '#/definitions/arguments/ligandReferenceQuery'
       responses:
         200:
           description: List of PubChem IDs
@@ -589,6 +593,8 @@ paths:
         Get a list of PDB IDs with for each ligand reference in the database.
       tags:
         - references
+      parameters:
+        - $ref: '#/definitions/arguments/pdbReferenceQuery'
       responses:
         200:
           description: List of PDB IDs
@@ -627,6 +633,8 @@ paths:
         SwissLipids and LipidMaps data.
       tags:
         - references
+      parameters:
+        - $ref: '#/definitions/arguments/inchikeyReferenceQuery'
       responses:
         200:
           description: Object with a count and an array of InChIKey references
@@ -668,6 +676,8 @@ paths:
         analysis results.
       tags:
         - references
+      parameters:
+        - $ref: '#/definitions/arguments/chainReferenceQuery'
       responses:
         200:
           description: Object with a count and an array of chain sequence references
@@ -709,6 +719,8 @@ paths:
         including metadata such as name, type, description, image, citation and summary.
       tags:
         - references
+      parameters:
+        - $ref: '#/definitions/arguments/collectionReferenceQuery'
       responses:
         200:
           description: Object with a count and an array of collection references
@@ -3171,6 +3183,15 @@ definitions:
       schema:
         type: string
       example: Q9BYF1
+    proteinReferenceQuery:
+      name: query
+      in: query
+      description: >
+        A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
+        It can be used to filter protein references by any field.
+      schema:
+        type: string
+      example: '{"organism":"Homo sapiens"}'
     PubChemID:
       name: PubChemID
       in: path
@@ -3180,6 +3201,15 @@ definitions:
       schema:
         type: string
       example: "1986"
+    ligandReferenceQuery:
+      name: query
+      in: query
+      description: >
+        A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
+        It can be used to filter ligand references by any field.
+      schema:
+        type: string
+      example: '{"formula":"C22H23N3O4"}'
     PDBID:
       name: PDBID
       in: path
@@ -3189,6 +3219,15 @@ definitions:
       schema:
         type: string
       example: 12CA
+    pdbReferenceQuery:
+      name: query
+      in: query
+      description: >
+        A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
+        It can be used to filter PDB references by any field.
+      schema:
+        type: string
+      example: '{"method":"X-RAY DIFFRACTION"}'
     InChIKey:
       name: InChIKey
       in: path
@@ -3198,6 +3237,15 @@ definitions:
       schema:
         type: string
       example: AAKJLRGGTJKAMG-UHFFFAOYSA-N
+    inchikeyReferenceQuery:
+      name: query
+      in: query
+      description: >
+        A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
+        It can be used to filter InChIKey references by top-level or nested fields.
+      schema:
+        type: string
+      example: '{"pubchem.formula":"C32H47FN6O4S"}'
     ChainSequence:
       name: ChainSequence
       in: path
@@ -3207,6 +3255,15 @@ definitions:
       schema:
         type: string
       example: STIEEQAKTFLDKFNHEAEDLFYQS
+    chainReferenceQuery:
+      name: query
+      in: query
+      description: >
+        A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
+        It can be used to filter chain references by any field.
+      schema:
+        type: string
+      example: '{"sequence":{"$regex":"^STIEE"}}'
     CollectionID:
       name: CollectionID
       in: path
@@ -3216,6 +3273,15 @@ definitions:
       schema:
         type: string
       example: cv19
+    collectionReferenceQuery:
+      name: query
+      in: query
+      description: >
+        A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
+        It can be used to filter collection references by any field.
+      schema:
+        type: string
+      example: '{"type":"dataset"}'
   bin format:
     type: string
     format: binary
