@@ -103,6 +103,13 @@ app.get('/metrics', metricsEndpoint);
 //      El problema es que cada una de las request extras puede ir a parar una instancia distinta del pm2
 //        Esto hace que a pesar de que el header esté bien, todo el body pueda ser el de otro swagger distinto
 app.use('/rest/docs', (request, response, next) => {
+  // Normalize docs base URL so relative Swagger assets resolve under /rest/docs/.
+  // Use originalUrl to avoid redirect loops when /rest/docs/ is already requested.
+  if (request.originalUrl === '/rest/docs') {
+    response.redirect(301, '/rest/docs/');
+    return next();
+  }
+
   // Get the hostname from the request
   const host = getHost(request);
   response.set('internal-hostname', host); // This is usefull for debug
