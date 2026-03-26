@@ -43,6 +43,28 @@ const httpGeoRequestsTotal = new client.Counter({
   registers: [register],
 });
 
+function msUntilNextDailyHour(targetHour = 4, targetMinute = 0) {
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(targetHour, targetMinute, 0, 0);
+  // If the target time has already passed today, schedule for tomorrow
+  if (next <= now) {
+    next.setDate(next.getDate() + 1);
+  }
+  return next.getTime() - now.getTime();
+}
+
+// Schedule a daily reset (4AM) of the Prometheus registry to prevent
+// memory growth from high-cardinality labels.
+function scheduleDailyRegistryClear(hour = 4, minute = 0) {
+  const scheduleNext = () => {
+    const delay = msUntilNextDailyHour(hour, minute);
+    setTimeout(() => register.resetMetrics(), delay);
+  };
+
+  scheduleNext();
+}
+// scheduleDailyRegistryClear(4, 0);
 
 // ---------------------------------------------------------------------------
 // PM2 Cluster Registry Aggregation
