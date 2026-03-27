@@ -13,33 +13,33 @@ const { getHost } = require('../../utils/auxiliar-functions');
 const register = new client.Registry();
 client.collectDefaultMetrics({ register });
 
-const REQUEST_SOURCE_HEADER = 'x-mddb-request-source';
-const REQUEST_SOURCE_DEFAULT = 'direct-api';
-
-const labelNames = [
-  'host', 'base_path', 'method', 'route', 'status_code', 'projectAccessionOrID', 'UniProtID',
-  'PubChemID', 'PDBID', 'InChIKey', 'ChainSequence', 'CollectionID', 'filename', 
-  'analysisName', 'md_num', 'source'
+const totalLabelNames = [
+  'host', 'base_path', 'route', 'status_code', 'accession', 'referenceID',
+  'filename', 'analysisName', 'md_num', 'source', 'ip'
 ];
 const httpRequestsTotal = new client.Counter({
   name: 'http_requests_total',
   help: 'Total number of HTTP requests',
-  labelNames: labelNames,
+  labelNames: totalLabelNames,
   registers: [register],
 });
 
+// We use less labels as the size of histograms grows faster than counters:
+// number of combinations x number of buckets
+const histogramLabelNames = ['host', 'route', 'status_code', 'source', 'country'];
 const httpRequestDuration = new client.Histogram({
   name: 'http_request_duration_seconds',
   help: 'Duration of HTTP requests in seconds',
-  labelNames: labelNames,
-  buckets: [ 0.1, 1, 10, 30, 120, 600],
+  labelNames: histogramLabelNames,
+  buckets: [ 0.1, 1, 10, 60, 300],
   registers: [register],
 });
 
+const geoLabelNames = ['host', 'ip', 'country', 'region', 'city', 'source'];
 const httpGeoRequestsTotal = new client.Counter({
   name: 'http_geo_requests_total',
   help: 'Total number of HTTP requests by geographic location',
-  labelNames: ['host', 'ip', 'country', 'region', 'city', 'source'],
+  labelNames: geoLabelNames,
   registers: [register],
 });
 
@@ -256,18 +256,40 @@ function normalizePath(urlPath, matchers) {
   for (const { specPath, re, paramNames } of matchers.compiled) {
     const match = re.exec(normalizedStripped);
     if (match) {
-      const params = { base_path: basePath, md_num: '' };
+      const params = {};
       paramNames.forEach((name, i) => {
         params[name] = match[i + 1];
       });
 
-      // Split accessions like A0224.1 into accession + md number label.
+      // Split accessions like A0224.1 into accession + md number label and
+      // rename projectAccessionOrID to accession
       if (typeof params.projectAccessionOrID === 'string') {
         const mdMatch = params.projectAccessionOrID.match(/^(.+)\.(\d+)$/);
         if (mdMatch) {
-          params.projectAccessionOrID = mdMatch[1];
-          params.md_num = mdMatch[2];
+          params.accession = mdMatch[1];
+          // params.md_num = mdMatch[2];
+        } else {
+          params.accession = params.projectAccessionOrID;
         }
+        delete params.projectAccessionOrID;
+      }
+
+      // Map exclusive reference IDs to a common referenceID label
+      const referenceIdKeys = [
+        'UniProtID', 'PubChemID', 'PDBID', 
+        'InChIKey', 'ChainSequence', 'CollectionID'
+      ];
+      let referenceID = '';
+      for (const key of referenceIdKeys) {
+        if (params[key]) {
+          referenceID = params[key];
+          break;
+        }
+      }
+      if (referenceID) {
+        params.referenceID = referenceID;
+        // Remove the original keys to avoid accidental use
+        referenceIdKeys.forEach(k => { delete params[k]; });
       }
 
       return { route: specPath, params };
@@ -280,7 +302,7 @@ function normalizePath(urlPath, matchers) {
     .replace(/\/[a-fA-F0-9]{24}(\/|$)/g, '/{id}$1')   // MongoDB ObjectIds
     .replace(/\/[A-Z0-9]+\.[0-9]+(\/|$)/g, '/{accession}$1'); // accessions like A01X6.1
 
-  return { route, basePath, params: { base_path: basePath, md_num: '' } };
+  return { route, basePath, params: {} };
 }
 
 // Prefer proxy-provided client IPs when available.
@@ -345,6 +367,9 @@ function anonymizeIp(ip) {
 
   return 'Unknown';
 }
+
+const REQUEST_SOURCE_HEADER = 'x-mddb-request-source';
+const REQUEST_SOURCE_DEFAULT = 'direct-api';
 
 function getRequestSource(req) {
   const rawSource = req.headers && req.headers[REQUEST_SOURCE_HEADER];
@@ -416,26 +441,23 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
       const host = getHost(req).split(':')[0];
       const labels = {
         host: host,
-        // Disabled until we see if we can get real IPs under local network
-        // ip: req.geoStats.anonIp,  
-        method: req.method,
+        ip: req.geoStats.anonIp,
+        country: req.geoStats.country,
+        region: req.geoStats.region,
+        city: req.geoStats.city,
         route,
         status_code: String(res.statusCode),
         source: requestSource,
         ...params
       };
+      // Build label objects for each metric using the corresponding label name arrays
+      const totalLabels = Object.fromEntries(totalLabelNames.map(k => [k, labels[k]]))
+      const histogramLabels = Object.fromEntries(histogramLabelNames.map(k => [k, labels[k]]));
+      const geoLabels = Object.fromEntries(geoLabelNames.map(k => [k, labels[k]]));
       if (debug) console.log('Labels:', labels);
-      if (debug) console.log('geoStats', req.geoStats);
-      httpRequestsTotal.inc(labels);
-      httpRequestDuration.observe(labels, (Date.now() - startMs) / 1000);
-      httpGeoRequestsTotal.inc({
-        host: host,
-        ip: req.geoStats.anonIp,
-        country: req.geoStats.country,
-        region: req.geoStats.region,
-        city: req.geoStats.city,
-        source: requestSource,
-      });
+      httpRequestsTotal.inc(totalLabels);
+      httpRequestDuration.observe(histogramLabels, (Date.now() - startMs) / 1000);
+      httpGeoRequestsTotal.inc(geoLabels);
     });
 
     next();
