@@ -10,7 +10,7 @@ const { ATTR_SERVICE_NAME } = require('@opentelemetry/semantic-conventions');
 
 // Setup the Exporter (Point to your OTel Collector)
 const exporter = new OTLPLogExporter({
-  url: 'http://localhost:4318/v1/logs',  // Default OTLP HTTP endpoint for logs
+  url: 'http://otel-collector:4318/v1/logs',  // Default OTLP HTTP endpoint for logs
 });
 
 // OTel Resource Attributes as converted to Loki labels
