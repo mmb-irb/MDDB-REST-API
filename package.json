@@ -39,6 +39,7 @@
   "author": "Aurélien Luciani <aurelien.luciani@irbbarcelona.org>",
   "license": "ISC",
   "dependencies": {
+    "@opentelemetry/exporter-logs-otlp-http": "^0.214.0",
     "assemblyscript": "0.8.0",
     "boxen": "4.1.0",
     "chalk": "3.0.0",
@@ -51,7 +52,6 @@
     "lodash": "4.17.15",
     "mongodb": "^4.5.0",
     "ngl": "0.10.4",
-    "prom-client": "^12.0.0",
     "range-parser": "1.2.1",
     "swagger-ui-express": "^5.0.1",
     "yamljs": "0.3.0"

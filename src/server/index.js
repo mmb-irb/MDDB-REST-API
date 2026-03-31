@@ -8,7 +8,7 @@ const swaggerSpec = require(`${__dirname}/../docs/specification`);
 const boxen = require('boxen');
 const chalk = require('chalk');
 // logging for grafana
-const { metricsMiddleware, metricsEndpoint } = require('../middlewares/metrics');
+const { metricsMiddleware } = require('../middlewares/metrics');
 
 const routes = require('../routes');
 //const getCustomTimeout = require('../middlewares/custom-timeout');
@@ -86,8 +86,6 @@ app.get('/rest', (_, res) =>
 app.use('/rest/v1', routes);
 app.use('/rest/current', routes);
 
-// Metrics endpoint for Prometheus to scrape stats
-app.get('/metrics', metricsEndpoint);
 
 // NEVER FORGET: El sistema recomendado para editar el swagger on the fly no me funcionaba bien y no me permitía pasar opciones
 //    https://github.com/scottie1984/swagger-ui-express#modify-swagger-file-on-the-fly-before-load
