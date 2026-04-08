@@ -55,7 +55,7 @@ class Project {
         // Otherwise we must make a few changes before returning it
         // Check if atom charges are "per MD" and, if this is the case, then return only the values for the corresponding MD
         const atomCharges = topologyData['atom_charges'];
-        if (atomCharges.mdmap && atomCharges.values) {
+        if (atomCharges && atomCharges.mdmap && atomCharges.values) {
             const valueIndex = atomCharges.mdmap[this.mdIndex];
             topologyData['atom_charges'] = atomCharges.values[valueIndex];
         }
