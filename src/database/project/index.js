@@ -19,6 +19,7 @@ class Project {
         // Store the current project data
         this.data = data;
         this.accession = this.data.accession;
+        this.mdIndex = this.data.mdIndex;
         this.id = this.data._id;
         // Store the database handler
         this.database = database;
@@ -36,7 +37,7 @@ class Project {
     }
 
     // Get topology data
-    getTopologyData = async () => {
+    getTopologyData = async (raw = false) => {
         // Query the database and retrieve the requested topology
         const topologyData = await this.database.topologies.findOne(
             // Set the query
@@ -49,7 +50,16 @@ class Project {
             headerError: NOT_FOUND,
             error: `Project ${this.accession} has no topology`
         };
-        // Send the analysis data
+        // If the topology is requested raw then return it as is
+        if (raw === true) return topologyData;
+        // Otherwise we must make a few changes before returning it
+        // Check if atom charges are "per MD" and, if this is the case, then return only the values for the corresponding MD
+        const atomCharges = topologyData['atom_charges'];
+        if (atomCharges.mdmap && atomCharges.values) {
+            const valueIndex = atomCharges.mdmap[this.mdIndex];
+            topologyData['atom_charges'] = atomCharges.values[valueIndex];
+        }
+        // Send the processed analysis data
         return topologyData;
     }
 
@@ -58,7 +68,7 @@ class Project {
         // Query the database and retrieve the requested analysis
         const analysisData = await this.database.analyses.findOne(
             // Set the query
-            { project: this.data.internalId, md: { $in: [ undefined, this.data.mdIndex ] }, name },
+            { project: this.data.internalId, md: { $in: [ undefined, this.mdIndex ] }, name },
             // Skip some useless values
             { projection: { _id: false, name: false, project: false, md: false } },
         );
@@ -164,7 +174,7 @@ class Project {
             'filename': filename,
             'metadata.project': this.data.internalId,
             // Note that we target files with the current MD index (MD files) or null MD index (project files)
-            'metadata.md': { $in: [this.data.mdIndex, null] }
+            'metadata.md': { $in: [this.mdIndex, null] }
         };
         // Query the database
         const fileDescriptor = await this.database.files.findOne(fileQuery);

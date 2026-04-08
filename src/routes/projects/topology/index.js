@@ -16,8 +16,11 @@ router.route('/').get(
       const project = await database.getProject();
       // If there was any problem then return the errors
       if (project.error) return project;
+      // Check if the raw flag has been passed
+      const raw = request.query.raw;
+      const isRaw = raw !== undefined && raw !== 'false';
       // Get the topology data
-      const topologyData = await project.getTopologyData();
+      const topologyData = await project.getTopologyData(isRaw);
       // If there was any problem then stop here
       if (topologyData.error) return topologyData;
       return topologyData;
