@@ -58,9 +58,13 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   const mdAnalyses = analyses || [];
   projectData.analyses = projectAnalyses.concat(mdAnalyses).map(analysis => analysis.name);
   // Merge project and MD files and return their names
-  const projectFiles = projectData.files || [];
   const mdFiles = files || [];
-  projectData.files = projectFiles.concat(mdFiles).map(file => file.name);
+  const mdFilenames = new Set(mdFiles.map(file => file.name));
+  const projectFiles = projectData.files || [];
+  const projectFilenames = new Set(projectFiles.map(file => file.name));
+  // Note that this way we prevent duplicated filenames
+  // This may happen when both the project and the MD have files with the same name
+  projectData.files = Array.from(new Set([ ...mdFilenames, ...projectFilenames ]));
   // Add the rest of values
   // Note that project values will be overwritten by MD values
   Object.assign(projectData, rest);

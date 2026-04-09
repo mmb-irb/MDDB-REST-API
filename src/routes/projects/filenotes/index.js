@@ -7,7 +7,7 @@ const getDatabase = require('../../../database');
 const { isObjectId } = require('../../../utils/auxiliar-functions');
 
 // Standard HTTP response status codes
-const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-codes');
+const { BAD_REQUEST } = require('../../../utils/status-codes');
 
 // Set a function to clean file descriptors by renaming the field '_id' as 'internalId'
 const cleanFileDescriptor = descriptor => {
@@ -28,18 +28,8 @@ router.route('/').get(
       const project = await database.getProject();
       // If there was any problem then return the errors
       if (project.error) return project;
-      // If project data does not contain the 'mds' field then it may mean it is in the old format
-      if (!project.data.mds) return {
-        headerError: INTERNAL_SERVER_ERROR,
-        error: 'Project is missing mds. Is it in an old format?'
-      };
-      // Send all file descriptions
-      const filesQuery = {
-        'metadata.project': project.data.internalId,
-        'metadata.md': { $in: [project.data.mdIndex, null] },
-      };
-      const filesCursor = await database.files.find(filesQuery, { _id: false });
-      const filesData = await filesCursor.toArray();
+      // Get all file descriptions
+      const filesData = await project.getFileDescriptors();
       return filesData.map(descriptor => cleanFileDescriptor(descriptor));
     }
   }),

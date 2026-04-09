@@ -30,11 +30,6 @@ router.route('/').get(
       const project = await database.getProject();
       // If there was any problem then return the errors
       if (project.error) return project;
-      // If project data does not contain the 'mds' field then it may mean it is in the old format
-      if (!project.data.mds) return {
-        headerError: INTERNAL_SERVER_ERROR,
-        error: 'Project is missing mds. Is it in an old format?'
-      };
       return project.data.files;
     }
   }),

@@ -167,22 +167,63 @@ class Project {
         return coordinates;
     }
 
+    // Get all file descriptors
+    getFileDescriptors = async () => {
+        // Set the MD files query by targeting files with the current MD index
+        const mdFilesQuery = { 'metadata.project': this.data.internalId, 'metadata.md': this.mdIndex };
+        // Query the database
+        const mdFilesCursor = await this.database.files.find(mdFilesQuery);
+        // Consume the cursor
+        const mdFileDescriptors = await mdFilesCursor.toArray();
+        // Set the project files query by targeting files with null MD index
+        const projectFilesQuery = { 'metadata.project': this.data.internalId, 'metadata.md': null };
+        // Query the database
+        const projectFilesCursor = await this.database.files.find(projectFilesQuery);
+        // Consume the cursor
+        const projectFileDescriptors = await projectFilesCursor.toArray();
+        // Add project files to the MD files ONLY if there is not already a file with the same name among them
+        const mdFilenames = new Set(mdFileDescriptors.map(descriptor => descriptor.filename));
+        projectFileDescriptors.forEach(descriptor => {
+            if (mdFilenames.has(descriptor.filename)) return;
+            mdFileDescriptors.push(descriptor);
+        })
+        // If there are no files at the end of the process then return an error
+        if (mdFileDescriptors.length === 0) return {
+            headerError: NOT_FOUND,
+            error: `No files were found`
+        };
+        return mdFileDescriptors;
+    }
+
     // Get a file descriptor
     getFileDescriptor = async filename => {
-        // Set the file query
-        const fileQuery = {
+        // Set the MD file query by targeting files with the current MD index
+        const mdFileQuery = {
             'filename': filename,
             'metadata.project': this.data.internalId,
-            // Note that we target files with the current MD index (MD files) or null MD index (project files)
-            'metadata.md': { $in: [this.mdIndex, null] }
+            'metadata.md': this.mdIndex,
         };
         // Query the database
-        const fileDescriptor = await this.database.files.findOne(fileQuery);
-        if (!fileDescriptor) return {
+        const mdFileDescriptor = await this.database.files.findOne(mdFileQuery);
+        // If we found a result then return it
+        if (mdFileDescriptor) return mdFileDescriptor;
+        // Othrwise try with the project files
+        // Set the project file query by targeting files with null MD index
+        const projectFileQuery = {
+            'filename': filename,
+            'metadata.project': this.data.internalId,
+            'metadata.md': null,
+        };
+        // Query the database
+        const projectFileDescriptor = await this.database.files.findOne(projectFileQuery);
+        // If we found a result then return it
+        if (projectFileDescriptor) return projectFileDescriptor;
+        // If we had no match tehn return an error
+        return {
             headerError: NOT_FOUND,
             error: `File descriptor for "${filename}" was not found in the files collection`
         };
-        return fileDescriptor;
+        
     }
 
     // Get the trajectory file descriptor
