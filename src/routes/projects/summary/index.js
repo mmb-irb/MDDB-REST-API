@@ -72,6 +72,47 @@ router.route('/growth').get(
   }),
 );
 
+// Endpoint to get only the fields required by the FrameStep plot
+router.route('/framestep').get(
+  handler({
+    async retriever(request) {
+      // Establish database connection and retrieve our custom handler
+      const database = await getDatabase(request);
+      // Start filtering by published projects only if we are in production environment
+      const finder = database.getBaseFilter();
+      // Handle optional query filter
+      const query = request.query.query;
+      if (query) {
+        // Process the mongo query to convert references and topology queries
+        const processedQuery = await database.processProjectsQuery(query);
+        if (processedQuery.error) return processedQuery;
+        if (!finder.$and) finder.$and = processedQuery;
+        else finder.$and = finder.$and.concat(processedQuery);
+      }
+
+      // Keep only projects that can contribute to the FrameStep scatter plot
+      if (!finder.$and) finder.$and = [];
+      finder.$and.push({ 'metadata.FRAMESTEP': { $gt: 0 } });
+      finder.$and.push({ mds: { $exists: true, $ne: [] } });
+
+      // Get only the minimum data required by mdposit_client data-summary/framestep
+      const cursor = await database.projects.find(
+        finder,
+        {
+          projection: {
+            _id: 0,
+            'metadata.FRAMESTEP': 1,
+            'mds.frames': 1,
+          },
+        },
+      );
+
+      // Consume the cursor and return data as-is (same shape expected by the plot)
+      return cursor.toArray();
+    }
+  }),
+);
+
 // This endpoint returns some summary of data contained in the projects collection
 router.route('/').get(
   handler({
