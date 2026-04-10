@@ -42,17 +42,8 @@ jobs:
           echo "package_version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
       
       - name: Compare versions
-        run: |
-          LATEST_TAG="${{ steps.get_tag.outputs.latest_tag }}"
-          PACKAGE_VERSION="${{ steps.get_version.outputs.package_version }}"
-          
-          if [ "$LATEST_TAG" = "$PACKAGE_VERSION" ]; then
-            echo "✅ Version match! package.json ($PACKAGE_VERSION) matches latest tag ($LATEST_TAG)"
-          else
-            echo "❌ Version mismatch!"
-            echo "   package.json version: $PACKAGE_VERSION"
-            echo "   Latest git tag: $LATEST_TAG"
-            echo ""
-            echo "Please update package.json version to match the tag or create a new tag."
-            exit 1
-          fi
+        uses: jackbilestech/semver-compare@1.0.4
+        with:
+          head: '${{ steps.get_version.outputs.package_version }}'
+          base: '${{ steps.get_tag.outputs.latest_tag }}'
+          operator: '>='
