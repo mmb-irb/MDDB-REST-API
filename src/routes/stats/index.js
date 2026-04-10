@@ -35,7 +35,7 @@ router.route('/').get(
                 indexSizeInMB: +(dbStats.indexSize).toFixed(2),
                 usedDiskInTB: +(dbStats.fsUsedSize / 1e6).toFixed(2),
                 availableDiskInTB: +(dbStats.fsTotalSize / 1e6).toFixed(2),
-                nShards: Object.keys(dbStats.raw).length,
+                nShards: dbStats.raw ? Object.keys(dbStats.raw).length : 1,
                 // objectCount: dbStats.objects,
                 // collections: dbStats.collections,
                 // indexes: dbStats.indexes
