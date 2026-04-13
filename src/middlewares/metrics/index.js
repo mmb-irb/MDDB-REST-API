@@ -267,6 +267,7 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
       if (debug) console.log(`Normalized request: ${route}`);
       const host = getHost(req).split(':')[0];
       data = {
+        host,
         status_code: res.statusCode,
         latency: (Date.now() - startMs) / 1000,
         requestSource,
