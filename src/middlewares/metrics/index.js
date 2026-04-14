@@ -207,8 +207,7 @@ function getRequestSource(req) {
 
 
 function isLoggingEnabled() {
-  // Enable logging in production by default, or use an env var
-  return process.env.NODE_ENV === 'development';
+  return process.env.METRICS?.toLocaleLowerCase() === 'true';
 }
 
 // Recursively remove keys with empty string, null, or undefined values from objects
