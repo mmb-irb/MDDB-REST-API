@@ -10,7 +10,8 @@ const { ATTR_SERVICE_NAME } = require('@opentelemetry/semantic-conventions');
 
 // Setup the Exporter (Point to your OTel Collector)
 const exporter = new OTLPLogExporter({
-  url: 'http://otel-collector:4318/v1/logs',  // Default OTLP HTTP endpoint for logs
+  // Configurable OTLP HTTP endpoint for logs
+  url: process.env.OTEL_ENDPOINT || 'http://otel-collector:4318/v1/logs',
 });
 
 // OTel Resource Attributes as converted to Loki labels
@@ -18,6 +19,8 @@ const exporter = new OTLPLogExporter({
 const loggerProvider = new LoggerProvider({
   resource: resourceFromAttributes({
     [ATTR_SERVICE_NAME]: 'rest-api',  // This will become the "service_name" label in Loki
+    ['node']: process.env.NODE || 'unknown-node',  // Add node name for multi-node setups
+
   }),
   processors: [new BatchLogRecordProcessor(exporter)]
 });
@@ -207,7 +210,7 @@ function getRequestSource(req) {
 
 
 function isLoggingEnabled() {
-  return process.env.METRICS?.toLocaleLowerCase() === 'true';
+  return process.env.OTEL_ENDPOINT && process.env.OTEL_ENDPOINT.trim() !== '';
 }
 
 // Recursively remove keys with empty string, null, or undefined values from objects

@@ -57,7 +57,7 @@ Note that the API processes must be stopped and run again for new code to be eff
 | HOST             | string                        | forced hostname           |
 | PUBLIC_DIR       | string                        | path to public directory  |
 | DEBUG            | boolean                       | log every request         |
-| METRICS          | boolean                       | enable metrics collection |
+| OTEL_ENDPOINT    | string                        | OTLP HTTP endpoint for logs |
 
 
 ### config.yml file
