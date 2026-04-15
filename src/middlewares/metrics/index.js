@@ -19,7 +19,7 @@ const exporter = new OTLPLogExporter({
 const loggerProvider = new LoggerProvider({
   resource: resourceFromAttributes({
     [ATTR_SERVICE_NAME]: 'rest-api',  // This will become the "service_name" label in Loki
-    ['node']: process.env.NODE || 'unknown-node',  // Add node name for multi-node setups
+    ['node']: process.env.NODE_NAME || 'unknown-node',  // Add node name for multi-node setups
 
   }),
   processors: [new BatchLogRecordProcessor(exporter)]
