@@ -5,6 +5,7 @@ info:
     This is the $DATABASE REST API documentation.
     This API grants programmatic access to the $DATABASE database.
     It may retrieve trajectory data, analyses, files and metadata.
+    It also exposes PDBe knowledge annotations through the /knowledge endpoints.
     Below, API endpoints are listed and documented.
     Click on any endpoint to drop more information such as the description and accepted parameters.
     Use the 'try it out' button to test any endpoint at the moment.
@@ -1389,6 +1390,92 @@ paths:
             application/json:
               schema:
                 type: array
+
+  /knowledge:
+    get:
+      summary: Get the PDB ids with available knowledge annotations.
+      description: >
+        Get a list of PDB ids that can be queried through the knowledge endpoints.
+      tags:
+        - knowledge
+      responses:
+        200:
+          description: a list of PDB ids
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgePdbList'
+
+  /knowledge/{pdbid}:
+    get:
+      summary: Get the projects associated with a PDB id in the knowledge endpoints.
+      description: >
+        Get a list of project accessions that include the requested PDB id.
+      tags:
+        - knowledge
+      parameters:
+        - $ref: '#/definitions/arguments/knowledgePdbID'
+      responses:
+        200:
+          description: a list of project accessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeProjectList'
+
+  /knowledge/{pdbid}/{project}:
+    get:
+      summary: Get the knowledge analyses available for a PDB/project pair.
+      description: >
+        Get the supported knowledge analyses available for the requested project and PDB id.
+      tags:
+        - knowledge
+      parameters:
+        - $ref: '#/definitions/arguments/knowledgePdbID'
+        - $ref: '#/definitions/arguments/knowledgeProject'
+      responses:
+        200:
+          description: a list of supported knowledge analyses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeAnalysisList'
+
+  /knowledge/{pdbid}/{project}/sasa:
+    get:
+      summary: Get the PDBe knowledge SASA annotation for a project.
+      description: >
+        Get a PDBe FunPDBe-style SASA annotation for the requested project and PDB id.
+      tags:
+        - knowledge
+      parameters:
+        - $ref: '#/definitions/arguments/knowledgePdbID'
+        - $ref: '#/definitions/arguments/knowledgeProject'
+      responses:
+        200:
+          description: PDBe knowledge SASA annotation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeResponse'
+
+  /knowledge/{pdbid}/{project}/membrane:
+    get:
+      summary: Get the PDBe knowledge membrane annotation for a project.
+      description: >
+        Get a PDBe FunPDBe-style membrane annotation for the requested project and PDB id.
+      tags:
+        - knowledge
+      parameters:
+        - $ref: '#/definitions/arguments/knowledgePdbID'
+        - $ref: '#/definitions/arguments/knowledgeProject'
+      responses:
+        200:
+          description: PDBe knowledge membrane annotation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeResponse'
 
 components:
   schemas:
@@ -3154,6 +3241,106 @@ components:
         - A
         - B
 
+    KnowledgePdbList:
+      type: array
+      description: list of PDB ids with knowledge annotations
+      items:
+        type: string
+      example:
+        - 6vw1
+        - 6vxx
+
+    KnowledgeProjectList:
+      type: array
+      description: list of project accessions associated with a PDB id
+      items:
+        type: string
+      example:
+        - $ACCESSION
+        - 5d08b56e174bf85a17e00438
+
+    KnowledgeAnalysisList:
+      type: array
+      description: list of supported knowledge analyses for a project
+      items:
+        type: string
+        enum: [ sasa, membrane ]
+      example:
+        - sasa
+        - membrane
+
+    KnowledgeSite:
+      type: object
+      properties:
+        site_id:
+          type: integer
+        label:
+          type: string
+
+    KnowledgeResponse:
+      type: object
+      description: >
+        PDBe FunPDBe-style knowledge annotation response.
+      required:
+        - data_resource
+        - resource_version
+        - resource_entry_url
+        - model_coordinates_url
+        - release_date
+        - pdb_id
+        - chains
+        - evidence_code_ontology
+        - sites
+      properties:
+        data_resource:
+          type: string
+          example: MDDB
+        resource_version:
+          type: string
+          example: '0.0'
+        resource_entry_url:
+          type: string
+          example: https://example.org/#/id/5d08b56e174bf85a17e00438/
+        model_coordinates_url:
+          type: string
+          example: https://www.ebi.ac.uk/pdbe/entry/pdb/6vw1
+        release_date:
+          type: string
+          example: 10/01/91
+        pdb_id:
+          type: string
+          example: 6vw1
+        chains:
+          type: array
+          items:
+            type: object
+            properties:
+              chain_label:
+                type: string
+              residues:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    pdb_res_label:
+                      type: string
+                    aa_type:
+                      type: string
+                    additional_residue_annotations:
+                      type: object
+                    site_data:
+                      type: array
+                      items:
+                        type: object
+        evidence_code_ontology:
+          type: array
+          items:
+            type: object
+        sites:
+          type: array
+          items:
+            $ref: '#/components/schemas/KnowledgeSite'
+
 definitions:
   constants:
     IDPattern: '^[a-fA-F\d]{24}$'
@@ -3282,6 +3469,24 @@ definitions:
       schema:
         type: string
       example: '{"type":"dataset"}'
+    knowledgePdbID:
+      name: pdbid
+      in: path
+      description: >
+        PDB accession id used by the knowledge endpoints.
+      required: true
+      schema:
+        type: string
+      example: 12CA
+    knowledgeProject:
+      name: project
+      in: path
+      description: >
+        Project accession or identifier used by the knowledge endpoints.
+      required: true
+      schema:
+        type: string
+      example: $ACCESSION
   bin format:
     type: string
     format: binary

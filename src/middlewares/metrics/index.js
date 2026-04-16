@@ -272,7 +272,7 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
         host,
         status_code: res.statusCode,
         latency: (Date.now() - startMs) / 1000,
-        requestSource,
+        source: requestSource,
         route,
         ...params,
         ...req.geoStats,
