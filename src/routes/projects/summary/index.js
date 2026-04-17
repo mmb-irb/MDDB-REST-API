@@ -19,7 +19,7 @@ router.route('/growth').get(
       const cursor = await database.projects.find(
         finder,
         {
-          projection: {_id: 1, mds: 1 },
+          projection: {_id: 1, creationDate: 1, mds: 1 },
         },
       );
       
@@ -29,7 +29,7 @@ router.route('/growth').get(
       const monthlyData = {};
       
       projects.forEach(project => {
-        const date = project._id.getTimestamp();
+        const date = project.creationDate || project._id.getTimestamp();
         const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         
         if (!monthlyData[yearMonth]) {
