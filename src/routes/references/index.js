@@ -108,28 +108,10 @@ const specificReferenceResponse = handler({
         const database = await getDatabase(request);
         // Get the requested reference configuration
         const referenceName = request.params.reference;
-        const reference = REFERENCES[referenceName];
-        if (!reference) return {
-            headerError: NOT_FOUND,
-            error: `Unknown reference "${referenceName}". Available references: ${availableReferences}`
-        };
-        // Set the target mongo collection
-        const referenceCollection = database[referenceName];
         // Get the requested id
         const referenceId = request.params.id;
-        // Return the reference which matches the request id
-        const result = await referenceCollection.findOne(
-            // Set the query
-            { [reference.idField]: referenceId },
-            // Set the projection
-            { projection: { _id: false } }
-        );
-        // If there was no result then raise a not found error
-        if (!result) return {
-            headerError: NOT_FOUND,
-            error: `Not found "${referenceName}" reference with id "${referenceId}"`
-        };
-        return result;
+        // Use the handler to get the specified reference data
+        return await database.getReferenceData(referenceName, referenceId);
     }
 });
 

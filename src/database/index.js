@@ -236,6 +236,30 @@ class Database {
         return referenceIds;
     }
 
+    // Get all ids available in a given reference
+    getReferenceData = async (referenceName, referenceId) => {
+        // Get the requested reference configuration
+        const reference = REFERENCES[referenceName];
+        if (!reference) return {
+            headerError: NOT_FOUND,
+            error: `Unknown reference "${referenceName}". Available references: ${AVAILABLE_REFERENCES}`
+        };
+        // Set the target mongo collection
+        const collection = this[referenceName];
+        // Set the target query
+        const query = { [reference.idField]: referenceId };
+        // Set a projection to get rid of the internal id
+        const projection = { projection: { _id: false } };
+        // Get the target reference
+        const referenceData = await collection.findOne(query, projection);
+        // If we did not found the reference then stop here
+        if (!referenceData) return {
+            headerError: NOT_FOUND,
+            error: `Not found "${referenceName}" reference with id "${referenceId}"`
+        };
+        return referenceData;
+    }
+
     // Process a projects query which may include reference and topology fields
     // Returns an error response if something is wrong
     processProjectsQuery = async query => {
