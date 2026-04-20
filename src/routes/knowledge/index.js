@@ -9,7 +9,7 @@ const { NOT_FOUND } = require('../../utils/status-codes');
 const router = Router({ mergeParams: true });
 
 // List the supported analyses with knowledge endpoint
-const SUPPORTED_ANALYSES = new Set(['sasa', 'membrane']);
+const SUPPORTED_ANALYSES = new Set(['sasa', 'lipid-inter']);
 
 // Root -> display available PDBs
 router.route('/').get(
@@ -79,6 +79,6 @@ router.route('/:pdbid/:project').get(
 
 // An analysis is passed -> route to the corresponding analysis endpoint
 router.use('/:pdbid/:project/sasa', require('./sasa'));
-router.use('/:pdbid/:project/membrane', require('./membrane'));
+router.use('/:pdbid/:project/lipid-inter', require('./lipid-inter'));
 
 module.exports = router;
