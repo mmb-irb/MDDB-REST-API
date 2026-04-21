@@ -5,6 +5,8 @@ const handler = require('../../utils/generic-handler');
 const getDatabase = require('../../database');
 // Standard HTTP response status codes
 const { NOT_FOUND } = require('../../utils/status-codes');
+// Fet a keyword to ask for the reference value, using the original PDB structure
+const { KNOWLEDGE_REFERENCE_KEYWORD } = require('../../utils/constants');
 
 const router = Router({ mergeParams: true });
 
@@ -43,7 +45,7 @@ router.route('/:pdbid').get(
       const cursor = await database.projects.find(projectsQuery, projectsProjection);
       // Consume the cursor
       const projects = await cursor.toArray();
-      return projects.map(project => project.accession);
+      return [ KNOWLEDGE_REFERENCE_KEYWORD, ...projects.map(project => project.accession) ];
     }
   }),
 );
@@ -52,14 +54,32 @@ router.route('/:pdbid').get(
 router.route('/:pdbid/:project').get(
   handler({
     async retriever(request) {
+      // Set the requested PDB id
+      const pdbId = request.params.pdbid;
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
+      // If the requested project is the reference keyword then set the analyses available for this specific reference data
+      // This was specifically tailored to get a reference SASA value
+      if (request.params.project === KNOWLEDGE_REFERENCE_KEYWORD) {
+        // Get the reference data
+        const referenceData = await database.getReferenceData('pdbs', pdbId);
+        if (referenceData.error) return referenceData;
+        // Set the available analyses depending on the available fields
+        const availableAnalyses = [];
+        if (referenceData.chain_sas) availableAnalyses.push('sasa');
+        // If no analysis is available then return an error
+        if (availableAnalyses.length === 0) return {
+          headerError: NOT_FOUND,
+          error: 'No supported analyses available'
+        };
+        // Finally return the list with every available analysis
+        return availableAnalyses;
+      }
       // Get the requested project data
       const project = await database.getProject();
       // If there was any problem then return the errors
       if (project.error) return project;
       // Just to make it coherent, make sure the project has the PDB id in the request
-      const pdbId = request.params.pdbid;
       if (!project.data.metadata.PDBIDS.includes(pdbId)) return {
         headerError: NOT_FOUND,
         error: `Project ${project.accession} has no PDB ${pdbId}`

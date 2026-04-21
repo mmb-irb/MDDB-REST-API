@@ -140,6 +140,31 @@ PROTEIN_RESIDUE_NAME_LETTERS = {
     'VALC':'V',
 }
 
+// Amino acid letters
+PROTEIN_LETTER_RESIDUE_NAMES = {
+    'A':'ALA',
+    'R':'ARG',
+    'N': 'ASN',
+    'D': 'ASP',
+    'C': 'CYS',
+    'Q': 'GLN',
+    'E': 'GLU',
+    'G': 'GLY',
+    'H': 'HIS',
+    'I': 'ILE',
+    'L': 'LEU',
+    'K': 'LYS',
+    'M': 'MET',
+    'F': 'PHE',
+    'P': 'PRO',
+    'S': 'SER',
+    'T': 'THR',
+    'W': 'TRP',
+    'Y': 'TYR',
+    'V': 'VAL',
+    'X': null,
+}
+
 // Set some constants
 module.exports = {
     // Standard filenames
@@ -157,4 +182,7 @@ module.exports = {
     GLOBAL_COLLECTION_NAMES,
     // Structural helps
     PROTEIN_RESIDUE_NAME_LETTERS,
+    PROTEIN_LETTER_RESIDUE_NAMES,
+    // Set a keyword to ask for the reference value in the 'knowledge' endpoint
+    KNOWLEDGE_REFERENCE_KEYWORD: 'REFERENCE'
 }

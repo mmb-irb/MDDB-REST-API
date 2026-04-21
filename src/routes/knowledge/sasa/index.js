@@ -5,7 +5,7 @@ const handler = require('../../../utils/generic-handler');
 const getDatabase = require('../../../database');
 // Standard HTTP response status codes
 const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
-const { PROTEIN_RESIDUE_NAME_LETTERS } = require('../../../utils/constants');
+const { PROTEIN_RESIDUE_NAME_LETTERS, KNOWLEDGE_REFERENCE_KEYWORD } = require('../../../utils/constants');
 const {
     caluclateMeanAndStandardDeviation,
     min, max, round2tenths, getHost
@@ -40,149 +40,199 @@ const EXPOSED_RESIDUE_REFERENCE_VALUES = { M: 319.2, K: 332.6, L: 306.8, N: 279.
 router.route('/').get( handler({ async retriever(request) {
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);
-    // Get the requested project data
-    const project = await database.getProject();
-    // If there was any problem then return the errors
-    if (project.error) return project;
-    // Query the database and retrieve the requested analysis
-    const analysisData = await project.getAnalysisData('sasa');
-    // If there was any problem then return the errors
-    if (analysisData.error) return analysisData;
-    // We will also need the topology data
-    const topologyData = await project.getTopologyData();
-    // If there was any problem then stop here
-    if (topologyData.error) return topologyData;
-    // Get the project reference data
-    const referenceData = await project.getReferenceData();
-    // If there was any problem then stop here
-    if (referenceData.error) return referenceData;
-    // Get the PDB id in hte request
+    // Get the PDB id in the request
     const pdbId = request.params.pdbid;
-    // Filter PDB references
-    const pdbReference = referenceData.find(reference => reference.ref_type === 'pdbs' && reference.id === pdbId);
-    // Make sure we have PDB references
-    if (!pdbReference) return {
+    // Get the PDB reference data
+    const referenceData = await database.getReferenceData('pdbs', pdbId);
+    if (referenceData.error) return referenceData;
+    // Make sure the reference data has the expected SAS data field
+    // Otherwise it may mean this is an old formatted reference, thus not having the data
+    if (!referenceData.chain_sas) return {
         headerError: NOT_FOUND,
-        error: `PDB reference ${pdbId} not found for project ${project.accession}`
+        error: `PDB reference ${pdbId} has no SAS data.`
     }
-    // Get the count of atoms per residue
-    const atomCountPerResidue = {};
-    topologyData.atom_residue_indices.forEach(residueIndex => {
-        if (atomCountPerResidue[residueIndex]) atomCountPerResidue[residueIndex] += 1;
-        else atomCountPerResidue[residueIndex] = 1;
-    });
-    // Set the sites list to add further data
-    const sites = [
-        {
-            site_id: 1,
-            label: "Exposed residue (RSA > 26% all the time)",
-        },
-        {
-            site_id: 2,
-            label: "Buried residue (RSA < 24% all the time)",
-        },
-        {
-            site_id: 3,
-            label: "Switching residue (fluctuating between < 24% and > 26%)",
-        },
-        {
-            site_id: 4,
-            label: "Borderline residue (between < 24% and > 26% all the time)",
-        },
-    ];
-    // To do so we must anotate data in PDB reference PDB chains and residues
+    // We must anotate data in PDB reference PDB chains and residues
     // Get chain data according to the FunPDBe schema
     const pdbChains = [];
-    // Iterate over the different PDB chains
-    for (const [chainLetter, uniprotId] of Object.entries(pdbReference.chain_uniprots)) {
-        // Find the reference index in the topology
-        const referenceIndex = topologyData.references.indexOf(uniprotId);
-        // It may happen that the reference is not found
-        // This means a different chain of this PDB was used to setup the MD system
-        if (referenceIndex === -1) continue;
-        // Get residue indices for residues which belong to this reference/chain
-        const residueIndices = [];
-        Object.entries(topologyData.residue_reference_indices).forEach(([residueIndex, residueReferenceIndex]) => {
-            if (residueReferenceIndex === referenceIndex) residueIndices.push(residueIndex);
-        });
-        // Get residue data according to the FunPDBe schema
-        const pdbResidues = [];
-        // Iterate residue indices
-        residueIndices.forEach(residueIndex => {
-            // Get the residue numeration according to the reference (uniprot and thus the PDB)
-            const residueNumber = topologyData.residue_reference_numbers[residueIndex];
-            // Get residue name
-            const residueName = topologyData.residue_names[residueIndex];
-            // Get residue atom count
-            const residueAtomCount = atomCountPerResidue[residueIndex];
-            // Get residue SAS values for every frame in the analysis
-            const saspf = analysisData.saspf[residueIndex];
-            // Multiply the value by the number of atoms in the residue to 'un-normalize' them
-            const absaspf = saspf.map(sas => sas * residueAtomCount);
-            // Caluclate the mean and standard deviation of the new values
-            const { mean, stdv } = caluclateMeanAndStandardDeviation(absaspf);
-            // Get also min and max values
-            const minAbsas = min(absaspf);
-            const maxAbsas = max(absaspf);
-            // Calculate how much exposed is the residue
-            const residueLetter = PROTEIN_RESIDUE_NAME_LETTERS[residueName]
-            const exposedReferece = EXPOSED_RESIDUE_REFERENCE_VALUES[residueLetter];
-            // Conditions stated by Adam Bellaiche
-            // Buried: residues that maintain an RSA < 24%
-            // Exposed: residues that consistently show RSA > 26%
-            // Switching: residues with RSA values fluctuating between < 24% and > 26%
-            // Borderline: residues with RSA values consistently between 24% and 26%
-            const meanExposure = (mean / exposedReferece) * 100;
-            const stdvExposure = (stdv / exposedReferece) * 100;
-            const minExposure = (minAbsas / exposedReferece) * 100;
-            const maxExposure = (maxAbsas / exposedReferece) * 100;
-            let classification;
-            let class_site_data_id;
-            if (maxExposure <= 24) {
-                classification = 'Buried';
-                class_site_data_id = 2;
-            }
-            else if (minExposure >= 26) {
-                classification = 'Exposed';
-                class_site_data_id = 1;
-            }
-            else if (minExposure > 24 && maxExposure < 26) {
-                classification = 'Borderline';
-                class_site_data_id = 4;
-            }
-            else {
-                classification = 'Switching';
-                class_site_data_id = 3;
-            }
-            // Add current PDB residue to the list
-            pdbResidues.push({
-                pdb_res_label: residueNumber.toString(),
-                aa_type: residueName,
-                additional_residue_annotations: {
-                    mddb_rsa: {
-                        mean: round2tenths(meanExposure),
-                        standard_deviation: round2tenths(stdvExposure),
-                        rsa_class: classification,
-                        rsa_sub_class: null
-                    }
-                },
-                site_data: {
-                    "site_id_ref": class_site_data_id,
-                    "confidence_classification": "high"
-                    }
-            });
-        })
-        // Add the current PDB chain to the list
-        pdbChains.push({
-            chain_label: chainLetter,
-            residues: pdbResidues
-        })
+    // If the requested project is the reference keyword then set the analyses available for this specific reference data
+    // This was specifically tailored to get a reference SASA value
+    const isReference = request.params.project === KNOWLEDGE_REFERENCE_KEYWORD
+    if (isReference) {
+        // Iterate over the different PDB chains
+        for (const [chainLetter, sequence] of Object.entries(referenceData.chain_seq)) {
+            // Get other values from this chain
+            const residueSasValues = referenceData.chain_sas[chainLetter];
+            const residueUniprotNumeration = referenceData.chain_resnum[chainLetter];
+            // Get residue data according to the FunPDBe schema
+            const pdbResidues = [];
+            // Iterate residue indices
+            [...sequence].forEach((residueLetter, residueIndex) => {
+                // Get the residue numeration according to the reference (uniprot and thus the PDB)
+                const residueNumber = residueUniprotNumeration[residueIndex];
+                // Get residue name
+                const residueName = PROTEIN_LETTER_RESIDUE_NAMES[residueLetter] || 'NAN';
+                // Get the SAS value for this residue
+                const sasValue = residueSasValues[residueIndex];
+                // Calculate how much exposed is the residue
+                const exposedReferece = EXPOSED_RESIDUE_REFERENCE_VALUES[residueLetter];
+                // Conditions stated by Adam Bellaiche
+                // Buried: residues that maintain an RSA < 24%
+                // Exposed: residues that consistently show RSA > 26%
+                // Switching: residues with RSA values fluctuating between < 24% and > 26%
+                // Borderline: residues with RSA values consistently between 24% and 26%
+                const exposure = (sasValue / exposedReferece) * 100;
+                let classification;
+                let class_site_data_id;
+                if (exposure <= 24) {
+                    classification = 'Buried';
+                    class_site_data_id = 2;
+                }
+                else if (exposure >= 26) {
+                    classification = 'Exposed';
+                    class_site_data_id = 1;
+                }
+                else {
+                    classification = 'Borderline';
+                    class_site_data_id = 4;
+                }
+                // There will never be 'Switching' residues since data is not dynamic
+                // Add current PDB residue to the list
+                pdbResidues.push({
+                    pdb_res_label: residueNumber.toString(),
+                    aa_type: residueName,
+                    additional_residue_annotations: {
+                        mddb_rsa: {
+                            value: round2tenths(exposure),
+                            rsa_class: classification,
+                            rsa_sub_class: null
+                        }
+                    },
+                    site_data: {
+                        "site_id_ref": class_site_data_id,
+                        "confidence_classification": "high"
+                        }
+                });
+            })
+            // Add the current PDB chain to the list
+            pdbChains.push({
+                chain_label: chainLetter,
+                residues: pdbResidues
+            })
+        }
     }
+    else {
+        // Get the requested project data
+        const project = await database.getProject();
+        // If there was any problem then return the errors
+        if (project.error) return project;
+        // Query the database and retrieve the requested analysis
+        const analysisData = await project.getAnalysisData('sasa');
+        // If there was any problem then return the errors
+        if (analysisData.error) return analysisData;
+        // We will also need the topology data
+        const topologyData = await project.getTopologyData();
+        // If there was any problem then stop here
+        if (topologyData.error) return topologyData;
+        // Get the count of atoms per residue
+        const atomCountPerResidue = {};
+        topologyData.atom_residue_indices.forEach(residueIndex => {
+            if (atomCountPerResidue[residueIndex]) atomCountPerResidue[residueIndex] += 1;
+            else atomCountPerResidue[residueIndex] = 1;
+        });
+        // Iterate over the different PDB chains
+        for (const [chainLetter, uniprotId] of Object.entries(referenceData.chain_uniprots)) {
+            // Find the reference index in the topology
+            const referenceIndex = topologyData.references.indexOf(uniprotId);
+            // It may happen that the reference is not found
+            // This means a different chain of this PDB was used to setup the MD system
+            if (referenceIndex === -1) continue;
+            // Get residue indices for residues which belong to this reference/chain
+            const residueIndices = [];
+            Object.entries(topologyData.residue_reference_indices).forEach(([residueIndex, residueReferenceIndex]) => {
+                if (residueReferenceIndex === referenceIndex) residueIndices.push(residueIndex);
+            });
+            // Get residue data according to the FunPDBe schema
+            const pdbResidues = [];
+            // Iterate residue indices
+            residueIndices.forEach(residueIndex => {
+                // Get the residue numeration according to the reference (uniprot and thus the PDB)
+                const residueNumber = topologyData.residue_reference_numbers[residueIndex];
+                // Get residue name
+                const residueName = topologyData.residue_names[residueIndex];
+                // Get residue atom count
+                const residueAtomCount = atomCountPerResidue[residueIndex];
+                // Get residue SAS values for every frame in the analysis
+                const saspf = analysisData.saspf[residueIndex];
+                // Multiply the value by the number of atoms in the residue to 'un-normalize' them
+                const absaspf = saspf.map(sas => sas * residueAtomCount);
+                // Caluclate the mean and standard deviation of the new values
+                const { mean, stdv } = caluclateMeanAndStandardDeviation(absaspf);
+                // Get also min and max values
+                const minAbsas = min(absaspf);
+                const maxAbsas = max(absaspf);
+                // Calculate how much exposed is the residue
+                const residueLetter = PROTEIN_RESIDUE_NAME_LETTERS[residueName]
+                const exposedReferece = EXPOSED_RESIDUE_REFERENCE_VALUES[residueLetter];
+                // Conditions stated by Adam Bellaiche
+                // Buried: residues that maintain an RSA < 24%
+                // Exposed: residues that consistently show RSA > 26%
+                // Switching: residues with RSA values fluctuating between < 24% and > 26%
+                // Borderline: residues with RSA values consistently between 24% and 26%
+                const meanExposure = (mean / exposedReferece) * 100;
+                const stdvExposure = (stdv / exposedReferece) * 100;
+                const minExposure = (minAbsas / exposedReferece) * 100;
+                const maxExposure = (maxAbsas / exposedReferece) * 100;
+                let classification;
+                let class_site_data_id;
+                if (maxExposure <= 24) {
+                    classification = 'Buried';
+                    class_site_data_id = 2;
+                }
+                else if (minExposure >= 26) {
+                    classification = 'Exposed';
+                    class_site_data_id = 1;
+                }
+                else if (minExposure > 24 && maxExposure < 26) {
+                    classification = 'Borderline';
+                    class_site_data_id = 4;
+                }
+                else {
+                    classification = 'Switching';
+                    class_site_data_id = 3;
+                }
+                // Add current PDB residue to the list
+                pdbResidues.push({
+                    pdb_res_label: residueNumber.toString(),
+                    aa_type: residueName,
+                    additional_residue_annotations: {
+                        mddb_rsa: {
+                            mean: round2tenths(meanExposure),
+                            standard_deviation: round2tenths(stdvExposure),
+                            rsa_class: classification,
+                            rsa_sub_class: null
+                        }
+                    },
+                    site_data: {
+                        "site_id_ref": class_site_data_id,
+                        "confidence_classification": "high"
+                        }
+                });
+            })
+            // Add the current PDB chain to the list
+            pdbChains.push({
+                chain_label: chainLetter,
+                residues: pdbResidues
+            })
+        }
+    }
+    
     // If no PDB chains were found then something is wrong
     if (pdbChains.length === 0) return {
         headerError: INTERNAL_SERVER_ERROR,
         error: 'Something went wrong when searching for PDB chains'
     }
+    // set the URL to the PDB website
+    const pdbUrl = `https://www.ebi.ac.uk/pdbe/entry/pdb/${referenceData.id}`;
     // Get the requesting protocol, host and URL base
     // It will be used to generate the URLs
     const protocol = request.protocol;
@@ -190,21 +240,38 @@ router.route('/').get( handler({ async retriever(request) {
     // Add the cliente equivalent project URL as it has been suggested
     // HARDCODE: El host de la query no tiene por que ser el del cliente
     // HARDCODE: De hecho una API podría no tener cliente asociado o tener varios
-    const url = `${protocol}://${host}/#/id/${project.accession}/`;
+    const url = isReference ? pdbUrl : `${protocol}://${host}/#/id/${request.params.project}/`;
     // Return the final response in the expected format
     return {
         data_resource: "MDDB",
         resource_version: "0.0",
         resource_entry_url: url,
-        model_coordinates_url: `https://www.ebi.ac.uk/pdbe/entry/pdb/${pdbReference.id}`,
-        release_date: pdbReference.date,
-        pdb_id: pdbReference.id,
+        model_coordinates_url: pdbUrl,
+        release_date: referenceData.date,
+        pdb_id: referenceData.id,
         chains: pdbChains,
         evidence_code_ontology: [{
             "eco_term": "molecular dynamics evidence used in automatic assertion",
             "eco_code": "ECO_0006373"
         }],
-        sites: sites,
+        sites: [
+            {
+                site_id: 1,
+                label: "Exposed residue (RSA > 26% all the time)",
+            },
+            {
+                site_id: 2,
+                label: "Buried residue (RSA < 24% all the time)",
+            },
+            {
+                site_id: 3,
+                label: "Switching residue (fluctuating between < 24% and > 26%)",
+            },
+            {
+                site_id: 4,
+                label: "Borderline residue (between < 24% and > 26% all the time)",
+            },
+        ],
     };
 }}));
 
