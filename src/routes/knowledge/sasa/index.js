@@ -84,20 +84,10 @@ router.route('/').get( handler({ async retriever(request) {
                 // Switching: residues with RSA values fluctuating between < 24% and > 26%
                 // Borderline: residues with RSA values consistently between 24% and 26%
                 const exposure = (sasValue / exposedReferece) * 100;
-                let classification;
                 let class_site_data_id;
-                if (exposure <= 24) {
-                    classification = 'Buried';
-                    class_site_data_id = 2;
-                }
-                else if (exposure >= 26) {
-                    classification = 'Exposed';
-                    class_site_data_id = 1;
-                }
-                else {
-                    classification = 'Borderline';
-                    class_site_data_id = 4;
-                }
+                if (exposure <= 24) class_site_data_id = 2;
+                else if (exposure >= 26) class_site_data_id = 1;
+                else class_site_data_id = 4;
                 // There will never be 'Switching' residues since data is not dynamic
                 // Add current PDB residue to the list
                 pdbResidues.push({
@@ -106,14 +96,12 @@ router.route('/').get( handler({ async retriever(request) {
                     additional_residue_annotations: {
                         mddb_rsa: {
                             value: round2tenths(exposure),
-                            rsa_class: classification,
-                            rsa_sub_class: null
-                        }
+                        },
                     },
-                    site_data: {
+                    site_data: [{
                         "site_id_ref": class_site_data_id,
-                        "confidence_classification": "high"
-                        }
+                        "confidence_classification": "high",
+                    }],
                 });
             })
             // Add the current PDB chain to the list
@@ -162,6 +150,11 @@ router.route('/').get( handler({ async retriever(request) {
                 const residueNumber = topologyData.residue_reference_numbers[residueIndex];
                 // Get residue name
                 const residueName = topologyData.residue_names[residueIndex];
+                // Get the amino acid single letter code
+                const residueLetter = PROTEIN_RESIDUE_NAME_LETTERS[residueName];
+                // Get the classic amino acid name
+                // Otherwise the FunSchema validator will complain because a residue is called HID and it shoud be HIS.
+                const classicResidueName = PROTEIN_LETTER_RESIDUE_NAMES[residueLetter] || 'NAN';
                 // Get residue atom count
                 const residueAtomCount = atomCountPerResidue[residueIndex];
                 // Get residue SAS values for every frame in the analysis
@@ -174,7 +167,6 @@ router.route('/').get( handler({ async retriever(request) {
                 const minAbsas = min(absaspf);
                 const maxAbsas = max(absaspf);
                 // Calculate how much exposed is the residue
-                const residueLetter = PROTEIN_RESIDUE_NAME_LETTERS[residueName]
                 const exposedReferece = EXPOSED_RESIDUE_REFERENCE_VALUES[residueLetter];
                 // Conditions stated by Adam Bellaiche
                 // Buried: residues that maintain an RSA < 24%
@@ -185,47 +177,32 @@ router.route('/').get( handler({ async retriever(request) {
                 const stdvExposure = (stdv / exposedReferece) * 100;
                 const minExposure = (minAbsas / exposedReferece) * 100;
                 const maxExposure = (maxAbsas / exposedReferece) * 100;
-                let classification;
                 let class_site_data_id;
-                if (maxExposure <= 24) {
-                    classification = 'Buried';
-                    class_site_data_id = 2;
-                }
-                else if (minExposure >= 26) {
-                    classification = 'Exposed';
-                    class_site_data_id = 1;
-                }
-                else if (minExposure > 24 && maxExposure < 26) {
-                    classification = 'Borderline';
-                    class_site_data_id = 4;
-                }
-                else {
-                    classification = 'Switching';
-                    class_site_data_id = 3;
-                }
+                if (maxExposure <= 24) class_site_data_id = 2;
+                else if (minExposure >= 26) class_site_data_id = 1;
+                else if (minExposure > 24 && maxExposure < 26) class_site_data_id = 4;
+                else class_site_data_id = 3;
                 // Add current PDB residue to the list
                 pdbResidues.push({
                     pdb_res_label: residueNumber.toString(),
-                    aa_type: residueName,
+                    aa_type: classicResidueName,
                     additional_residue_annotations: {
                         mddb_rsa: {
                             mean: round2tenths(meanExposure),
                             standard_deviation: round2tenths(stdvExposure),
-                            rsa_class: classification,
-                            rsa_sub_class: null
-                        }
+                        },
                     },
-                    site_data: {
+                    site_data: [{
                         "site_id_ref": class_site_data_id,
-                        "confidence_classification": "high"
-                        }
+                        "confidence_classification": "high",
+                    }],
                 });
-            })
+            });
             // Add the current PDB chain to the list
             pdbChains.push({
                 chain_label: chainLetter,
                 residues: pdbResidues
-            })
+            });
         }
     }
     
@@ -244,35 +221,49 @@ router.route('/').get( handler({ async retriever(request) {
     // HARDCODE: El host de la query no tiene por que ser el del cliente
     // HARDCODE: De hecho una API podría no tener cliente asociado o tener varios
     const url = isReference ? pdbUrl : `${protocol}://${host}/#/id/${request.params.project}/`;
+    // Set the date in the expected format
+    const date = new Date(referenceData.date);
+    const funschemaDate = `${date.getMonth()}/${date.getDate()}/${date.getFullYear()}`;
     // Return the final response in the expected format
     return {
         data_resource: "MDDB",
         resource_version: "0.0",
         resource_entry_url: url,
         model_coordinates_url: pdbUrl,
-        release_date: referenceData.date,
+        release_date: funschemaDate,
         pdb_id: referenceData.id,
+        additional_entry_annotations: {
+            source_id: request.params.project,
+        },
         chains: pdbChains,
         evidence_code_ontology: [{
             "eco_term": "molecular dynamics evidence used in automatic assertion",
-            "eco_code": "ECO_0006373"
+            "eco_code": "ECO_0006373",
         }],
         sites: [
             {
                 site_id: 1,
-                label: "Exposed residue (RSA > 26% all the time)",
+                //label: "Exposed residue (RSA > 26% all the time)",
+                label: "Exposed",
+                additional_site_annotations: { percentage: "26" },
             },
             {
                 site_id: 2,
-                label: "Buried residue (RSA < 24% all the time)",
+                //label: "Buried residue (RSA < 24% all the time)",
+                label: "Buried",
+                additional_site_annotations: { percentage: "24" },
             },
             {
                 site_id: 3,
                 label: "Switching residue (fluctuating between < 24% and > 26%)",
+                label: "Switching",
+                additional_site_annotations: { percentage: "24-26" },
             },
             {
                 site_id: 4,
                 label: "Borderline residue (between < 24% and > 26% all the time)",
+                label: "Borderline",
+                additional_site_annotations: { percentage: "24-26" },
             },
         ],
     };
