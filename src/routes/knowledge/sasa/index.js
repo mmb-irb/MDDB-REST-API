@@ -63,6 +63,9 @@ router.route('/').get( handler({ async retriever(request) {
             // Get other values from this chain
             const residueSasValues = referenceData.chain_sas[chainLetter];
             const residueUniprotNumeration = referenceData.chain_resnum[chainLetter];
+            // If the UniProt was not matched to the sequence (not usual) then skip this chain
+            // We could return the values anyway but probably there is something wrong
+            if (residueUniprotNumeration === 'Missmatched') continue;
             // Get residue data according to the FunPDBe schema
             const pdbResidues = [];
             // Iterate residue indices
