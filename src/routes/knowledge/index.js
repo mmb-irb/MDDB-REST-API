@@ -3,6 +3,8 @@ const Router = require('express').Router;
 const handler = require('../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../database');
+// Get auxiliar functions
+const { getConfig } = require('../../utils/auxiliar-functions');
 // Standard HTTP response status codes
 const { NOT_FOUND } = require('../../utils/status-codes');
 // Fet a keyword to ask for the reference value, using the original PDB structure
@@ -98,7 +100,71 @@ router.route('/:pdbid/:project').get(
 );
 
 // An analysis is passed -> route to the corresponding analysis endpoint
-router.use('/:pdbid/:project/sasa', require('./sasa'));
-router.use('/:pdbid/:project/lipid-inter', require('./lipid-inter'));
+// Now depending on the request host:
+// Redirect to children routes if this is a local request
+// Redirect to other APIs if this is a global request
+router.use('/:pdbid/:project/:analysis', (request, response, next) => {
+  // Find out if the request host is configured as global
+  const config = getConfig(request);
+  const isGlobal = config && config.global;
+  // Also check if the project ID is indeed the reference keyword
+  // If the reference is requested then this can be handled by the global API itself
+  const isReference = request.params.project === KNOWLEDGE_REFERENCE_KEYWORD
+  // If it is the global server and an actual project is requested then redirect accordingly
+  if (isGlobal && !isReference) return redirectHandler(request, response, next);
+  // Otherwise, rout forward to the local analysis
+  const analysisName = request.params.analysis;
+  const localHandler = require(`./${analysisName}`);
+  return localHandler(request, response, next)
+});
+
+// If we are using the global API then any further query is mapped to the corresponding database
+// Set a handler to be used for both GET and POST methods
+const redirectHandler = handler({
+  async retriever(request) {
+    // Stablish database connection and retrieve our custom handler
+    const database = await getDatabase(request);
+    // Get the project
+    const projectData = await database.getProjectData();
+    if (projectData.error) return projectData;
+    // Set the local id to ask
+    let localAccession = projectData.local;
+    // Get the requested MD and add it to the local accession, if any
+    const requestedMdIndex = database.requestedMdIndex;
+    if (requestedMdIndex !== null) localAccession += `.${requestedMdIndex + 1}`;
+    // Find the database thes project belongs to
+    const nodeAlias = projectData.node;
+    // Get the corresponding node
+    const node = await database.nodes.findOne({ alias: nodeAlias });
+    if (!node) return {
+      headerError: INTERNAL_SERVER_ERROR,
+      error: `Node "${nodeAlias}" not found`
+    };
+    // Get url path removing the first slash
+    const urlPath = request.originalUrl.substring(1);
+    // Replace the global id by the local id
+    const splittedPath = urlPath.split('/');
+    splittedPath[4] = localAccession;
+    const replacedPath = splittedPath.join('/');
+    // Build the new forwarded URL using the corresponding node API url
+    const forwardedRef = node.api_url + replacedPath;
+    // The response code must change depending on the request method
+    let code;
+    if (request.method === 'GET') code = 302;
+    else if (request.method === 'POST') code = 307;
+    else throw new Error(`Unsupported method ${request.method}`);
+    return { code, url: forwardedRef };
+  },
+  // Handle the response body
+  body(response, retrieved) {
+    // If nothing is retrieved then end the response
+    // Note that the header should end the response already, but just in case
+    if (!retrieved) return response.end();
+    // If there is any error in the body then just send the error
+    if (retrieved.error) return response.json(retrieved.error);
+    // Send the response
+    response.redirect(retrieved.code, retrieved.url);
+  },
+});
 
 module.exports = router;
