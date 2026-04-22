@@ -7,6 +7,9 @@ const getDatabase = require('../../../database');
 const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
 const { getHost } = require('../../../utils/auxiliar-functions');
 
+// Set the name of the current analysis
+const ANALYSIS_NAME = 'lipid-inter';
+
 // Instantiate the router
 const router = Router({ mergeParams: true });
 
@@ -22,8 +25,13 @@ router.route('/').get( handler({ async retriever(request) {
     const project = await database.getProject();
     // If there was any problem then return the errors
     if (project.error) return project;
+    // Make sure the analysis is present in the project
+    if (!project.data.analyses.includes(ANALYSIS_NAME)) return {
+        headerError: NOT_FOUND,
+        error: `Project ${project.accession} has not "${ANALYSIS_NAME}" data.`
+    }
     // Query the database and retrieve the requested analysis
-    const analysisData = await project.getAnalysisData('lipid-inter');
+    const analysisData = await project.getAnalysisData(ANALYSIS_NAME);
     // If there was any problem then return the errors
     if (analysisData.error) return analysisData;
     // We will also need the topology data
@@ -36,6 +44,11 @@ router.route('/').get( handler({ async retriever(request) {
     if (referenceData.error) return referenceData;
     // Get the PDB id in hte request
     const pdbId = request.params.pdbid;
+    // Make sure the requested PDB id is among the PDB references in this project
+    if (!project.data.metadata.PDBIDS.includes(pdbId)) return {
+        headerError: NOT_FOUND,
+        error: `Project ${project.accession} has not reference PDB "${pdbId}".`
+    }
     // Filter PDB references
     const pdbReference = referenceData.find(reference => reference.ref_type === 'pdbs' && reference.id === pdbId);
     // Make sure we have PDB references

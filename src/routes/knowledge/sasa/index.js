@@ -11,6 +11,9 @@ const {
     min, max, round2tenths, getHost
 } = require('../../../utils/auxiliar-functions');
 
+// Set the name of the current analysis
+const ANALYSIS_NAME = 'sasa';
+
 // Instantiate the router
 const router = Router({ mergeParams: true });
 
@@ -116,8 +119,18 @@ router.route('/').get( handler({ async retriever(request) {
         const project = await database.getProject();
         // If there was any problem then return the errors
         if (project.error) return project;
+        // Make sure the requested PDB id is among the PDB references in this project
+        if (!project.data.metadata.PDBIDS.includes(pdbId)) return {
+            headerError: NOT_FOUND,
+            error: `Project ${project.accession} has not reference PDB "${pdbId}".`
+        }
+        // Make sure the analysis is present in the project
+        if (!project.data.analyses.includes(ANALYSIS_NAME)) return {
+            headerError: NOT_FOUND,
+            error: `Project ${project.accession} has not "${ANALYSIS_NAME}" data.`
+        }
         // Query the database and retrieve the requested analysis
-        const analysisData = await project.getAnalysisData('sasa');
+        const analysisData = await project.getAnalysisData(ANALYSIS_NAME);
         // If there was any problem then return the errors
         if (analysisData.error) return analysisData;
         // We will also need the topology data

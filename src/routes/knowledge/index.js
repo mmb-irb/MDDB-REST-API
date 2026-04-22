@@ -112,8 +112,14 @@ router.use('/:pdbid/:project/:analysis', (request, response, next) => {
   const isReference = request.params.project === KNOWLEDGE_REFERENCE_KEYWORD
   // If it is the global server and an actual project is requested then redirect accordingly
   if (isGlobal && !isReference) return redirectHandler(request, response, next);
-  // Otherwise, rout forward to the local analysis
+  // Otherwise, route forward to the local analysis
   const analysisName = request.params.analysis;
+  // Make sure the requested analysis exists
+  if (!SUPPORTED_ANALYSES.has(analysisName)) return handler({ retriever: () => ({
+    headerError: NOT_FOUND,
+    error: `Analysis "${analysisName}" is not supported. Supported analyses: ${[...SUPPORTED_ANALYSES].join(', ')}`
+  })})(request, response, next);
+  // Redirect to the pertinent analysis
   const localHandler = require(`./${analysisName}`);
   return localHandler(request, response, next)
 });
