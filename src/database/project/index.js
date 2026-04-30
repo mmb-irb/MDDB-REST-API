@@ -167,6 +167,27 @@ class Project {
         return coordinates;
     }
 
+    // Get all file descriptors across all MDs
+    // Results may be filtered by filenames
+    // DANI: This is used by the monitor to check essential files in other nodes
+    getAllMdsFileDescriptors = async (filenames = null) => {
+        // Set the MD files query by targeting files with the current MD index
+        // Set the project query
+        const filesQuery = { 'metadata.project': this.data.internalId };
+        // If any filename is passed then add it to the query
+        if (filenames) filesQuery['filename'] = { $in: filenames };
+        // Query the database
+        const filesCursor = await this.database.files.find(filesQuery);
+        // Consume the cursor
+        const fileDescriptors = await filesCursor.toArray();
+        // If there are no files at the end of the process then return an error
+        if (fileDescriptors.length === 0) return {
+            headerError: NOT_FOUND,
+            error: `No files were found`
+        };
+        return fileDescriptors;
+    }
+
     // Get all file descriptors
     getFileDescriptors = async () => {
         // Set the MD files query by targeting files with the current MD index

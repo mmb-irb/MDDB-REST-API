@@ -28,8 +28,19 @@ router.route('/').get(
       const project = await database.getProject();
       // If there was any problem then return the errors
       if (project.error) return project;
+      // Get possible request arguments
+      // Note that the 'filenames' argument is only to be passes when the 'allmds' argument is passed
+      // These arguments are not listed in the documentation since they are only interesting for the monitor
+      const allMds = request.query.allmds;
+      const isAllMds = (allMds !== undefined && allMds.toLowerCase() !== 'false');
+      const filenames = request.query.filenames;
+      const filenamesList = filenames.split(',');
       // Get all file descriptions
-      const filesData = await project.getFileDescriptors();
+      const filesData = isAllMds
+        ? await project.getAllMdsFileDescriptors(filenamesList)
+        : await project.getFileDescriptors();
+      if (filesData.error) return filesData;
+      // Apply a bi of clean up and return the result
       return filesData.map(descriptor => cleanFileDescriptor(descriptor));
     }
   }),
