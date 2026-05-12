@@ -86,6 +86,8 @@ router.route('/').get(
           const mdFilesEndpoint = `${projectEndpoint}.${md.num}/files`;
           md.input_structure_filepath = `${mdFilesEndpoint}/structure.pdb`;
           md.input_trajectory_filepaths = `${mdFilesEndpoint}/trajectory.xtc`;
+          const topologyFile = md.files.find(file => TOPOLOGY_FILENAME_REGEXP.exec(file.name));
+          if (topologyFile) md.input_topology_filepath = `${mdFilesEndpoint}/${topologyFile.name}`;
         }
         delete md.num;
         delete md.atoms;
@@ -95,10 +97,6 @@ router.route('/').get(
         delete md.files;
         delete md.warnings;
       })
-      // Set the input topology file
-      const topologyFile = projectData.files.find(file => TOPOLOGY_FILENAME_REGEXP.exec(file.name));
-      const topologyFilename = (topologyFile && topologyFile.name) || 'topology.json';
-      const topologyFilepath = `${projectFilesEndpoint}/${topologyFilename}`;
       // Prepare the inputs json file to be sent
       const inputs = {
         name: metadata.NAME,
@@ -137,8 +135,15 @@ router.route('/').get(
         collections: metadata.COLLECTIONS,
         mds: projectData.mds,
         mdref: projectData.mdref,
-        input_topology_filepath: topologyFilepath
       };
+      // Set the input topology file
+      // This process is skip if all MDs already have a topology path
+      if (!projectData.mds.every(md => md.input_topology_filepath)) {
+        const topologyFile = projectData.files.find(file => TOPOLOGY_FILENAME_REGEXP.exec(file.name));
+        const topologyFilename = (topologyFile && topologyFile.name) || 'topology.json';
+        const topologyFilepath = `${projectFilesEndpoint}/${topologyFilename}`;
+        inputs.input_topology_filepath = topologyFilepath;
+      }
       // Add collection specific fields
       if (metadata.COLLECTIONS == 'cv19') {
         inputs.cv19_unit = metadata.CV19_UNIT;
