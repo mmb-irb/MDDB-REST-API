@@ -34,7 +34,7 @@ router.route('/').get(
       const allMds = request.query.allmds;
       const isAllMds = (allMds !== undefined && allMds.toLowerCase() !== 'false');
       const filenames = request.query.filenames;
-      const filenamesList = filenames.split(',');
+      const filenamesList = filenames && filenames.split(',');
       // Get all file descriptions
       const filesData = isAllMds
         ? await project.getAllMdsFileDescriptors(filenamesList)
