@@ -110,7 +110,7 @@ router.route('/').get(
       // If projects data is empty then stop here
       if (projectsData.length === 0) return {
         headerError: NOT_FOUND,
-        error: `Query ${query} is empty`
+        error: `The result of ${(query && `query "${query}"`) || ''}${(query && search && ' and ') || ''}${(search && `search "${search}"`) || ''} is empty`
       }
       // Start handling references options
       // First of all, make sure there was at least one reference projection request
