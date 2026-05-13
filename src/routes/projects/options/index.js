@@ -6,7 +6,7 @@ const getDatabase = require('../../../database');
 // Standard HTTP response status codes
 const { BAD_REQUEST, NOT_FOUND } = require('../../../utils/status-codes');
 // Set a error-proof JSON parser
-const { getValueGetter } = require('../../../utils/auxiliar-functions');
+const { getValueGetter, getSearchQuery } = require('../../../utils/auxiliar-functions');
 // Import references configuration
 const { REFERENCES, REFERENCE_HEADER, TOPOLOGY_HEADER } = require('../../../utils/constants');
 
@@ -21,6 +21,14 @@ router.route('/').get(
       // Set an object with all the parameters to performe the mongo query
       // Start filtering by published projects only if we are in production environment
       const finder = database.getBaseFilter();
+      // Handle when there is an automatic query
+      let search = request.query.search;
+      if (search) {
+        // Process the mongo query to convert references and topology queries
+        const searchQuery = getSearchQuery(search);
+        if (!finder.$and) finder.$and = [ searchQuery ];
+        else finder.$and = finder.$and.concat(searchQuery);
+      }
       // Handle when there is a mongo query
       let query = request.query.query;
       if (query) {

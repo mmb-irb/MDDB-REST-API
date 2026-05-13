@@ -166,6 +166,43 @@ const min = array => array.reduce((cv, nv) => Math.min(cv, nv), Infinity);
 const round2tenths = number => Math.round(number * 10) / 10;
 const round2cents = number => Math.round(number * 100) / 100;
 
+// Convert a string input into int, float or boolean type if possible
+const parseType = input => {
+  // Booleans
+  if (input === 'false') return false;
+  if (input === 'true') return true;
+  // Numbers
+  if (+input) return +input;
+  // Other strings
+  return input;
+};
+
+// Escape all regex sensible characters
+const escapeRegExp = input => {
+  return input.replace(/[-[/\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+};
+
+// Set the defualt smart query when the user uses the "search" parameters
+const getSearchQuery = searchText => {
+  // Removes surrounding white spaces and escape regular expression characters
+  const trimedText = escapeRegExp(searchText.trim());
+  // $regex is a mongo command to search for regular expressions inside fields
+  // $options: 'i' stands for the search to be case insensitive
+  return {
+    $or: [
+      { accession: { $regex: trimedText, $options: 'i' } },
+      { 'metadata.NAME': { $regex: trimedText, $options: 'i' } },
+      { 'metadata.DESCRIPTION': { $regex: trimedText, $options: 'i' } },
+      { 'metadata.AUTHORS': { $regex: trimedText, $options: 'i' } },
+      { 'metadata.GROUPS': { $regex: trimedText, $options: 'i' } },
+      { 'metadata.REFERENCES': { $regex: trimedText, $options: 'i' } },
+      { 'metadata.INCHIKEYS': { $regex: trimedText, $options: 'i' } },
+      { 'metadata.PDBIDS': { $regex: trimedText, $options: 'i' } },
+      { 'metadata.SYSKEYS': { $regex: trimedText, $options: 'i' } },
+    ],
+  };
+}
+
 module.exports = {
     getRequestUrl,
     parseJSON,
@@ -183,4 +220,7 @@ module.exports = {
     min,
     round2tenths,
     round2cents,
+    parseType,
+    escapeRegExp,
+    getSearchQuery,
 }

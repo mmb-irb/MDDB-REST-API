@@ -7,27 +7,11 @@ const getDatabase = require('../../database');
 // Get the project formatter
 const projectFormatter = require('../../utils/project-formatter');
 // Get auxiliar functions
-const { parseJSON, getConfig } = require('../../utils/auxiliar-functions');
+const { parseJSON, getConfig, parseType, getSearchQuery } = require('../../utils/auxiliar-functions');
 // Standard HTTP response status codes
 const { BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 
 const projectRouter = Router();
-
-// Convert a string input into int, float or boolean type if possible
-const parseType = input => {
-  // Booleans
-  if (input === 'false') return false;
-  if (input === 'true') return true;
-  // Numbers
-  if (+input) return +input;
-  // Other strings
-  return input;
-};
-
-// Escape all regex sensible characters
-const escapeRegExp = input => {
-  return input.replace(/[-[/\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-};
 
 // Root
 projectRouter.route('/').get(
@@ -42,24 +26,10 @@ projectRouter.route('/').get(
       // Look for the search text in the accession and some metadata/pdbInfo fields
       const search = request.query.search;
       if (search) {
-        // trim() removes surrounding white spaces
-        const tsearch = escapeRegExp(search.trim());
-        // $regex is a mongo command to search for regular expressions inside fields
-        // $options: 'i' stands for the search to be case insensitive
-        if (!finder.$and) finder.$and = [];
-        finder.$and.push( {
-            $or: [
-              { accession: { $regex: tsearch, $options: 'i' } },
-              { 'metadata.NAME': { $regex: tsearch, $options: 'i' } },
-              { 'metadata.DESCRIPTION': { $regex: tsearch, $options: 'i' } },
-              { 'metadata.AUTHORS': { $regex: tsearch, $options: 'i' } },
-              { 'metadata.GROUPS': { $regex: tsearch, $options: 'i' } },
-              { 'metadata.REFERENCES': { $regex: tsearch, $options: 'i' } },
-              { 'metadata.INCHIKEYS': { $regex: tsearch, $options: 'i' } },
-              { 'metadata.PDBIDS': { $regex: tsearch, $options: 'i' } },
-              { 'metadata.SYSKEYS': { $regex: tsearch, $options: 'i' } },
-            ],
-          });
+        // Parse the search text to a predefined smart query
+        const searchQuert = getSearchQuery(search);
+        if (!finder.$and) finder.$and = [ searchQuert ];
+        else finder.$and.push(searchQuert);
       }
       // Then, filter by 'filter' parameters
       // Look for a specified value in any database field
