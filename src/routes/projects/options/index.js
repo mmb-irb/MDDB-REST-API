@@ -8,7 +8,7 @@ const { BAD_REQUEST, NOT_FOUND } = require('../../../utils/status-codes');
 // Set a error-proof JSON parser
 const { getValueGetter, getSearchQuery } = require('../../../utils/auxiliar-functions');
 // Import references configuration
-const { REFERENCES, REFERENCE_HEADER, TOPOLOGY_HEADER } = require('../../../utils/constants');
+const { REFERENCES, REFERENCE_HEADER } = require('../../../utils/constants');
 
 const router = Router({ mergeParams: true });
 
@@ -24,7 +24,7 @@ router.route('/').get(
       // Handle when there is an automatic query
       let search = request.query.search;
       if (search) {
-        // Process the mongo query to convert references and topology queries
+        // Process the mongo query to convert reference queries
         const searchQuery = getSearchQuery(search);
         if (!finder.$and) finder.$and = [ searchQuery ];
         else finder.$and = finder.$and.concat(searchQuery);
@@ -32,7 +32,7 @@ router.route('/').get(
       // Handle when there is a mongo query
       let query = request.query.query;
       if (query) {
-        // Process the mongo query to convert references and topology queries
+        // Process the mongo query to convert reference queries
         const processedQuery = await database.processProjectsQuery(query);
         if (processedQuery.error) return processedQuery;
         if (!finder.$and) finder.$and = processedQuery;
@@ -48,22 +48,17 @@ router.route('/').get(
       // Set the options object to be returned
       // Then all mined data will be written into it
       const options = {};
-      // Options may be fields from projects, topologies, or references collections
+      // Options may be fields from projects or references collections
       // Fields in references are headed with the 'references.' label and they are handled separately
       // Start with options from references
       // In case there is any reference we must query the projects collections first
-      const requestedProjections = { projects: [], topologies: [] };
+      const requestedProjections = { projects: [] };
       const availableReferences = Object.keys(REFERENCES);
       availableReferences.forEach(referenceName => { requestedProjections[referenceName] = [] });
       // Keep a set with the references included in the projection
       const requestedReferences = new Set();
       // First separate reference fields from project fields
       for (const field of projection) {
-        // If this field has the topology header then it is a topology field
-        if (field.startsWith(TOPOLOGY_HEADER)) {
-          requestedProjections.topologies.push(field);
-          continue;
-        }
         // If this field has not the reference header either then it is a project field
         if (!field.startsWith(REFERENCE_HEADER)) {
           requestedProjections.projects.push(field);
@@ -92,7 +87,7 @@ router.route('/').get(
       // First, we get the project requested fields
       // Second, we get reference id fields to further count the number of matches per reference requested field
       // Set the projector according to the two previously explained goals
-      // We will need internal ids if we have to request any reference or topology field
+      // We will need internal ids if we have to request any reference field
       const projector = { _id: true };
       // Add requested project fields
       requestedProjections.projects.forEach(field => {
@@ -215,46 +210,6 @@ router.route('/').get(
             const originalFieldName = `${REFERENCE_HEADER}${referenceName}.${field}`;
             options[originalFieldName] = valueCounts;
           });
-        }
-      }
-      // Next process topology requests
-      // LORE: Back in the day we used the 'find' command and then consumed the cursor iteratively
-      // LORE: However this was too slow for residue names, atom names, etc.
-      // LORE: Thus the 'aggregate' command is used instead
-      const anyTopologyProjection = requestedProjections.topologies.length > 0;
-      if (anyTopologyProjection) {
-        // Get the topology fields to be checked
-        const topologyFields = requestedProjections.topologies.map(field => field.split('.')[1]);
-        // Iterate every topology field and set the instructions for mongo
-        // We will have to repeat the process for each field
-        const facet = {};
-        for (const topologyField of topologyFields) {
-          facet[topologyField] = [
-            // Getting unique values for the target field
-            { $addFields: { unique: { $setUnion: ['$' + topologyField, []] } } },
-            // Convert every unique value in every different project in a separated document
-            { $unwind: "$unique" },
-            // Create a document for every unique value and count the number of repeated values
-            { $group: { _id: "$unique", total: { $sum: 1 } }},
-          ];
-        }
-        // Get internal ids from target projects
-        const targetProjectIds = projectsData.map(project => project._id);
-        // Run an aggregate command and consume the cursor right away
-        // We do this at the end to keep a single call to mongo
-        // Thus we avoid having to repeat the query ($match) every time
-        const result = await database.topologies.aggregate([
-          // Get target topologies
-          { $match: { project: { $in: targetProjectIds }} },
-          // Getting unique values for the target field
-          { $facet: facet },
-        ]).next(); // We expect one document only
-        // Add the counts to the global object
-        for (const topologyField of topologyFields) {
-          const rawCounts = result[topologyField];
-          const counts = {};
-          rawCounts.forEach(raw => { counts[raw._id] = raw.total });
-          options[TOPOLOGY_HEADER + topologyField] = counts;
         }
       }
       // Now handle project options
