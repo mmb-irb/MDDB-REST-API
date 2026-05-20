@@ -127,6 +127,11 @@ paths:
               value: 'metadata.METHOD'
           schema:
             type: string
+        - name: countMds
+          in: query
+          description: get also the number of MDs in every result
+          schema:
+            type: boolean
       responses:
         200:
           description: an object with options per field
