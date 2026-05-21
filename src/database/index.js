@@ -1,18 +1,7 @@
-// Connect to the mongo database and return the connection
-// Alternatively, in 'test' context, connect to a local fake mongo database and return the connection
-const dbConnection = process.env.NODE_ENV === 'test'
-    ? require('../../test-helpers/mongo/index')
-    : require('../models/index');
-
-// Import collections configuration
-const {
-    LOCAL_COLLECTION_NAMES,
-    GLOBAL_COLLECTION_NAMES,
-    REFERENCES,
-    REFERENCE_HEADER,
-    DATE_FIELDS,
-} = require('../utils/constants');
-const AVAILABLE_REFERENCES = Object.keys(REFERENCES).join(', ');
+// Import the MDDB database handler
+const { databaseConnection, Database } = require('../mddb-database');
+// Import some constants
+const { REFERENCE_HEADER, DATE_FIELDS } = require('../utils/constants');
 // Get a function to clean raw project data to a standard format
 const projectFormatter = require('../utils/project-formatter');
 // Get auxiliar functions
@@ -26,8 +15,7 @@ const Project = require('./project');
 // This id is associated to the provided idOrAccession when it is valid
 // When the idOrAccession is not valid for mongo it just returns the same idOrAccession
 // In addition, it returns the provided filters
-// GridFSBucket manages the saving of files bigger than 16 Mb, splitting them into 4 Mb fragments (chunks)
-const { ObjectId, GridFSBucket } = require('mongodb');
+const { ObjectId } = require('mongodb');
 
 // Set a function to check if a string is a mongo internal id
 // WARNING: Do not use the builtin 'ObjectId.isValid'
@@ -35,39 +23,15 @@ const { ObjectId, GridFSBucket } = require('mongodb');
 const isObjectId = string => /^[a-z0-9]{24}$/.test(string);
 
 // Set the project class
-class Database {
-    constructor (client, db, request) {
-        if (!client) throw new Error('No client');
-        if (!db) throw new Error('No database');
+class Database4Api extends Database {
+    constructor (client, isGlobal, request, config) {
+        super(client, isGlobal);
         // Store inputs
-        this.client = client;
-        this.db = db;
         this.request = request;
-        // Get host configuration
-        this.config = getConfig(request);
-        // Check if it is a global API
-        this.isGlobal = this.config && this.config.global;
-        // Set the collections to be queried
-        const collectionNames = this.isGlobal
-            ? GLOBAL_COLLECTION_NAMES
-            : LOCAL_COLLECTION_NAMES;
-        // Set every collection handler
-        for (const [collectionAlias, collectionName] of Object.entries(collectionNames)) {
-            this[collectionAlias] = db.collection(collectionName);
-        }
+        this.config = config;
         // Save some internal values
-        this._bucket = undefined;
         this._requestedMdIndex = undefined;
     };
-
-    // Get the grid fs bucket
-    get bucket () {
-        // Return the internal value if it is already declared
-        if (this._bucket !== undefined) return this._bucket;
-        // Instantiate the bucket otherwise
-        this._bucket = new GridFSBucket(this.db);
-        return this._bucket;
-    }
 
     // Join the published filter, the collection filter and the posited filter in one single filter
     getBaseFilter = () => {
@@ -218,13 +182,13 @@ class Database {
     // Get all ids available in a given reference
     getReferenceAvailableIds = async (referenceName, query = {}) => {
         // Get the requested reference configuration
-        const reference = REFERENCES[referenceName];
+        const reference = this.REFERENCES[referenceName];
         if (!reference) return {
             headerError: NOT_FOUND,
-            error: `Unknown reference "${referenceName}". Available references: ${AVAILABLE_REFERENCES}`
+            error: `Unknown reference "${referenceName}". Available references: ${this.AVAILABLE_REFERENCES}`
         };
         // Set the target mongo collection
-        const collection = this[referenceName];
+        const collection = this[reference.collectionName];
         // Get all references, but only their reference ids
         const cursor = await collection.find(query,
             { projection: { _id: false, [reference.idField]: true } },
@@ -239,13 +203,13 @@ class Database {
     // Get all ids available in a given reference
     getReferenceData = async (referenceName, referenceId) => {
         // Get the requested reference configuration
-        const reference = REFERENCES[referenceName];
+        const reference = this.REFERENCES[referenceName];
         if (!reference) return {
             headerError: NOT_FOUND,
-            error: `Unknown reference "${referenceName}". Available references: ${AVAILABLE_REFERENCES}`
+            error: `Unknown reference "${referenceName}". Available references: ${this.AVAILABLE_REFERENCES}`
         };
         // Set the target mongo collection
-        const collection = this[referenceName];
+        const collection = this[reference.collectionName];
         // Set the target query
         const query = { [reference.idField]: referenceId };
         // Set a projection to get rid of the internal id
@@ -311,7 +275,7 @@ class Database {
                     const referenceName = fieldSplits[1];
                     const referenceField = fieldSplits[2];
                     // Get the reference configuration
-                    const reference = REFERENCES[referenceName];
+                    const reference = this.REFERENCES[referenceName];
                     // Set the references query
                     const referencesQuery = {};
                     referencesQuery[referenceField] = value;
@@ -320,7 +284,7 @@ class Database {
                     referencesProjector[reference.idField] = true;
                     // Query the references collection
                     // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
-                    const referencesCursor = await this[referenceName]
+                    const referencesCursor = await this[reference.collectionName]
                         .find(referencesQuery)
                         .project(referencesProjector);
                     const results = await referencesCursor
@@ -382,11 +346,12 @@ class Database {
 // Then construct and return the database handler
 const getDatabase = async request => {
     // Save the mongo database connection
-    const client = await dbConnection;
-    // Access the database
-    const db = client.db(process.env.DB_NAME);
+    const client = await databaseConnection;
+    // Get the congif parameters
+    const config = getConfig(request);
+    const isGlobal = config.global || false;
     // Instantiate the database handler
-    return new Database(client, db, request);
+    return new Database4Api(client, isGlobal, request, config);
 };
 
 module.exports = getDatabase

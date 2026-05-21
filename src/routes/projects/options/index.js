@@ -8,7 +8,7 @@ const { BAD_REQUEST, NOT_FOUND } = require('../../../utils/status-codes');
 // Set a error-proof JSON parser
 const { getValueGetter, getSearchQuery } = require('../../../utils/auxiliar-functions');
 // Import references configuration
-const { REFERENCES, REFERENCE_HEADER } = require('../../../utils/constants');
+const { REFERENCE_HEADER } = require('../../../utils/constants');
 
 const router = Router({ mergeParams: true });
 
@@ -56,7 +56,7 @@ router.route('/').get(
       // Start with options from references
       // In case there is any reference we must query the projects collections first
       const requestedProjections = { projects: [] };
-      const availableReferences = Object.keys(REFERENCES);
+      const availableReferences = Object.keys(database.REFERENCES);
       availableReferences.forEach(referenceName => { requestedProjections[referenceName] = [] });
       // Keep a set with the references included in the projection
       const requestedReferences = new Set();
@@ -100,7 +100,7 @@ router.route('/').get(
       });
       // Add requested references id fields
       requestedReferences.forEach(referenceName => {
-        const reference = REFERENCES[referenceName];
+        const reference = database.REFERENCES[referenceName];
         projector[reference.projectIdsField] = true;
       });
       // Set the projects cursor
@@ -124,7 +124,7 @@ router.route('/').get(
         // Now iterate along the different references
         for await (const referenceName of requestedReferences) {
           // Get the reference configuration
-          const reference = REFERENCES[referenceName];
+          const reference = database.REFERENCES[referenceName];
           // Set a getter function for the project reference ids field
           const projectIdsGetter = getValueGetter(reference.projectIdsField);
           // Set a list of projects including every reference id
@@ -153,7 +153,7 @@ router.route('/').get(
             referencesProjector[field] = true;
           });
           // Get all references using the custom projector
-          const collection = database[referenceName];
+          const collection = database[reference.collectionName];
           const referencesCursor = await collection.find(
             {}, // Get all references, independently from the request origin
             // Discard the heaviest fields we do not need anyway

@@ -4,8 +4,8 @@ const handler = require('../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../database');
 // Import references configuration
-const { REFERENCES } = require('../../utils/constants');
-const availableReferences = Object.keys(REFERENCES).join(', ');
+const { REFERENCES } = require('../../mddb-database/utils/constants');
+const AVAILABLE_REFERENCES = Object.keys(REFERENCES).join(', ');
 // Standard codes for HTTP responses
 const { BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 
@@ -17,13 +17,13 @@ const wholeReferenceResponse = handler({
         const database = await getDatabase(request);
         // Get the requested reference configuration
         const referenceName = request.params.reference;
-        const reference = REFERENCES[referenceName];
+        const reference = database.REFERENCES[referenceName];
         if (!reference) return {
             headerError: NOT_FOUND,
-            error: `Unknown reference "${referenceName}". Available references: ${availableReferences}`
+            error: `Unknown reference "${referenceName}". Available references: ${database.AVAILABLE_REFERENCES}`
         };
         // Set the target mongo collection
-        const referenceCollection = database[referenceName];
+        const referenceCollection = database[reference.collectionName];
         // Set the reference query
         let referenceQuery = {}
         // Get the requested query, if any
@@ -119,7 +119,7 @@ const specificReferenceResponse = handler({
 rootRouter.route('/').get((_, response) => {
     // Return a message with all possible routes
     // This is just a map so the API user know which options are available
-    response.json(`Available reference endpoints: ${availableReferences}`);
+    response.json(`Available reference endpoints: ${AVAILABLE_REFERENCES}`);
 });
 rootRouter.route('/:reference').get(wholeReferenceResponse);
 rootRouter.route('/:reference/:id').get(specificReferenceResponse);

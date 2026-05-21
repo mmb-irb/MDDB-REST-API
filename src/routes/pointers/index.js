@@ -3,18 +3,14 @@ const rootRouter = require('express').Router();
 const handler = require('../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../database');
-// Import references configuration
-const { REFERENCES } = require('../../utils/constants');
+// Import reference configurations for reference supported by pointers
+const { POINTERS_SUPPORTED_REFERENCES } = require('../../utils/constants');
+const availableReferences = Object.keys(POINTERS_SUPPORTED_REFERENCES).join(', ');
 // Standard codes for HTTP responses
 const { BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND } = require('../../utils/status-codes');
 // Import auxiliar functions
 const { getValueGetter, getBaseURL, getHost, round2tenths } = require('../../utils/auxiliar-functions');
 const { rangeNotation } = require('../../utils/parse-query-range');
-// Set the supported references
-// We exclude chains since it does not make sense, although it should work anyway
-const SUPPORTED_REFERENCES = [ ...Object.keys(REFERENCES) ]
-    .filter(value => value !== 'chains');
-const availableReferences = SUPPORTED_REFERENCES.join(', ');
 // Set which references support "presence"
 // These are references to be residue-assigned in the topology
 // Thus PDB references do not support presence
@@ -55,7 +51,7 @@ const pointersEndpoint = handler({
         };
         // Get the requested reference configuration
         const referenceName = request.params.reference;
-        const reference = REFERENCES[referenceName];
+        const reference = database.REFERENCES[referenceName];
         if (!reference) return {
             headerError: BAD_REQUEST,
             error: `Not suppoted reference "${referenceName}". Available references: ${availableReferences}`
@@ -121,7 +117,7 @@ const pointersEndpoint = handler({
         if (supportedCoverage) {
             // Now download reference data
             // This is used only to measure the coverage of the reference in the current system
-            const collection = database[referenceName];
+            const collection = database[reference.collectionName];
             // Download the target reference only, or all references if there is not target
             const referencesFinder = hasTarget ? { [reference.idField]: targetReferenceId } : {};
             // Set which field are to be retrieved

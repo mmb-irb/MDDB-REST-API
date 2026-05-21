@@ -4,30 +4,13 @@ const mongodb = require('mongodb');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
 // Set some fake projects to be uploaded
-const project1 = {
-  accession: 'PRUEBA01',
-  published: false,
-  metadata: {
-    NAME: 'prueba 1',
-    UNIT: 'A',
-    ATOMS: 123,
-    REFERENCES: ['SARS-CoV-2 spike', 'Angiotensin-converting enzyme 2'],
-  },
-};
-
-const project2 = require('./project.json');
-
-const reference1 = {
-  name: 'SARS-CoV-2 spike',
-  sequence: 'ABCDEFG',
-};
-
-const reference2 = {
-  name: 'Angiotensin-converting enzyme 2',
-  sequence: 'WTFRUTA',
-};
+const project1 = require('./project_1.json');
+const project2 = require('./project_2.json');
+const reference1 = require('./reference_1.json');
+const reference2 = require('./reference_2.json'); // entropies and epitopes removed for comodity
 
 // Set up the fake server and return an available connection to this server
+// DANI: This has not been maintained in a while, expect problems when trying
 const establishFakeConnection = async () => {
   let client;
   try {

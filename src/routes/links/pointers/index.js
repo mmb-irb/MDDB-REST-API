@@ -3,17 +3,13 @@ const rootRouter = require('express').Router();
 const handler = require('../../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../../database');
-// Import references configuration
-const { REFERENCES } = require('../../../utils/constants');
+// Import reference configurations for reference supported by pointers
+const { POINTERS_SUPPORTED_REFERENCES } = require('../../../utils/constants');
+const availableReferences = Object.keys(POINTERS_SUPPORTED_REFERENCES).join(', ');
 // Standard codes for HTTP responses
 const { BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND } = require('../../../utils/status-codes');
 // Auxiliar functions
 const { getHost } = require('../../../utils/auxiliar-functions');
-// Set the supported references
-// We exclude chains since it does not make sense, although it should work anyway
-const SUPPORTED_REFERENCES = [ ...Object.keys(REFERENCES) ]
-    .filter(value => value !== 'chains');
-const availableReferences = SUPPORTED_REFERENCES.join(', ');
 // Set a list of supported formats
 const SUPPORTED_FORMATS = ['json', 'csv'];
 const availableFormats = SUPPORTED_FORMATS.join(', ');
@@ -36,7 +32,7 @@ const pointerLinksEndpoint = handler({
         };
         // Get the requested reference configuration
         const referenceName = request.params.reference;
-        const reference = REFERENCES[referenceName];
+        const reference = POINTERS_SUPPORTED_REFERENCES[referenceName];
         if (!reference) return {
             headerError: BAD_REQUEST,
             error: `Not suppoted reference "${referenceName}". Available references: ${availableReferences}`
@@ -51,7 +47,7 @@ const pointerLinksEndpoint = handler({
         // Get from the database all reference ids
         const referencesFinder = targetReferenceId ? { [reference.idField]: targetReferenceId } : {};
         const referencesProjector = { [reference.idField]: true };
-        const referencesCursor = await database[referenceName]
+        const referencesCursor = await database[reference.collectionName]
             .find(referencesFinder)
             .project(referencesProjector);
         const referencesData = await referencesCursor.toArray();

@@ -1,0 +1,511 @@
+{
+    "_id": "63aa208b287a5e1e6dbb1d77",
+    "accession": "A0001",
+    "published": true,
+    "metadata": {
+        "PDBIDS": [
+            "12CA"
+        ],
+        "NAME": "MoDEL 12CA",
+        "COLLECTIONS": [
+            "model"
+        ],
+        "DESCRIPTION": "10 ns simulation of 12CA pdb structure from MoDEL dataset",
+        "AUTHORS": [
+            "Tim Meyer",
+            "Marco D'Abramo",
+            "Adam Hospital",
+            "Manuel Rueda",
+            "Carles Ferrer-Costa",
+            "Alberto Pérez",
+            "Oliver Carrillo",
+            "Jordi Camps",
+            "Carles Fenollosa",
+            "Dmitry Repchevsky",
+            "Josep Lluís Gelpí",
+            "Modesto Orozco"
+        ],
+        "GROUPS": [
+            "IRB Barcelona, Orozco lab"
+        ],
+        "CONTACT": "For any questions please send a mail to adam.hospital@irbbarcelona.org or daniel.beltran@irbbarcelona.org",
+        "PROGRAM": "Amber",
+        "VERSION": "8",
+        "TYPE": "trajectory",
+        "METHOD": "Classical MD",
+        "LICENSE": "This trajectory dataset is released under a Creative Commons Attribution 4.0 International Public License",
+        "LINKCENSE": "https://creativecommons.org/licenses/by/4.0/",
+        "CITATION": "DOI: 10.1016/j.str.2010.07.013",
+        "THANKS": null,
+        "LENGTH": 10,
+        "TIMESTEP": 2,
+        "SNAPSHOTS": 10000,
+        "FREQUENCY": 1,
+        "FF": [
+            "Amber Parm99"
+        ],
+        "TEMP": 300,
+        "WAT": "TIP3P",
+        "BOXTYPE": "Octahedral",
+        "BOXSIZEX": 0,
+        "BOXSIZEY": 0,
+        "BOXSIZEZ": 0,
+        "ENSEMBLE": "NPT",
+        "SYSTATS": 4010,
+        "PROTATS": 4010,
+        "PROT": 255,
+        "DPPC": 0,
+        "SOL": 0,
+        "NA": 0,
+        "CL": 0,
+        "LIGANDS": [],
+        "CUSTOMS": [],
+        "INTERACTIONS": [],
+        "FORCED_REFERENCES": [],
+        "REFERENCES": [
+            "P00918"
+        ],
+        "CHAINNAMES": null,
+        "MEMBRANES": [],
+        "LINKS": [],
+        "ORIENTATION": null,
+        "CV19_UNIT": null,
+        "atomCount": 4010,
+        "frameCount": 10000,
+        "SEQUENCES": [
+            "WGYGKHNGPEHWHKDFPIAKGERQSPVDIDTHTAKYDPSLKPLSVSYDQATSLRILNNGHAFNVEFDDSQDKAVLKGGPLDGTYRLIQFHFHWGSLDGQGSEHTVDKKKYAAELHLAHWNTKYGDFGKAVQQPDGLAVLGIFLKVGSAKPGLQKVVDVLDSIKTKGKSADFTNFDPRGLLPESLDYWTYPGSLTTPPLLECVTWIVLKEPISVSSEQVLKFRKLNFNGEGEPEELMVDNWRPAQPLKNRQIKASF"
+        ],
+        "DOMAINS": [
+            "Carbonic anhydrase 2",
+            "Alpha-carbonic anhydrase",
+            "Fine-tunes the proton-transfer properties of H-64",
+            "Fine-tunes the proton-transfer properties of H-64; involved in the binding of some activators, including histamine and L-histidine",
+            "Involved in the binding of some activators, including histamine and L-histidine"
+        ],
+        "CV19_VARIANT": null,
+        "PTM": [],
+        "MULTIMERIC": [],
+        "FRAMESTEP": 0.001,
+        "PBC_SELECTION": null,
+        "NUCLSEQ": [],
+        "PROTSEQ": [
+            "WGYGKHNGPEHWHKDFPIAKGERQSPVDIDTHTAKYDPSLKPLSVSYDQATSLRILNNGHAFNVEFDDSQDKAVLKGGPLDGTYRLIQFHFHWGSLDGQGSEHTVDKKKYAAELHLAHWNTKYGDFGKAVQQPDGLAVLGIFLKVGSAKPGLQKVVDVLDSIKTKGKSADFTNFDPRGLLPESLDYWTYPGSLTTPPLLECVTWIVLKEPISVSSEQVLKFRKLNFNGEGEPEELMVDNWRPAQPLKNRQIKASF"
+        ],
+        "INPUT_LIGANDS": null,
+        "LIGANDNAMES": null,
+        "INCHIKEYS": [],
+        "SYSTRES": 255,
+        "PROTRES": 255,
+        "DNAATS": 0,
+        "DNARES": 0,
+        "RNAATS": 0,
+        "RNARES": 0,
+        "LIPIATS": 0,
+        "LIPIRES": 0,
+        "CARBATS": 0,
+        "CARBRES": 0,
+        "SOLVATS": 0,
+        "SOLVRES": 0,
+        "COUNCAT": 0,
+        "COUNANI": 0,
+        "COUNION": 0,
+        "NOCNION": 0,
+        "OTHRATS": 0,
+        "CG_SELECTION": null,
+        "SYSKEYS": [
+            "protein",
+            "protein only"
+        ],
+        "ATNAME": [
+            "C",
+            "CA",
+            "CB",
+            "CD",
+            "CD1",
+            "CD2",
+            "CE",
+            "CE1",
+            "CE2",
+            "CE3",
+            "CG",
+            "CG1",
+            "CG2",
+            "CH2",
+            "CZ",
+            "CZ2",
+            "CZ3",
+            "H",
+            "H1",
+            "H2",
+            "H3",
+            "HA",
+            "HA2",
+            "HA3",
+            "HB",
+            "HB1",
+            "HB2",
+            "HB3",
+            "HD1",
+            "HD11",
+            "HD12",
+            "HD13",
+            "HD2",
+            "HD21",
+            "HD22",
+            "HD23",
+            "HD3",
+            "HE",
+            "HE1",
+            "HE2",
+            "HE21",
+            "HE22",
+            "HE3",
+            "HG",
+            "HG1",
+            "HG11",
+            "HG12",
+            "HG13",
+            "HG2",
+            "HG21",
+            "HG22",
+            "HG23",
+            "HG3",
+            "HH",
+            "HH11",
+            "HH12",
+            "HH2",
+            "HH21",
+            "HH22",
+            "HZ",
+            "HZ1",
+            "HZ2",
+            "HZ3",
+            "N",
+            "ND1",
+            "ND2",
+            "NE",
+            "NE1",
+            "NE2",
+            "NH1",
+            "NH2",
+            "NZ",
+            "O",
+            "OD1",
+            "OD2",
+            "OE1",
+            "OE2",
+            "OG",
+            "OG1",
+            "OH",
+            "OXT",
+            "SD",
+            "SG"
+        ],
+        "ATELEM": [
+            "C",
+            "H",
+            "N",
+            "O",
+            "S"
+        ],
+        "RSNAME": [
+            "ALA",
+            "ARG",
+            "ASN",
+            "ASP",
+            "CYS",
+            "GLN",
+            "GLU",
+            "GLY",
+            "HID",
+            "HIE",
+            "HIP",
+            "ILE",
+            "LEU",
+            "LYS",
+            "MET",
+            "PHE",
+            "PRO",
+            "SER",
+            "THR",
+            "TRP",
+            "TYR",
+            "VAL"
+        ],
+        "CHNAME": [
+            "A"
+        ],
+        "WARNINGS": [],
+        "ver": "0.0.2"
+    },
+    "chains": [
+        "A"
+    ],
+    "mdref": 0,
+    "mds": [
+        {
+            "name": "replica 1",
+            "atoms": 4010,
+            "frames": 10000,
+            "analyses": [
+                {
+                    "name": "pockets",
+                    "id": "63aa2119287a5e1e6dbb1e6a"
+                },
+                {
+                    "name": "rgyr",
+                    "id": "63aa211a287a5e1e6dbb1e6b"
+                },
+                {
+                    "name": "rmsd-pairwise",
+                    "id": "63aa211a287a5e1e6dbb1e6c"
+                },
+                {
+                    "name": "rmsd-perres",
+                    "id": "63aa211a287a5e1e6dbb1e6d"
+                },
+                {
+                    "name": "rmsds",
+                    "id": "63aa211a287a5e1e6dbb1e6e"
+                },
+                {
+                    "name": "fluctuation",
+                    "id": "63aa211a287a5e1e6dbb1e6f"
+                },
+                {
+                    "name": "sasa",
+                    "id": "63aa211a287a5e1e6dbb1e70"
+                },
+                {
+                    "name": "tmscores",
+                    "id": "63aa211a287a5e1e6dbb1e71"
+                },
+                {
+                    "name": "clusters",
+                    "id": "693c4e347697a127cfc22331"
+                },
+                {
+                    "name": "clusters-00",
+                    "id": "693c4e347697a127cfc22332"
+                },
+                {
+                    "name": "pca",
+                    "id": "693c59987ac57bf9ceaf7596"
+                },
+                {
+                    "name": "rmsd-pairwise-00",
+                    "id": "69e1d9214f619e03c57434e2"
+                }
+            ],
+            "files": [
+                {
+                    "name": "trajectory.bin",
+                    "id": "63aa209b287a5e1e6dbb1d79"
+                },
+                {
+                    "name": "average.pdb",
+                    "id": "63aa2116287a5e1e6dbb1e09"
+                },
+                {
+                    "name": "firstFrame.pdb",
+                    "id": "63aa2116287a5e1e6dbb1e0b"
+                },
+                {
+                    "name": "structure.pdb",
+                    "id": "63aa2116287a5e1e6dbb1e0d"
+                },
+                {
+                    "name": "trajectory.xtc",
+                    "id": "63aa2116287a5e1e6dbb1e0f"
+                },
+                {
+                    "name": "noelem.pdb",
+                    "id": "63aa2118287a5e1e6dbb1e35"
+                },
+                {
+                    "name": "pocket_01.pdb",
+                    "id": "63aa2118287a5e1e6dbb1e37"
+                },
+                {
+                    "name": "pocket_10.pdb",
+                    "id": "63aa2118287a5e1e6dbb1e39"
+                },
+                {
+                    "name": "pocket_02.pdb",
+                    "id": "63aa2118287a5e1e6dbb1e3b"
+                },
+                {
+                    "name": "pocket_03.pdb",
+                    "id": "63aa2118287a5e1e6dbb1e3d"
+                },
+                {
+                    "name": "pocket_04.pdb",
+                    "id": "63aa2118287a5e1e6dbb1e3f"
+                },
+                {
+                    "name": "pocket_05.pdb",
+                    "id": "63aa2119287a5e1e6dbb1e41"
+                },
+                {
+                    "name": "pocket_06.pdb",
+                    "id": "63aa2119287a5e1e6dbb1e43"
+                },
+                {
+                    "name": "pocket_07.pdb",
+                    "id": "63aa2119287a5e1e6dbb1e45"
+                },
+                {
+                    "name": "pocket_08.pdb",
+                    "id": "63aa2119287a5e1e6dbb1e47"
+                },
+                {
+                    "name": "pocket_09.pdb",
+                    "id": "63aa2119287a5e1e6dbb1e49"
+                },
+                {
+                    "name": "clusters_00_screenshot_00.jpg",
+                    "id": "693c4e1d7697a127cfc2230d"
+                },
+                {
+                    "name": "clusters_00_screenshot_01.jpg",
+                    "id": "693c4e207697a127cfc2230f"
+                },
+                {
+                    "name": "clusters_00_screenshot_02.jpg",
+                    "id": "693c4e227697a127cfc22311"
+                },
+                {
+                    "name": "clusters_00_screenshot_03.jpg",
+                    "id": "693c4e277697a127cfc22313"
+                },
+                {
+                    "name": "clusters_00_screenshot_04.jpg",
+                    "id": "693c4e287697a127cfc22315"
+                },
+                {
+                    "name": "clusters_00_screenshot_05.jpg",
+                    "id": "693c4e287697a127cfc22317"
+                },
+                {
+                    "name": "clusters_00_screenshot_06.jpg",
+                    "id": "693c4e297697a127cfc22319"
+                },
+                {
+                    "name": "clusters_00_screenshot_07.jpg",
+                    "id": "693c4e2b7697a127cfc2231b"
+                },
+                {
+                    "name": "clusters_00_screenshot_08.jpg",
+                    "id": "693c4e2c7697a127cfc2231d"
+                },
+                {
+                    "name": "clusters_00_screenshot_09.jpg",
+                    "id": "693c4e2d7697a127cfc2231f"
+                },
+                {
+                    "name": "clusters_00_screenshot_10.jpg",
+                    "id": "693c4e2e7697a127cfc22321"
+                },
+                {
+                    "name": "clusters_00_screenshot_11.jpg",
+                    "id": "693c4e2f7697a127cfc22323"
+                },
+                {
+                    "name": "clusters_00_screenshot_12.jpg",
+                    "id": "693c4e307697a127cfc22325"
+                },
+                {
+                    "name": "clusters_00_screenshot_13.jpg",
+                    "id": "693c4e317697a127cfc22327"
+                },
+                {
+                    "name": "clusters_00_screenshot_14.jpg",
+                    "id": "693c4e327697a127cfc22329"
+                },
+                {
+                    "name": "clusters_00_screenshot_15.jpg",
+                    "id": "693c4e347697a127cfc2232b"
+                },
+                {
+                    "name": "clusters_00_screenshot_16.jpg",
+                    "id": "693c4e347697a127cfc2232d"
+                },
+                {
+                    "name": "clusters_00_screenshot_17.jpg",
+                    "id": "693c4e347697a127cfc2232f"
+                },
+                {
+                    "name": "pca_trajectory_01.bin",
+                    "id": "693c597d7ac57bf9ceaf757a"
+                },
+                {
+                    "name": "pca_trajectory_02.bin",
+                    "id": "693c597e7ac57bf9ceaf757c"
+                },
+                {
+                    "name": "pca_trajectory_03.bin",
+                    "id": "693c597e7ac57bf9ceaf757e"
+                },
+                {
+                    "name": "pca_trajectory_04.bin",
+                    "id": "693c597f7ac57bf9ceaf7580"
+                },
+                {
+                    "name": "pca_trajectory_05.bin",
+                    "id": "693c59807ac57bf9ceaf7582"
+                },
+                {
+                    "name": "pca_trajectory_06.bin",
+                    "id": "693c59827ac57bf9ceaf7584"
+                },
+                {
+                    "name": "pca_trajectory_07.bin",
+                    "id": "693c59847ac57bf9ceaf7586"
+                },
+                {
+                    "name": "pca_trajectory_08.bin",
+                    "id": "693c59867ac57bf9ceaf7588"
+                },
+                {
+                    "name": "pca_trajectory_09.bin",
+                    "id": "693c59887ac57bf9ceaf758a"
+                },
+                {
+                    "name": "pca_trajectory_10.bin",
+                    "id": "693c598b7ac57bf9ceaf758c"
+                },
+                {
+                    "name": "pca_trajectory_11.bin",
+                    "id": "693c598f7ac57bf9ceaf758e"
+                },
+                {
+                    "name": "pca_trajectory_12.bin",
+                    "id": "693c59927ac57bf9ceaf7590"
+                },
+                {
+                    "name": "pca_trajectory_13.bin",
+                    "id": "693c59937ac57bf9ceaf7592"
+                },
+                {
+                    "name": "pca_trajectory_14.bin",
+                    "id": "693c59947ac57bf9ceaf7594"
+                }
+            ],
+            "refframe": 0,
+            "warnings": []
+        }
+    ],
+    "files": [
+        {
+            "name": "screenshot.jpg",
+            "id": "658560244eb274c237576adc"
+        },
+        {
+            "name": "topology.prmtop",
+            "id": "63aa2119287a5e1e6dbb1e67"
+        }
+    ],
+    "mdcount": 1,
+    "analyses": [],
+    "updateDate": "2026-04-17T06:54:25.180Z"
+}

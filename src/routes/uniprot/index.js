@@ -3,8 +3,6 @@ const rootRouter = require('express').Router();
 const handler = require('../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../database');
-// Import references configuration
-const { REFERENCES } = require('../../utils/constants');
 // Standard codes for HTTP responses
 const { INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 // Import auxiliar functions
@@ -22,7 +20,7 @@ const uniprotEndpoint = handler({
         // Stablish database connection and retrieve our custom handler
         const database = await getDatabase(request);
         // Get the proteins reference configuration
-        const reference = REFERENCES['proteins'];
+        const reference = database.REFERENCES['proteins'];
         // Set a getter function for the project reference ids field
         const idsField = reference.projectIdsField;
         const projectIdsGetter = getValueGetter(idsField);

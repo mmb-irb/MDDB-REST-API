@@ -1,7 +1,5 @@
 // Standard HTTP response status codes
 const { NOT_FOUND } = require('../../utils/status-codes');
-// Import references configuration
-const { REFERENCES, STANDARD_TRAJECTORY_FILENAME } = require('../../utils/constants');
 // Get auxiliar functions
 const { getValueGetter } = require('../../utils/auxiliar-functions');
 // Get tools to handle range queries
@@ -89,7 +87,7 @@ class Project {
         // Set an array with all references
         let allReferences = [];
         // Iterate the different refernece types
-        for await (const [referenceName, reference] of Object.entries(REFERENCES)) {
+        for await (const [referenceName, reference] of Object.entries(this.database.REFERENCES)) {
             // Set a nested value miner
             const valueGetter = getValueGetter(reference.projectIdsField);
             let projectReferenceIds = valueGetter(this.data);
@@ -102,7 +100,7 @@ class Project {
                 return { [reference.idField]: referenceId };
             });
             // Otherwise, find the corresponding references in the database and send their data
-            const cursor = await this.database[referenceName].find(
+            const cursor = await this.database[reference.collectionName].find(
                 { $or: queries },
                 // But do not return the _id
                 { projection: { _id: false } },
@@ -251,7 +249,7 @@ class Project {
     // Note that we add few metadata values to adapt it to the "dimensions" format
     getTrajectorFileDescriptor = async () => {
         // Get the file descriptor
-        const fileDescriptor = await this.getFileDescriptor(STANDARD_TRAJECTORY_FILENAME);
+        const fileDescriptor = await this.getFileDescriptor(this.database.STANDARD_TRAJECTORY_FILENAME);
         // If there was any problem then return here
         if (fileDescriptor.error) return fileDescriptor;
         // Modify the descriptor to adapt it to the "dimensions" format
