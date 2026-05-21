@@ -9,7 +9,7 @@ const {
     LOCAL_COLLECTION_NAMES,
     GLOBAL_COLLECTION_NAMES,
     REFERENCES,
-    REFERENCE_HEADER, TOPOLOGY_HEADER,
+    REFERENCE_HEADER,
     DATE_FIELDS,
 } = require('../utils/constants');
 const AVAILABLE_REFERENCES = Object.keys(REFERENCES).join(', ');
@@ -260,7 +260,7 @@ class Database {
         return referenceData;
     }
 
-    // Process a projects query which may include reference and topology fields
+    // Process a projects query which may include reference fields
     // Returns an error response if something is wrong
     processProjectsQuery = async query => {
         // If there is no query then return an empty object, which applies no filter at all
@@ -336,53 +336,6 @@ class Database {
             };
             // Start the parsing function
             queryError = await parseReferencesQuery(parsedQuery);
-            if (queryError) return queryError;
-            // Find fields which start with 'topology'
-            // These fields are actually intended to query the topologies collections
-            // If we found topology fields then we must query the topologies collection
-            // Then each topology field will be replaced by the list of project ids matching
-            // NEVER FORGET: we can not gather reference ids and query them all together at the end
-            // Some queries may have multiple subqueries, belonging to different reference types
-            const parseTopologiesQuery = async queryObject => {
-                // Iterate over the original query fields
-                for (const [field, value] of Object.entries(queryObject)) {
-                    // If the field is actually a list of fields then run the parsing function recursively
-                    if (field === '$and' || field === '$or') {
-                        for (const subquery of value) {
-                            queryError = await parseReferencesQuery(subquery);
-                            if (queryError) return queryError;
-                        } 
-                        return;
-                    }
-                    // If the field does not start with the topology header then skip it
-                    if (!field.startsWith(TOPOLOGY_HEADER)) return;
-                    // Get the name of the field
-                    const fieldSplits = field.split('.');
-                    const topologyField = fieldSplits[1];
-                    // Set the topologies query
-                    const topologiesQuery = {};
-                    topologiesQuery[topologyField] = value;
-                    // Set the topology projector
-                    const topologiesProjector = { _id: false, project: true };
-                    topologiesProjector[topologyField] = true;
-                    // Query the topologies collection
-                    // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
-                    const topologiesCursor = await this.topologies
-                        .find(topologiesQuery)
-                        .project(topologiesProjector);
-                    const results = await topologiesCursor
-                        .map(top => top.project)
-                        .toArray();
-                    // DANI: Although we could return a not found error here if results is empty we don't
-                    // DANI: Thus the final response is an empty list and we are coherent
-                    // DANI: Otherwise every service using this endpoint should learn to handle the error
-                    // Update the original query by removing the original field and adding the parsed one
-                    delete queryObject[field];
-                    queryObject._id = { $in: results };
-                }
-            };
-            // Start the parsing function
-            queryError = await parseTopologiesQuery(parsedQuery);
             if (queryError) return queryError;
             // Parse those field which aim for dates by parsing the date string into actual dates
             const parseDateQuery = async queryObject => {
