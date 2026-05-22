@@ -1,0 +1,37 @@
+name: Sincronizar MDDB database
+
+on:
+  push:
+    paths:
+      - 'src/mddb-database/**'
+    branches: [ master ]
+
+jobs:
+  sync-to-common-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "CI Bot"
+          git config user.email "ci@example.com"
+
+      - name: Extract changes in MDDB database code
+        id: split
+        run: |
+          # git subtree split extract only commits under src/mddb-database/
+          # y crea una rama temporal con esa historia limpia
+          SUBTREE_COMMIT=$(git subtree split --prefix=src/mddb-database/
+          echo "subtree_commit=$SUBTREE_COMMIT" >> $GITHUB_OUTPUT
+          echo "📦 Extracted commit: $SUBTREE_COMMIT"
+
+      - name: Push to MDDB database repo
+        if: steps.split.outputs.subtree_commit != ''
+        run: |
+          git push https://x-access-token:${{ secrets.PAT }}@github.com/tu-usuario/repositorio-comun.git \
+            ${{ steps.split.outputs.subtree_commit }}:main --force
+          echo "✅ MDDB database updated"
