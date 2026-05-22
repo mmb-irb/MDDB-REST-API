@@ -25,7 +25,7 @@ jobs:
         run: |
           # git subtree split extract only commits under src/mddb-database/
           # y crea una rama temporal con esa historia limpia
-          SUBTREE_COMMIT=$(git subtree split --prefix=src/mddb-database/
+          SUBTREE_COMMIT=$(git subtree split --prefix=src/mddb-database/)
           echo "subtree_commit=$SUBTREE_COMMIT" >> $GITHUB_OUTPUT
           echo "📦 Extracted commit: $SUBTREE_COMMIT"
 
