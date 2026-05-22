@@ -16,7 +16,7 @@ const {
 // GridFSBucket manages the saving of files bigger than 16 Mb, splitting them into 4 Mb fragments (chunks)
 const { GridFSBucket } = require('mongodb');
 
-// Set the database class
+// Set the database handler class
 class Database {
     constructor (client, isGlobal) {
         if (!client) throw new Error('No client');
