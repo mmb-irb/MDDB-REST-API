@@ -1,10 +1,19 @@
 name: Sync MDDB database
 
 on:
+  # Run this workflow every time there is a push with changes under the stated directory
   push:
     paths:
       - 'src/mddb-database/**'
     branches: [ master ]
+  # Allow also to manually run the workflow from github for debugging purposes
+  workflow_dispatch:
+    inputs:
+      debug:
+        type: boolean
+        description: 'Open an interactive sesion'
+        default: true
+        required: false
 
 jobs:
   sync-to-common-repo:
@@ -21,10 +30,12 @@ jobs:
           git config user.name "CI Bot"
           git config user.email "ci@example.com"
 
+      - name: Open debug session
+        uses: mxschmitt/action-tmate@v3
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug }}
+
       - name: Extract changes in MDDB database code
         id: split
-        with:
-          fetch-depth: 0
         run: |
           # Make sure we are in the right commit
           echo "Current commit: $(git rev-parse HEAD)"
