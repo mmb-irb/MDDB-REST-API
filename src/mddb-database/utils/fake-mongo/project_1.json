@@ -1,0 +1,494 @@
+{
+    "_id": "5e95cc9466d570732286ef90",
+    "accession": "MCV1900002",
+    "published": true,
+    "metadata": {
+        "NAME": "SARS spike receptor binding domain bound with FERR ACE2",
+        "LENGTH": 200,
+        "TIMESTEP": 2,
+        "SNAPSHOTS": 20001,
+        "FREQUENCY": 9.99950002499875,
+        "FF": null,
+        "TEMP": 310,
+        "WAT": null,
+        "BOXTYPE": "Triclinic",
+        "BOXSIZEX": 12.1452,
+        "BOXSIZEY": 11.4506,
+        "BOXSIZEZ": 9.9165,
+        "ENSEMBLE": "NPT",
+        "PCOUPLING": null,
+        "MEMBRANE": null,
+        "SYSTATS": 12584,
+        "PROTATS": 12582,
+        "PROT": 790,
+        "DPPC": 0,
+        "SOL": 0,
+        "NA": 0,
+        "CL": 1,
+        "atomCount": 12584,
+        "frameCount": 20001,
+        "UNIT": "RBD-ACE2",
+        "AUTHORS": [
+            "Vito Genna"
+        ],
+        "PROGRAM": "GROMACS",
+        "VERSION": "2019.1",
+        "LICENSE": "This trajectory dataset is released under a Creative Commons Attribution 4.0 International Public License",
+        "CITATION": "“SARS-CoV-2 Inhibition, Host Selection and Next-Move Prediction Through High-Performance Computing”(br)Vito Genna^1, Adam Hospital^1 and Modesto Orozco^1^,^2(br)1 Institute for Research in Biomedicine (IRB Barcelona), Barcelona Institute of Science and Technology, C/ Baldiri Reixac 10-12, Barcelona 08028, Spain(br)2 Department of Biochemistry and Biomedicine, University of Barcelona, Barcelona 08028, Spain",
+        "LINKCENSE": "https://creativecommons.org/licenses/by/4.0/legalcode",
+        "CHAINNAMES": {
+            "A": "ACE2",
+            "B": "RBD"
+        },
+        "INTERACTIONS": [
+            {
+                "name": "ACE2-RBD interaction",
+                "agent_1": "ACE2",
+                "agent_2": "RBD",
+                "selection_1": "chain A",
+                "selection_2": "chain B",
+                "type": "protein-protein"
+            }
+        ],
+        "DESCRIPTION": "Theoretical model generated using Modeller from the PDB 6vw1",
+        "LIGANDS": [],
+        "GROUPS": [
+            "IRB Barcelona, Orozco lab"
+        ],
+        "CONTACT": null,
+        "THANKS": null,
+        "CUSTOMS": null,
+        "EXCEPTIONS": [
+            {
+                "name": "Structural CL atom",
+                "selection": "@CL"
+            }
+        ],
+        "MEMBRANES": [],
+        "PDBIDS": [
+            "6VW1"
+        ],
+        "METHOD": "Classical MD",
+        "REFERENCES": [
+            "Q9BYF1",
+            "P0DTC2"
+        ],
+        "TYPE": "trajectory",
+        "COLLECTIONS": [
+            "cv19"
+        ],
+        "CV19_UNIT": "RBD-ACE2",
+        "FORCED_REFERENCES": [
+            "P0DTC2",
+            "Q9BYF1"
+        ],
+        "SEQUENCES": [
+            "STTEDLAKKFLDDFNSEAENLSHQSSLASWEYNTNISDENVQKMDEAGAKWSDFYEKQSKLAKNFSLEEIHNDTVKLQLQILQQSGSPVLSEDKSKRLNSILNAMSTIYSTGKVCKPNNPQECLLLEPGLDNIMGTSKDYNERLWAWEGWRAEVGKQLRPLYEEYVVLKNEMARGYHYEDYGDYWRRDYETEGSPDLEYSRDQLIKDVERIFAEIKPLYEQLHAYVRTKLMDTYPFHISPTGCLPAHLLGDMWGRFWTNLYPLTVPFGQKPNIDVTDAMLNQNWDAKRIFKEAEKFFVSIGLPNMTEGFWNNSMLTDPGDGRKVVCHPTAWDLGKGDFRIKMCTKVTMEDFLTAHHEMGHIQYDMAYASQPYLLRNGANEGFHEAVGEVMSLSVATPKHLKTMGLLSSDFLEDNETEINFLFKQALNIVGTLPFTYMLEKWRWMVFKGEIPKEEWMKKWWEMKRKIVGVVEPVPHDETYCDPASLFHVANDYSFIRYYTRTIFEFQFHEALCRIAKHDGPLHKCDISNSTDAGEKLHQMLSVGKSQPWTSVLKDFVGSKNMDVGPLLRYFEPLYTWLTEQNRKSFVGWNTDWSPYADXX",
+            "NLCPFGEVFNATKFPSVYAWERKKISNCVADYSVLYNSTFFSTFKCYGVSATKLNDLCFSNVYADSFVVKGDDVRQIAPGQTGVIADYNYKLPDDFMGCVLAWNTRNIDATSTGNYNYKYRYLRHGKLRPFERDISNVPFSPDGKPCTPPALNCYWPLNDYGFYTTTGIGYQPYRVVVLSFELLNAPATVCGP"
+        ],
+        "DOMAINS": [
+            "Angiotensin-converting enzyme 2",
+            "Processed angiotensin-converting enzyme 2",
+            "Peptidase M2",
+            "Collectrin-like",
+            "Interaction with SARS-CoV spike glycoprotein",
+            "Spike glycoprotein",
+            "Spike protein S1",
+            "BetaCoV S1-CTD",
+            "Disordered",
+            "Receptor-binding domain (RBD)",
+            "Integrin-binding motif;",
+            "Receptor-binding motif; binding to human ACE2",
+            "Immunodominant HLA epitope recognized by the CD8+; called NF9 peptide"
+        ],
+        "CV19_VARIANT": "Delta",
+        "PTM": [],
+        "MULTIMERIC": [
+            "monomer"
+        ],
+        "FRAMESTEP": 0.01,
+        "PBC_SELECTION": null,
+        "NUCLSEQ": [],
+        "PROTSEQ": [
+            "STTEDLAKKFLDDFNSEAENLSHQSSLASWEYNTNISDENVQKMDEAGAKWSDFYEKQSKLAKNFSLEEIHNDTVKLQLQILQQSGSPVLSEDKSKRLNSILNAMSTIYSTGKVCKPNNPQECLLLEPGLDNIMGTSKDYNERLWAWEGWRAEVGKQLRPLYEEYVVLKNEMARGYHYEDYGDYWRRDYETEGSPDLEYSRDQLIKDVERIFAEIKPLYEQLHAYVRTKLMDTYPFHISPTGCLPAHLLGDMWGRFWTNLYPLTVPFGQKPNIDVTDAMLNQNWDAKRIFKEAEKFFVSIGLPNMTEGFWNNSMLTDPGDGRKVVCHPTAWDLGKGDFRIKMCTKVTMEDFLTAHHEMGHIQYDMAYASQPYLLRNGANEGFHEAVGEVMSLSVATPKHLKTMGLLSSDFLEDNETEINFLFKQALNIVGTLPFTYMLEKWRWMVFKGEIPKEEWMKKWWEMKRKIVGVVEPVPHDETYCDPASLFHVANDYSFIRYYTRTIFEFQFHEALCRIAKHDGPLHKCDISNSTDAGEKLHQMLSVGKSQPWTSVLKDFVGSKNMDVGPLLRYFEPLYTWLTEQNRKSFVGWNTDWSPYAD",
+            "NLCPFGEVFNATKFPSVYAWERKKISNCVADYSVLYNSTFFSTFKCYGVSATKLNDLCFSNVYADSFVVKGDDVRQIAPGQTGVIADYNYKLPDDFMGCVLAWNTRNIDATSTGNYNYKYRYLRHGKLRPFERDISNVPFSPDGKPCTPPALNCYWPLNDYGFYTTTGIGYQPYRVVVLSFELLNAPATVCGP"
+        ],
+        "LINKS": null,
+        "INPUT_LIGANDS": null,
+        "LIGANDNAMES": null,
+        "INCHIKEYS": [
+            "PTFCDOFLOPIGGS-UHFFFAOYSA-N",
+            "VEXZGXHMUGYJMC-UHFFFAOYSA-N"
+        ],
+        "SYSTRES": 792,
+        "PROTRES": 790,
+        "DNAATS": 0,
+        "DNARES": 0,
+        "RNAATS": 0,
+        "RNARES": 0,
+        "LIPIATS": 0,
+        "LIPIRES": 0,
+        "CARBATS": 0,
+        "CARBRES": 0,
+        "SOLVATS": 0,
+        "SOLVRES": 0,
+        "COUNCAT": 0,
+        "COUNANI": 1,
+        "COUNION": 1,
+        "NOCNION": 1,
+        "OTHRATS": 0,
+        "CG_SELECTION": null,
+        "ORIENTATION": null,
+        "SYSKEYS": [
+            "protein",
+            "counter ion",
+            "non-counter ion",
+            "ligand"
+        ],
+        "ATNAME": [
+            "1HD1",
+            "1HD2",
+            "1HE2",
+            "1HG1",
+            "1HG2",
+            "1HH1",
+            "1HH2",
+            "2HD1",
+            "2HD2",
+            "2HE2",
+            "2HG1",
+            "2HG2",
+            "2HH1",
+            "2HH2",
+            "3HD1",
+            "3HD2",
+            "3HG1",
+            "3HG2",
+            "C",
+            "CA",
+            "CB",
+            "CD",
+            "CD1",
+            "CD2",
+            "CE",
+            "CE1",
+            "CE2",
+            "CE3",
+            "CG",
+            "CG1",
+            "CG2",
+            "CH2",
+            "CL",
+            "CZ",
+            "CZ2",
+            "CZ3",
+            "H",
+            "H1",
+            "H2",
+            "H3",
+            "HA",
+            "HA2",
+            "HA3",
+            "HB",
+            "HB1",
+            "HB2",
+            "HB3",
+            "HD1",
+            "HD2",
+            "HD3",
+            "HE",
+            "HE1",
+            "HE2",
+            "HE3",
+            "HG",
+            "HG1",
+            "HG2",
+            "HG3",
+            "HH",
+            "HH2",
+            "HZ",
+            "HZ1",
+            "HZ2",
+            "HZ3",
+            "N",
+            "ND1",
+            "ND2",
+            "NE",
+            "NE1",
+            "NE2",
+            "NH1",
+            "NH2",
+            "NZ",
+            "O",
+            "OD1",
+            "OD2",
+            "OE1",
+            "OE2",
+            "OG",
+            "OG1",
+            "OH",
+            "OXT",
+            "SD",
+            "SG",
+            "ZN"
+        ],
+        "ATELEM": [
+            "C",
+            "Cl",
+            "H",
+            "N",
+            "O",
+            "S",
+            "Zn"
+        ],
+        "RSNAME": [
+            "ALA",
+            "ARG",
+            "ASN",
+            "ASP",
+            "CL",
+            "CYS",
+            "CYX",
+            "GLN",
+            "GLU",
+            "GLY",
+            "HIE",
+            "ILE",
+            "LEU",
+            "LYS",
+            "MET",
+            "PHE",
+            "PRO",
+            "SER",
+            "THR",
+            "TRP",
+            "TYR",
+            "VAL",
+            "ZN"
+        ],
+        "CHNAME": [
+            "A",
+            "B",
+            "C"
+        ],
+        "WARNINGS": [],
+        "ver": "0.0.2"
+    },
+    "chains": [
+        "B",
+        "A"
+    ],
+    "mdref": 0,
+    "mds": [
+        {
+            "name": "replica 1",
+            "atoms": 12584,
+            "frames": 20001,
+            "analyses": [
+                {
+                    "name": "rmsd",
+                    "id": "5e95d27766d570732286f395"
+                },
+                {
+                    "name": "fluctuation",
+                    "id": "61026deb6e8f4f1e6e020879"
+                },
+                {
+                    "name": "tmscores",
+                    "id": "61026dec6e8f4f1e6e02087b"
+                },
+                {
+                    "name": "rgyr",
+                    "id": "61a4ad0b1fec721d2a8d81d6"
+                },
+                {
+                    "name": "rmsds",
+                    "id": "61a4ad0f1fec721d2a8d81d7"
+                },
+                {
+                    "name": "pockets",
+                    "id": "61c19d5bae9e3143770d9c7e"
+                },
+                {
+                    "name": "pca",
+                    "id": "62a0b15871316c1718d9791c"
+                },
+                {
+                    "name": "rmsd-perres",
+                    "id": "637662975cc2302302dec6a8"
+                },
+                {
+                    "name": "sasa",
+                    "id": "637662a85cc2302302dec6a9"
+                },
+                {
+                    "name": "rmsd-pairwise",
+                    "id": "683479589e53b0959dbf015a"
+                },
+                {
+                    "name": "rmsd-pairwise-00",
+                    "id": "6834795f9e53b0959dbf015b"
+                },
+                {
+                    "name": "rmsd-pairwise-01",
+                    "id": "683479649e53b0959dbf015c"
+                },
+                {
+                    "name": "dist-perres",
+                    "id": "68357ecd3b688a858124e2a0"
+                },
+                {
+                    "name": "dist-perres-00",
+                    "id": "68357ecd3b688a858124e2a1"
+                },
+                {
+                    "name": "interactions",
+                    "id": "68382fe86b51236c4720898b"
+                },
+                {
+                    "name": "energies",
+                    "id": "6842e5181923051b4ed9a5f2"
+                },
+                {
+                    "name": "energies-00",
+                    "id": "6842e5181923051b4ed9a5f3"
+                },
+                {
+                    "name": "hbonds",
+                    "id": "693c5a9ba886ffb26757551b"
+                },
+                {
+                    "name": "hbonds-00",
+                    "id": "693c5a9ba886ffb26757551c"
+                }
+            ],
+            "files": [
+                {
+                    "name": "average.bin",
+                    "id": "5ffc46858aa7c15744f841f4"
+                },
+                {
+                    "name": "average.pdb",
+                    "id": "61026dc96e8f4f1e6e020755"
+                },
+                {
+                    "name": "firstFrame.pdb",
+                    "id": "61026dc96e8f4f1e6e020757"
+                },
+                {
+                    "name": "structure.pdb",
+                    "id": "61026dc96e8f4f1e6e020759"
+                },
+                {
+                    "name": "trajectory.xtc",
+                    "id": "61026dc96e8f4f1e6e02075b"
+                },
+                {
+                    "name": "noelem.pdb",
+                    "id": "61026dda6e8f4f1e6e020854"
+                },
+                {
+                    "name": "pocket_01.pdb",
+                    "id": "61c19d1aae9e3143770d9c6a"
+                },
+                {
+                    "name": "pocket_10.pdb",
+                    "id": "61c19d1bae9e3143770d9c6c"
+                },
+                {
+                    "name": "pocket_02.pdb",
+                    "id": "61c19d1bae9e3143770d9c6e"
+                },
+                {
+                    "name": "pocket_03.pdb",
+                    "id": "61c19d1bae9e3143770d9c70"
+                },
+                {
+                    "name": "pocket_04.pdb",
+                    "id": "61c19d1bae9e3143770d9c72"
+                },
+                {
+                    "name": "pocket_05.pdb",
+                    "id": "61c19d1bae9e3143770d9c74"
+                },
+                {
+                    "name": "pocket_06.pdb",
+                    "id": "61c19d1bae9e3143770d9c76"
+                },
+                {
+                    "name": "pocket_07.pdb",
+                    "id": "61c19d1cae9e3143770d9c78"
+                },
+                {
+                    "name": "pocket_08.pdb",
+                    "id": "61c19d1cae9e3143770d9c7a"
+                },
+                {
+                    "name": "pocket_09.pdb",
+                    "id": "61c19d1cae9e3143770d9c7c"
+                },
+                {
+                    "name": "trajectory.bin",
+                    "id": "61026acf6e8f4f1e6e02046f"
+                },
+                {
+                    "name": "pca_trajectory_01.bin",
+                    "id": "62a0b13071316c1718d978f4"
+                },
+                {
+                    "name": "pca_trajectory_02.bin",
+                    "id": "62a0b13171316c1718d978f6"
+                },
+                {
+                    "name": "pca_trajectory_03.bin",
+                    "id": "62a0b13171316c1718d978f8"
+                },
+                {
+                    "name": "pca_trajectory_04.bin",
+                    "id": "62a0b13171316c1718d978fa"
+                },
+                {
+                    "name": "pca_trajectory_05.bin",
+                    "id": "62a0b13171316c1718d978fc"
+                },
+                {
+                    "name": "pca_trajectory_06.bin",
+                    "id": "62a0b13271316c1718d978fe"
+                },
+                {
+                    "name": "pca_trajectory_07.bin",
+                    "id": "62a0b13271316c1718d97900"
+                },
+                {
+                    "name": "pca_trajectory_08.bin",
+                    "id": "62a0b13271316c1718d97902"
+                },
+                {
+                    "name": "pca_trajectory_09.bin",
+                    "id": "62a0b13271316c1718d97904"
+                },
+                {
+                    "name": "pca_trajectory_10.bin",
+                    "id": "62a0b13271316c1718d97906"
+                }
+            ]
+        }
+    ],
+    "files": [
+        {
+            "name": "screenshot.jpg",
+            "id": "65855d418cfd3e7aee531d5f"
+        },
+        {
+            "name": "charges.txt",
+            "id": "60a61c147a6d0042005aa9f0"
+        },
+        {
+            "name": "topology.top",
+            "id": "61026ddb6e8f4f1e6e02086c"
+        }
+    ],
+    "mdcount": 1,
+    "analyses": [],
+    "updateDate": "2026-02-27T15:19:44.966Z"
+}
