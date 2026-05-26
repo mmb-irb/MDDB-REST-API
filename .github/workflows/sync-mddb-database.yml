@@ -23,13 +23,17 @@ jobs:
 
       - name: Extract changes in MDDB database code
         id: split
+        with:
+          fetch-depth: 0
         run: |
           # Make sure we are in the right commit
           echo "Current commit: $(git rev-parse HEAD)"
           echo "Current branch: $(git branch --show-current)"
           # Make sire the directory exists
-          ls -la src/mddb-database/ || echo "Directory does not exist"
+          ls -d src/mddb-database/ || echo "Directory does not exist"
           # git subtree split extract only commits under src/mddb-database/ and creates a temporal branch with clean history
+          # The command 'git subtree split' creates a new temporal commit which contains changes only under the subtree directory
+          # Therefore this commit is not visible neither in the repo history
           SUBTREE_COMMIT=$(git subtree split --prefix=src/mddb-database)
           echo $SUBTREE_COMMIT
           echo "subtree_commit=$SUBTREE_COMMIT" >> $GITHUB_OUTPUT
