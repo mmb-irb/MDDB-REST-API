@@ -40,8 +40,8 @@ jobs:
           # Make sure we are in the right commit
           echo "Current commit: $(git rev-parse HEAD)"
           echo "Current branch: $(git branch --show-current)"
-          # Make sire the directory exists
-          ls -d src/mddb-database/ || echo "Directory does not exist"
+          # Make sure the directory exists
+          echo "Current directory: $(ls -d src/mddb-database/ || echo "Directory does not exist")"
           # git subtree split extract only commits under src/mddb-database/ and creates a temporal branch with clean history
           # The command 'git subtree split' creates a new temporal commit which contains changes only under the subtree directory
           # Therefore this commit is not visible neither in the repo history
