@@ -24,10 +24,12 @@ jobs:
       - name: Extract changes in MDDB database code
         id: split
         run: |
-          echo OK1
-          echo $GITHUB_OUTPUT
+          # Make sure we are in the right commit
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Current branch: $(git branch --show-current)"
+          # Make sire the directory exists
+          ls -la src/mddb-database/ || echo "Directory does not exist"
           # git subtree split extract only commits under src/mddb-database/ and creates a temporal branch with clean history
-          echo OK2
           SUBTREE_COMMIT=$(git subtree split --prefix=src/mddb-database)
           echo $SUBTREE_COMMIT
           echo "subtree_commit=$SUBTREE_COMMIT" >> $GITHUB_OUTPUT
