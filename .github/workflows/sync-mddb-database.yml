@@ -53,6 +53,6 @@ jobs:
       - name: Push to MDDB database repo
         if: steps.split.outputs.subtree_commit != ''
         run: |
-          git push https://x-access-token:${{ secrets.MDDB_DATABASE_WORKFLOWS_PAT }}@github.com/mmb-irb/mddb-database.git \
+          git push https://x-access-token:${{ secrets.MDDB_REPOS }}@github.com/mmb-irb/mddb-database.git \
             ${{ steps.split.outputs.subtree_commit }}:main --force
           echo "✅ MDDB database updated"
