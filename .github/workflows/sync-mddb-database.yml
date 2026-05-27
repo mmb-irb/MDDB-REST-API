@@ -30,10 +30,6 @@ jobs:
           git config user.name "CI Bot"
           git config user.email "ci@example.com"
 
-      - name: Open debug session
-        uses: mxschmitt/action-tmate@v3
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug }}
-
       - name: Extract changes in MDDB database code
         id: split
         run: |
@@ -56,3 +52,7 @@ jobs:
           git push https://x-access-token:${{ secrets.MDDB_REPOS }}@github.com/mmb-irb/mddb-database.git \
             ${{ steps.split.outputs.subtree_commit }}:main --force
           echo "✅ MDDB database updated"
+
+      - name: Open debug session
+        uses: mxschmitt/action-tmate@v3
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug }}
