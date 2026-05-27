@@ -15,6 +15,9 @@ on:
         default: true
         required: false
 
+permissions:
+  contents: write
+
 jobs:
   sync-to-common-repo:
     runs-on: ubuntu-latest
