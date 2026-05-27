@@ -49,6 +49,8 @@ jobs:
       - name: Open debug session
         uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug }}
+        env:
+          MDDB_REPOS: ${{ secrets.MDDB_REPOS }}
 
       - name: Push to MDDB database repo
         if: steps.split.outputs.subtree_commit != ''
