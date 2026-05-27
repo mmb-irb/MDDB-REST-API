@@ -12,7 +12,7 @@ on:
       debug:
         type: boolean
         description: 'Open an interactive sesion'
-        default: true
+        default: false
         required: false
 
 permissions:
@@ -27,7 +27,6 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.MDDB_REPOS }}
-          ref: master
 
       - name: Configure Git
         run: |
@@ -53,14 +52,9 @@ jobs:
       - name: Open debug session
         uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug }}
-        env:
-          MDDB_REPOS: ${{ secrets.MDDB_REPOS }}
 
       - name: Push to MDDB database repo
         if: steps.split.outputs.subtree_commit != ''
-        env:
-          MDDB_REPOS: ${{ secrets.MDDB_REPOS }}
         run: |
-          git push https://x-access-token:${MDDB_REPOS}@github.com/mmb-irb/mddb-database.git \
-            ${{ steps.split.outputs.subtree_commit }}:master --force
+          git push https://github.com/mmb-irb/mddb-database.git ${{ steps.split.outputs.subtree_commit }}:master
           echo "✅ MDDB database updated"
