@@ -27,6 +27,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.MDDB_REPOS }}
+          ref: master
 
       - name: Configure Git
         run: |
