@@ -59,6 +59,13 @@ router.route('/').get( handler({ async retriever(request) {
     
     // Extract the lipid interaction data from the analysis data structure
     const lipidData = analysisData.data || analysisData;
+    let poreFacingFractions = [];
+    if (project.data.analyses.includes('channels')) {
+        const channelsData = await project.getAnalysisData('channels');
+        if (!channelsData.error) {
+            poreFacingFractions = channelsData.data?.pore_residues?.pore_facing || [];
+        }
+    }
     // Set the sites list according to MemProtMD schema
     const sites = [
         {
@@ -143,7 +150,8 @@ router.route('/').get( handler({ async retriever(request) {
             const tailInteraction = tailByResidue[residueIndex] || 0;
             const headInteraction = headByResidue[residueIndex] || 0;
             const solventInteraction = 0; // Not yet available in analysis output
-            const poreFacing = false;     // Not yet available in analysis output
+            const poreFacingFraction = poreFacingFractions[residueIndex] || 0;
+            const poreFacing = poreFacingFraction > 0.5;
             
             // Build site_data array with confidence for each site
             const site_data = [
@@ -174,7 +182,7 @@ router.route('/').get( handler({ async retriever(request) {
                         'group=Tail': tailInteraction,
                         'group=Head': headInteraction,
                         'group=Solvent': solventInteraction,
-                        pore_inner_surface: poreFacing
+                        pore_inner_surface: poreFacing,
                     }
                 },
                 site_data: site_data
