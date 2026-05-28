@@ -254,7 +254,7 @@ class Database4Api extends Database {
             // If we found references fields then we must query the references collection
             // Then each references field will be replaced by its corresponding project field in a new query
             // e.g. references.proteins -> metadata.REFERENCES
-            // e.g. references.ligands -> metadata.LIGANDS
+            // e.g. references.inchikeys -> metadata.INCHIKEYS
             // NEVER FORGET: we can not gather reference ids and query them all together at the end
             // Some queries may have multiple subqueries, belonging to different reference types
             const parseReferencesQuery = async queryObject => {

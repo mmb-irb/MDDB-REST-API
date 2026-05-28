@@ -14,7 +14,7 @@ const { rangeNotation } = require('../../utils/parse-query-range');
 // Set which references support "presence"
 // These are references to be residue-assigned in the topology
 // Thus PDB references do not support presence
-const PRESENCE_SUPPORTED_REFERENCES = [ 'proteins', 'ligands' ];
+const PRESENCE_SUPPORTED_REFERENCES = [ 'proteins', 'inchikeys' ];
 // Set which references support "coverage"
 // These are references which have multiple residues
 // Thus not all of its residues may be covered in the system

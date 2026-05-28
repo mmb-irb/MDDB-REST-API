@@ -413,7 +413,7 @@ paths:
     get:
       summary: Get the simulation references.
       description: >
-        Get a data related to the project references including both proteins and ligands.
+        Get a data related to the project references including including uniprots, inchikeys, etc.
         This endpoint is OPTIONAL for the federated system.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
@@ -470,45 +470,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProteinReference'
-
-  /references/ligands:
-    get:
-      summary: Get all available ligand reference PubChem IDs.
-      description: >
-        Get a list of PubChem IDs with an ID for each ligand reference in the database.
-        This endpoint is OPTIONAL for the federated system.
-      tags:
-        - references
-      responses:
-        200:
-          description: List of PubChem IDs
-          content:
-            application/json:
-              type: array
-              items:
-                type: string
-              example:
-                - '444097'
-                - '3033'
-                - '3033'
-
-  /references/ligands/{PubChemID}:
-    get:
-      summary: Get a specific ligand reference.
-      description: >
-        Get ligand reference data for the specified PubChem ID.
-        This endpoint is OPTIONAL for the federated system.
-      tags:
-        - references
-      parameters:
-        - $ref: '#/definitions/arguments/PubChemID'
-      responses:
-        200:
-          description: Ligand reference data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LigandReference'
 
   /references/pdbs:
     get:
@@ -881,13 +842,6 @@ components:
             - Q9BYF1
         FORCED_REFERENCES:
           type: array
-        LIGANDS:
-          type: array
-          items:
-            type: string
-          example:
-            - 5870
-            - 5757
         LIGANDNAMES:
           type: array
           items:

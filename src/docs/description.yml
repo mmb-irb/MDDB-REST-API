@@ -494,7 +494,7 @@ paths:
     get:
       summary: Get the simulation references.
       description: >
-        Get a data related to the project references including both proteins and ligands.
+        Get a data related to the project references including uniprots, inchikeys, etc.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
       tags:
@@ -552,45 +552,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProteinReference'
-
-  /references/ligands:
-    get:
-      summary: Get all available ligand reference PubChem IDs.
-      description: >
-        Get a list of PubChem IDs with an ID for each ligand reference in the database.
-      tags:
-        - references
-      parameters:
-        - $ref: '#/definitions/arguments/ligandReferenceQuery'
-      responses:
-        200:
-          description: List of PubChem IDs
-          content:
-            application/json:
-              type: array
-              items:
-                type: string
-              example:
-                - '444097'
-                - '3033'
-                - '3033'
-
-  /references/ligands/{PubChemID}:
-    get:
-      summary: Get a specific ligand reference.
-      description: >
-        Get ligand reference data for the specified PubChem ID.
-      tags:
-        - references
-      parameters:
-        - $ref: '#/definitions/arguments/PubChemID'
-      responses:
-        200:
-          description: Ligand reference data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LigandReference'
 
   /references/pdbs:
     get:
@@ -829,80 +790,6 @@ paths:
       responses:
         200:
           description: List of UniProt IDs and its associated projects
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Pointer'
-
-  /pointers/ligands:
-    get:
-      summary: Get all available PubChem IDs and their pointers with projects including these PubChem ID.
-      description: >
-        Get a list of available PubChem IDs and all projects including each PubChem ID.
-        Include also system residues presence.
-      tags:
-        - pointers
-      parameters:
-        - name: format
-          in: query
-          description: Set the response format.
-          schema:
-            type: string
-            enum: ['json', 'csv']
-        - name: projection
-          in: query
-          description: name of the field to be checked for options
-          examples:
-            authors:
-              summary: simulation authors
-              value: 'metadata.AUTHORS'
-            method:
-              summary: simulation methods
-              value: 'metadata.METHOD'
-          schema:
-            type: string
-      responses:
-        200:
-          description: >
-            List of PubChem IDs and its associated projects.
-            Keys are PubChem IDs while values are the associated pointers.
-          content:
-            application/json:
-              type: object
-              additionalProperties:
-                $ref: '#/components/schemas/Pointer'
-
-  /pointers/ligands/{PubChemID}:
-    get:
-      summary: Get a pointer with projects including a specific PubChem ID.
-      description: >
-        Get a list of available PubChem IDs and all projects including each PubChem ID.
-        Include also system residues presence.
-      tags:
-        - pointers
-      parameters:
-        - $ref: '#/definitions/arguments/PubChemID'
-        - name: format
-          in: query
-          description: Set the response format.
-          schema:
-            type: string
-            enum: ['json', 'csv']
-        - name: projection
-          in: query
-          description: name of the field to be checked for options
-          examples:
-            authors:
-              summary: simulation authors
-              value: 'metadata.AUTHORS'
-            method:
-              summary: simulation methods
-              value: 'metadata.METHOD'
-          schema:
-            type: string
-      responses:
-        200:
-          description: List of PubChem IDs and its associated projects
           content:
             application/json:
               schema:
@@ -1675,13 +1562,6 @@ components:
             - Q9BYF1
         FORCED_REFERENCES:
           type: array
-        LIGANDS:
-          type: array
-          items:
-            type: string
-          example:
-            - 5870
-            - 5757
         LIGANDNAMES:
           type: array
           items:
@@ -2046,7 +1926,7 @@ components:
           type: array
           description: >
             A list containing the reference ids of every reference used.
-            They may be UniProt ids for proteins or PubChem ids for ligands
+            They may be UniProt ids for proteins or inchikeys for ligands.
             Protein references are used to numerate residues in the topology according to the standards.
             Both protein and ligand references are used to label residues in the web client.
           items:

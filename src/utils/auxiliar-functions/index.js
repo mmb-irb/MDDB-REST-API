@@ -68,7 +68,7 @@ const setOutputFilename = (projectData, descriptor, forcedFormat = null) => {
 
 // Set a function to build value getters with specific nesting paths
 // Each nested step is separated by a dot
-// e.g. 'metadata.LIGANDS' -> { metadata: { LIGANDS: <target value> } } 
+// e.g. 'metadata.INCHIKEYS' -> { metadata: { INCHIKEYS: <target value> } } 
 const getValueGetter = path => {
     if (!path) throw new Error('Value getter has no path');
     // Split the path in its nested steps
