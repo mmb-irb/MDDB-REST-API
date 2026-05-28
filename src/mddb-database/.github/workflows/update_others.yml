@@ -52,11 +52,15 @@ jobs:
             echo "  $repo subtree last commit: $last_commit"
             # If the repository is already up to date then skip it
             if [ "$last_commit" == "$updated_commit" ]; then
-              echo " $repo is already up to date"
+              echo "  $repo is already up to date"
               continue
             fi
-            echo " $repo must be updated"
-            # Otherwise push the latest changes to the repository
-            git subtree push --prefix=src/mddb-database $repo_url master
-            echo " $repo has been updated"
+            echo "  $repo must be updated"
+            # Otherwise pull the latest changes to the repository and the push to its remote
+            # The message prevents git from asking for the message of the merge commit
+            git subtree pull --prefix=src/mddb-database \
+              https://github.com/mmb-irb/mddb-database.git master \
+              --message 'automatic subtree merge'
+            git push
+            echo "  $repo has been updated"
           done
