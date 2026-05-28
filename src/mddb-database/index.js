@@ -16,6 +16,9 @@ const {
 // Import auxiliar functions
 const { areObjectsIdentical } = require('./utils/auxiliar');
 
+// Import additional functions
+const countOptions = require('./utils/count-options');
+
 // GridFSBucket manages the saving of files bigger than 16 Mb, splitting them into 4 Mb fragments (chunks)
 const { GridFSBucket } = require('mongodb');
 
@@ -103,6 +106,9 @@ class Database {
             }
         }
     };
+
+    // Add additional functions
+    countOptions = (query, fields, shouldCountMds) => countOptions(this, query, fields, shouldCountMds);
 
     // Close the connection to mongo and delete this handler
     close = () => {

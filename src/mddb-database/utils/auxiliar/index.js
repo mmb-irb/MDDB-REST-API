@@ -18,6 +18,26 @@ const areObjectsIdentical = (object1, object2) => {
     return true;
 }
 
+// Set a function to build value getters with specific nesting paths
+// Each nested step is separated by a dot
+// e.g. 'metadata.INCHIKEYS' -> { metadata: { INCHIKEYS: <target value> } } 
+const getValueGetter = path => {
+    if (!path) throw new Error('Value getter has no path');
+    // Split the path in its nested steps
+    const steps = path.split('.');
+    // Build the getter function
+    const valueGetter = object => {
+        let lastObject = object;
+        for (const step of steps) {
+            lastObject = lastObject[step]
+            if (lastObject === undefined) return;
+        }
+        return lastObject;
+    }
+    return valueGetter;
+};
+
 module.exports = {
-    areObjectsIdentical
+    areObjectsIdentical,
+    getValueGetter,
 };
