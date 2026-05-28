@@ -17,10 +17,6 @@ const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 // Translates the frames query string format into a explicit frame selection in string format
 const consumeStream = require('../../../utils/consume-stream');
 const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
-// Get the standard name of both structure and trajectory files
-const {
-  STANDARD_STRUCTURE_FILENAME,
-} = require('../../../utils/constants');
 
 // Get a function to issue a standard output filename
 const { setOutputFilename, getConfig } = require('../../../utils/auxiliar-functions');
@@ -132,7 +128,7 @@ const trajectoryHandler = handler({
         error: 'Cannot request "selection" and "atoms" at the same time'
       };
       // Download the main structure file descriptor
-      const structureDescriptor = await project.getFileDescriptor(STANDARD_STRUCTURE_FILENAME);
+      const structureDescriptor = await project.getFileDescriptor(database.STANDARD_STRUCTURE_FILENAME);
       // If the object ID is not found in the data base, return here
       if (structureDescriptor.error) return structureDescriptor;
       // Open a stream and save it completely into memory

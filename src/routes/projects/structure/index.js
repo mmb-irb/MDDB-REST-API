@@ -7,8 +7,6 @@ const getDatabase = require('../../../database');
 const consumeStream = require('../../../utils/consume-stream');
 // Standard HTTP response status codes
 const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-codes');
-// Get the standard name of the structure file
-const { STANDARD_STRUCTURE_FILENAME } = require('../../../utils/constants');
 // Get a function to issue a standard output filename
 const { setOutputFilename } = require('../../../utils/auxiliar-functions');
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
@@ -31,7 +29,7 @@ const structureHandler = handler({
     // If there was any problem then return the errors
     if (project.error) return project;
     // Download the main structure file descriptor
-    const structureDescriptor = await project.getFileDescriptor(STANDARD_STRUCTURE_FILENAME);
+    const structureDescriptor = await project.getFileDescriptor(database.STANDARD_STRUCTURE_FILENAME);
     // If the object ID is not found in the data base the we have a mess
     // This is our fault, since a file id coming from a project must exist
     if (structureDescriptor.error) return structureDescriptor;

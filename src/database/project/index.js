@@ -216,6 +216,7 @@ class Project {
 
     // Get a file descriptor
     getFileDescriptor = async filename => {
+        if (!filename) throw new Error('Missing filename');
         // Set the MD file query by targeting files with the current MD index
         const mdFileQuery = {
             'filename': filename,
