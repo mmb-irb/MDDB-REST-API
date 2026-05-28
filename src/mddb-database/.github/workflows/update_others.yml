@@ -1,0 +1,62 @@
+name: Sync MDDB database
+
+on:
+  # Run this workflow every time there is a push with changes
+  push:
+    branches: [ master ]
+  # Allow also to manually run the workflow from github for debugging purposes
+  workflow_dispatch:
+    inputs:
+      debug:
+        type: boolean
+        description: 'Open an interactive sesion'
+        default: false
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync-to-common-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.MDDB_REPOS }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "CI Bot"
+          git config user.email "ci@example.com"
+      
+      - name: Open debug session
+        uses: mxschmitt/action-tmate@v3
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug }}
+
+      - name: Update other repositories
+        run: |
+          # Get the current commit here in the common repository
+          updated_commit=$(git rev-parse HEAD)
+          echo "Updated subtree last commit: $updated_commit"
+          # Iterate MDDB repositores which use this code
+          for repo in MDDB-REST-API
+            do echo "Checking $repo"
+            # Donwload the repository
+            repo_url=https://github.com/mmb-irb/$repo.git
+            git clone $repo_url currepont
+            cd currepont
+            # Check the latest commit of the common subtree
+            last_commit=$(git subtree split --prefix=src/mddb-database)
+            echo "  $repo subtree last commit: $last_commit"
+            # If the repository is already up to date then skip it
+            if [ "$last_commit" == "$updated_commit" ]; then
+              echo " $repo is already up to date"
+              continue
+            fi
+            echo " $repo must be updated"
+            # Otherwise push the latest changes to the repository
+            git subtree push --prefix=src/mddb-database $repo_url master
+            echo " $repo has been updated"
+          done
