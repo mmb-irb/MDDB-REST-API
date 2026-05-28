@@ -3,54 +3,66 @@
 // name - Actual name of the collection inside the database
 // indexes - Index configuration in the database, for the collections setup
 // documentNames - Document names used for displaying only
+// parent - Collection and fields to determine if documents are orphan
 const LOCAL_COLLECTIONS = {
     projects: {
         name: 'projects',
         indexes: [{ published: 1 }],
         documentNames: { singular: 'project', plural: 'projects' },
+        parent: null,
     },
     uniprot_refs: {
         name: 'references',
         documentNames: { singular: 'reference', plural: 'references' },
+        parent: { collectionKey: 'projects', referenceField: 'metadata.REFERENCES', localField: 'uniprot' },
     },
     inchikey_refs: {
         name: 'inchikey_refs',
         documentNames: { singular: 'inchikey', plural: 'inchikeys' },
+        parent: { collectionKey: 'projects', referenceField: 'metadata.INCHIKEYS', localField: 'inchikey' },
     },
     pdb_refs: {
         name: 'pdb_refs',
         documentNames: { singular: 'PDB', plural: 'PDBs' },
+        parent: { collectionKey: 'projects', referenceField: 'metadata.PDBIDS', localField: 'id' },
     },
     chain_refs: {
         name: 'chain_refs',
         documentNames: { singular: 'chain', plural: 'chains' },
+        parent: { collectionKey: 'projects', referenceField: 'metadata.PROTSEQ', localField: 'sequence' },
     },
     collection_refs: {
         name: 'collection_refs',
         documentNames: { singular: 'collection', plural: 'collections' },
+        parent: { collectionKey: 'projects', referenceField: 'metadata.COLLECTIONS', localField: 'id' },
     },
     topologies: {
         name: 'topologies',
         indexes: [{ project: 1 }],
         documentNames: { singular: 'topology', plural: 'topologies' },
+        parent: { collectionKey: 'projects', referenceField: '_id', localField: 'project' },
     },
     files: {
         name: 'fs.files',
         indexes: [{ 'metadata.project': 1 }],
         documentNames: { singular: 'file', plural: 'files' },
+        parent: { collectionKey: 'projects', referenceField: '_id', localField: 'metadata.project' },
     },
     chunks: {
         name: 'fs.chunks',
         documentNames: { singular: 'chunk', plural: 'chunks' },
+        parent: { collectionKey: 'files', referenceField: '_id', localField: 'files_id' },
     },
     analyses: {
         name: 'analyses',
         indexes: [{ project: 1 }],
         documentNames: { singular: 'analysis', plural: 'analyses' },
+        parent: { collectionKey: 'projects', referenceField: '_id', localField: 'project' },
     },
     counters: {
         name: 'counters',
-        documentNames: { singular: 'counter', plural: 'counters' }
+        documentNames: { singular: 'counter', plural: 'counters' },
+        parent: null,
     },
 };
 const GLOBAL_COLLECTIONS = {

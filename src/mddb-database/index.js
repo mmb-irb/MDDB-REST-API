@@ -13,6 +13,9 @@ const {
     STANDARD_STRUCTURE_FILENAME,
 } = require('./utils/constants');
 
+// Import auxiliar functions
+const { areObjectsIdentical } = require('./utils/auxiliar');
+
 // GridFSBucket manages the saving of files bigger than 16 Mb, splitting them into 4 Mb fragments (chunks)
 const { GridFSBucket } = require('mongodb');
 
@@ -52,26 +55,60 @@ class Database {
         return this._bucket;
     }
 
+    // Setup the database by creating and indexing the configured collections
+    // This function is shared by the loader and the monitor
+    setup = async () => {
+        // Check the collections already existing in the database
+        const currentCollections = await this.db.listCollections().toArray()
+        const currentCollectionNames = currentCollections.map(collection => collection.name);
+        // Iterate over the configured collections
+        for await (const [collectionKey, collectionConfig] of Object.entries(this.COLLECTIONS)) {
+            // If the collection already exists then do nothing
+            if (currentCollectionNames.includes(collectionConfig.name)) {
+                // Get the configuration indexes for this collection
+                const configIndexes = collectionConfig.indexes;
+                // If there are no configuration indexes at all then we are done
+                if (!configIndexes) continue;
+                // Get the current collection indexes
+                const currentIndexesData = await this[collectionKey].indexes();
+                const currentIndexes = currentIndexesData.map(indexData => indexData.key);
+                // Iterate the expected indexes
+                for await (const configIndex of configIndexes) {
+                    // Make sure the index exists among the current indexes
+                    let found = false;
+                    for (const collectionIndex of currentIndexes) {
+                        // Compare indices
+                        if (areObjectsIdentical(collectionIndex,  configIndex)) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    // If the index does not exist then we create it
+                    if (!found) {
+                        console.log(`🛠️  Setting a missing index in "${collectionKey}" collection: ${JSON.stringify(configIndex)}`);
+                        await this[collectionKey].createIndex(configIndex);
+                    }
+                }
+                // Proceed to the next collection
+                continue;
+            }
+            console.log(`🛠️  Setting up ${collectionKey} collection`);
+            // Create the collection
+            await this.db.createCollection(collectionConfig.name);
+            // Set some indices if specified to accelerate specific queries
+            if (collectionConfig.indexes) {
+                for await (const index of collectionConfig.indexes) {
+                    await this[collectionKey].createIndex(index);
+                }
+            }
+        }
+    };
+
     // Close the connection to mongo and delete this handler
     close = () => {
         this.client.close();
         delete this;
     }
-}
-
-// Connect to the database
-// Then construct and return the database handler
-const connectToDatabase = async isGlobal => {
-    // Save the mongo database connection
-    const client = await dbConnection;
-    // Instantiate the database handler
-    return new Database(client, isGlobal);
-};
-
-// Get the database client
-// Note that this function is set separatedly and not integrated in the handler since it is async
-const getDatabaseClient = async () => {
-    const client = await dbConnection;
 }
 
 module.exports = {
