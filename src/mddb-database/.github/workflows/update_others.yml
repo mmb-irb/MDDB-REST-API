@@ -17,7 +17,7 @@ permissions:
   contents: write
 
 jobs:
-  sync-to-common-repo:
+  sync-to-other-repos:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -28,14 +28,18 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config user.name "CI Bot"
-          git config user.email "ci@example.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
       
       - name: Open debug session
         uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug }}
 
       - name: Update other repositories
+        env:
+          # For some reason it is not using the token (maybe because we jump to other github repos)
+          # So we need to pass it here
+          token: ${{ secrets.MDDB_REPOS }}
         run: |
           # Get the current commit here in the common repository
           updated_commit=$(git rev-parse HEAD)
@@ -44,9 +48,11 @@ jobs:
           for repo in MDDB-REST-API
             do echo "Checking $repo"
             # Donwload the repository
-            repo_url=https://github.com/mmb-irb/$repo.git
-            git clone $repo_url currepont
-            cd currepont
+            repo_url=https://x-access-token:$token@github.com/mmb-irb/$repo.git
+            echo $repo_url
+            repo_path="../$repo"
+            git clone $repo_url $repo_path
+            cd $repo_path
             # Check the latest commit of the common subtree
             last_commit=$(git subtree split --prefix=src/mddb-database)
             echo "  $repo subtree last commit: $last_commit"
@@ -56,11 +62,14 @@ jobs:
               continue
             fi
             echo "  $repo must be updated"
-            # Otherwise pull the latest changes to the repository and the push to its remote
+            # We must set our identity again since we are in a new repository
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            # Otherwise pull the latest changes to the repository and then push to its remote
             # The message prevents git from asking for the message of the merge commit
             git subtree pull --prefix=src/mddb-database \
               https://github.com/mmb-irb/mddb-database.git master \
               --message 'automatic subtree merge'
-            git push
+            git push $repo_url master
             echo "  $repo has been updated"
           done
