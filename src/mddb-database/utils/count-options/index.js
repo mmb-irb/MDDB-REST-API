@@ -43,14 +43,16 @@ const countOptions = async (database, query, fields, shouldCountMds, useSavedCou
         // Request the saved counts matching the query
         const savedCounter = await database.counters.findOne({ query: query },
             { projection: { _id: false, ...fieldProjections } });
+        
         // Now store the saved counts in the final options response
-        Object.entries(savedCounter.fields).forEach(([ field, optionCounts ]) => {
-            const renamedField = field.replaceAll('/', '.');
-            if (!shouldCountMds) Object.entries(optionCounts).forEach(([value, counts]) => {
-                optionCounts[value] = counts[0];
+        if (savedCounter && savedCounter.fields)
+            Object.entries(savedCounter.fields).forEach(([ field, optionCounts ]) => {
+                const renamedField = field.replaceAll('/', '.');
+                if (!shouldCountMds) Object.entries(optionCounts).forEach(([value, counts]) => {
+                    optionCounts[value] = counts[0];
+                });
+                options[renamedField] = optionCounts;
             });
-            options[renamedField] = optionCounts;
-        });
     }
     // Now get the rest of fields which were not already among the saved ones
     const missingFields = new Set([ ...fields ].filter(field => !(field in options)));
