@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "my-package": "mmb-irb/mddb-database",
+    "another-package": "github:mmb-irb/mddb-database#master",
+    "custom-name": "git+https://github.com/mmb-irb/mddb-database.git"
+  }
+}
