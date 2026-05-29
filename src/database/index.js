@@ -304,6 +304,17 @@ class Database4Api extends Database {
             queryError = await parseDateQuery(parsedQuery);
             if (queryError) return queryError;
         }
+        // Run every parsed query in a moment to check if it works or if there is any problem
+        try {
+            for await (const parsedQuery of parsedQueries)
+                await this.projects.countDocuments(parsedQuery);
+        }
+        catch (error) {
+            return {
+                headerError: BAD_REQUEST,
+                error: error.toString()
+            }
+        }
         // Return the modified queries
         return parsedQueries
     }
