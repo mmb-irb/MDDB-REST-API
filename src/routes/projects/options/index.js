@@ -53,7 +53,7 @@ router.route('/').get(
       const shouldCountMds = countMds !== undefined && countMds.toLowerCase() !== 'false';
       // Use the MDDB database counter to calculate this
       // Note that the result must be coherent with the the count from the loader
-      const options = await database.countOptions(finder, projection, shouldCountMds);
+      const options = await database.countOptions(finder, projection, shouldCountMds, true);
       // If something was wrong parse the error codes to HTTP header
       if (options.error) options.headerError = HTTP_CODE_HEADERS[options.code];
       // Return the options object as is

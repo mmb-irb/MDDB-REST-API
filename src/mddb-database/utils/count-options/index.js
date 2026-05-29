@@ -4,13 +4,58 @@ const { getValueGetter } = require('../auxiliar');
 // Set a header present in all 
 const REFERENCE_HEADER = 'references.';
 
+// Set a function to apply any last changes to the results
+// Here are the hardcodes to solve silly issues or not "good looking" numbers
+// LORE: We no longer sort the final response, this is now done by the client
+// LORE: You can not rely in objects order and returning everything as arrays is not efficient
+const lastFixes = options => {
+    // Remove MD interaction-analyses with the numerated name
+    const mdAnalysesKey = 'mds.analyses.name';
+    const numeratedAnalysisPattern = /-[0-9]*$/;
+    if (mdAnalysesKey in options) {
+        const mdAnalyses = options[mdAnalysesKey];
+        Object.keys(mdAnalyses).forEach(key => {
+            // If it ends in '-xx' where xx is any number of numeric characters
+            if (key.match(numeratedAnalysisPattern)) delete mdAnalyses[key];
+        });
+    }
+    // Return the modified object
+    return options;
+}
+
 // Count the number of projects with the same values for every field
 // WARNING: This function is used by both the API and the loader
 // It is important that they use the same code so they are coordinated
-const countOptions = async (database, query, fields, shouldCountMds) => {
+const countOptions = async (database, query, fields, shouldCountMds, useSavedCounts) => {
     // Set the options object to be returned
     // Then all mined data will be written into it
     const options = {};
+    // First of all check if we have already counted values for the requested query
+    if (useSavedCounts) {
+        // Note that the values for these fields have the dots replaced by '/' characters
+        // This is more database friendly than dots
+        // So we have to replace these characters to make the fields match
+        const databaseFields = {};
+        fields.forEach(field => { databaseFields[field] = field.replaceAll('.', '/') });
+        // Set the projection to retrieve only the fields we need
+        const fieldProjections = Object.fromEntries(fields.map(
+            field => [`fields.${databaseFields[field]}`, true]));
+        // Request the saved counts matching the query
+        const savedCounter = await database.counters.findOne({ query: query },
+            { projection: { _id: false, ...fieldProjections } });
+        // Now store the saved counts in the final options response
+        Object.entries(savedCounter.fields).forEach(([ field, optionCounts ]) => {
+            const renamedField = field.replaceAll('/', '.');
+            if (!shouldCountMds) Object.entries(optionCounts).forEach(([value, counts]) => {
+                optionCounts[value] = counts[0];
+            });
+            options[renamedField] = optionCounts;
+        });
+    }
+    // Now get the rest of fields which were not already among the saved ones
+    const missingFields = fields.filter(field => !(field in options));
+    // If there are no missing field left then we are done
+    if (missingFields.length === 0) return lastFixes(options);
     // Options may be fields from projects or references collections
     // Fields in references are headed with the 'references.' label and they are handled separately
     // Start with options from references
@@ -21,7 +66,7 @@ const countOptions = async (database, query, fields, shouldCountMds) => {
     // Keep a set with the references included in the projection
     const requestedReferences = new Set();
     // First separate reference fields from project fields
-    for (const field of fields) {
+    for (const field of missingFields) {
         // If this field has not the reference header either then it is a project field
         if (!field.startsWith(REFERENCE_HEADER)) {
             requestedProjections.projects.push(field);
@@ -232,22 +277,8 @@ const countOptions = async (database, query, fields, shouldCountMds) => {
             options[field] = counts;
         });
     }
-    // This is the moment to do any last changes to the results
-    // Here are the hardcodes to solve silly issues or not "good looking" numbers
-    // Remove MD interaction-analyses with the numerated name
-    const mdAnalysesKey = 'mds.analyses.name';
-    const numeratedAnalysisPattern = /-[0-9]*$/;
-    if (mdAnalysesKey in options) {
-        const mdAnalyses = options[mdAnalysesKey];
-        Object.keys(mdAnalyses).forEach(key => {
-            // If it ends in '-xx' where xx is any number of numeric characters
-            if (key.match(numeratedAnalysisPattern)) delete mdAnalyses[key];
-        });
-    }
-    // LORE: We no longer sort the final response, this is now done by the client
-    // LORE: You can not rely in objects order and returning everything as arrays is not efficient
-    // Send all mined data
-    return options;
+    // Send all mined data while we apply the last fixes
+    return lastFixes(options);
 }
 
 module.exports = countOptions;

@@ -144,7 +144,8 @@ class Database {
     };
 
     // Add additional functions
-    countOptions = (query, fields, shouldCountMds) => countOptions(this, query, fields, shouldCountMds);
+    countOptions = (query, fields, shouldCountMds, useSavedCounts) =>
+        countOptions(this, query, fields, shouldCountMds, useSavedCounts);
 
     // Close the connection to mongo and delete this handler
     close = () => {

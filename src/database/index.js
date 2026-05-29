@@ -35,41 +35,16 @@ class Database4Api extends Database {
 
     // Join the published filter, the collection filter and the posited filter in one single filter
     getBaseFilter = () => {
-        // Check if it is a production API
-        const isProduction = this.config.production;
         // Check if it is a global API
         const isGlobal = this.config && this.config.global;
-        // Set the published filter according to the host configuration
-        // If the environment is tagged as "production" only published projects are returned from mongo
-        // Note that in the global API we target projects flagged as 'posited' instead of 'published'
-        const productionTargetFlag = isGlobal ? 'posited' : 'published';
-        const publishedFilter = Object.seal(isProduction ? { [productionTargetFlag]: true } : {});
-        // Set a filter for the global API to not return unposited projects
-        // Note that a non global API is not expected to have this field so it makes not sense applying the filter
-        const positedFilter = Object.seal(isGlobal ? { unposited: { $exists: false } } : {});
-        // Set the collection filter according to the request URL
-        // This filter is applied over the project metadata 'collections', nothing to do with mongo collections
-        // Note that unknown hosts (e.g. 'localhost:8000') will get all simulations, with no filter
+        // Check if it is a production API
+        const isProduction = this.config.production;
+        // Check if there is host collection to aim at
         const hostCollection = this.config && this.config.collection;
-        const collectionFilter = Object.seal(hostCollection ? { 'metadata.COLLECTIONS': hostCollection } : {});
-        // Set the starting base filter
-        // This is a strict filter and it is applied even when a specific project is requested
-        const baseFilter = { ...publishedFilter, ...positedFilter, ...collectionFilter };
         // Set if a specific project id or accession was requested
-        const requestedAccession = Boolean(this.request.params.project);
-        // If a specific project was requested then the base filter is returned as it is
-        if (requestedAccession) return baseFilter;
-        // If no specific project was requested then the filter is extended
-        // We hide booked and deleted projects
-        // Note that these are not hidden when asking specifically for them
-        // Set the booked filter to remove booked projects from the query
-        // These are projects which are not yet uploaded
-        const bookedFilter = Object.seal({ booked: { $ne: true } });
-        // Set the deleted filter to remove deleted projects from the query
-        // These are projects which were deleted but the entry is kept to preserve the persistent id
-        const deletedFilter = Object.seal({ deleted: { $ne: true } });
-        // Return all filters together, including also the publsihed filter
-        return { ...baseFilter, ...bookedFilter, ...deletedFilter };
+        const withAccession = Boolean(this.request.params.project);
+        // Return the final parsed filter
+        return this.getProjectsFilter(isGlobal, isProduction, hostCollection, withAccession);
     };
 
     // Given the API request, set the project(s) query by the following steps:
@@ -82,19 +57,17 @@ class Database4Api extends Database {
         const idOrAccession = this.request.params.project;
         if (!idOrAccession) return new Error('No project id or accession in the request');
         const project = idOrAccession.split('.')[0];
-        // Check if we are a global API
-        const isGlobal = this.config && this.config.global;
         // Add the base filter to the query
         const query = { ...this.getBaseFilter() };
         // Check if the idOrAccession is a mongo internal object id
         if (isObjectId(project)) {
             // If so, we must complain
-            if (isGlobal) return new Error('Internal identifiers are not supported by the global API');
+            if (this.isGlobal) return new Error('Internal identifiers are not supported by the global API');
             query._id = ObjectId(project);
         }
         // This is a patch to support finding a project by its global but temporal non-persistent id
         // These IDs have the following format: <node>-<local accession>
-        else if (isGlobal && project.includes('-')) {
+        else if (this.isGlobal && project.includes('-')) {
             const splits = project.split('-')
             const node = splits[0];
             const local = splits.slice(1).join('')
