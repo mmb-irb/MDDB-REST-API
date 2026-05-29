@@ -1,7 +1,5 @@
 {
-  "dependencies": {
-    "my-package": "mmb-irb/mddb-database",
-    "another-package": "github:mmb-irb/mddb-database#master",
-    "custom-name": "git+https://github.com/mmb-irb/mddb-database.git"
-  }
+  "name": "mddb-database",
+  "version": "0.0.1",
+  "main": "index.js"
 }
