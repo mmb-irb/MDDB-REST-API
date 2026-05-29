@@ -53,7 +53,7 @@ const countOptions = async (database, query, fields, shouldCountMds, useSavedCou
         });
     }
     // Now get the rest of fields which were not already among the saved ones
-    const missingFields = fields.filter(field => !(field in options));
+    const missingFields = new Set([ ...fields ].filter(field => !(field in options)));
     // If there are no missing field left then we are done
     if (missingFields.length === 0) return lastFixes(options);
     // Options may be fields from projects or references collections
