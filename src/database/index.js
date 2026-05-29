@@ -1,5 +1,5 @@
 // Import the MDDB database handler
-const { databaseConnection, Database } = require('../mddb-database');
+const { databaseConnection, Database } = require('mddb-database');
 // Import some constants
 const { REFERENCE_HEADER, DATE_FIELDS } = require('../utils/constants');
 // Get a function to clean raw project data to a standard format

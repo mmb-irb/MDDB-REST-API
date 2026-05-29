@@ -50,6 +50,7 @@
     "geoip-lite": "^2.0.0",
     "jsdom": "15.2.1",
     "lodash": "4.17.15",
+    "mddb-database": "github:mmb-irb/mddb-database",
     "mongodb": "^4.5.0",
     "ngl": "0.10.4",
     "range-parser": "1.2.1",

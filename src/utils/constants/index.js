@@ -1,5 +1,5 @@
 // Import references configuration
-const { REFERENCES } = require('../../mddb-database/utils/constants');
+const { REFERENCES } = require('mddb-database/utils/constants');
 
 // Set the supported references in "pointers" endpoints
 // We exclude chains since it does not make sense, although it should work anyway

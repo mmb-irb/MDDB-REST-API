@@ -4,7 +4,7 @@ const handler = require('../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../database');
 // Import references configuration
-const { REFERENCES } = require('../../mddb-database/utils/constants');
+const { REFERENCES } = require('mddb-database/utils/constants');
 const AVAILABLE_REFERENCES = Object.keys(REFERENCES).join(', ');
 // Standard codes for HTTP responses
 const { BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
