@@ -1,7 +1,7 @@
 // Import the MDDB database handler
 const { databaseConnection, Database } = require('mddb-database');
 // Import some constants
-const { REFERENCE_HEADER, DATE_FIELDS } = require('../utils/constants');
+const { REFERENCE_HEADER } = require('../utils/constants');
 // Get a function to clean raw project data to a standard format
 const projectFormatter = require('../utils/project-formatter');
 // Get auxiliar functions
@@ -287,7 +287,8 @@ class Database4Api extends Database {
                         return;
                     }
                     // If the field is not among date fields then skip it
-                    if (!DATE_FIELDS.has(field)) return;
+                    const fieldConfig = this.PATH_QUERY_FIELDS[field];
+                    if (fieldConfig.type !== 'date') return;
                     // Parse the date string into a date
                     // Mongo will handle it as an ISODate
                     if (typeof value === 'string') {

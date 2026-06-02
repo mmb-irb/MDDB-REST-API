@@ -116,8 +116,6 @@ PROTEIN_LETTER_RESIDUE_NAMES = {
 module.exports = {
     // Set the headers for some queries
     REFERENCE_HEADER: 'references.',
-    // Set the project fields which store dates
-    DATE_FIELDS: new Set([ 'updateDate' ]),
     // Structural helps
     PROTEIN_RESIDUE_NAME_LETTERS,
     PROTEIN_LETTER_RESIDUE_NAMES,
