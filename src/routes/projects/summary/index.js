@@ -29,7 +29,8 @@ router.route('/growth').get(
       const monthlyData = {};
       
       projects.forEach(project => {
-        const date = project.creationDate || project._id.getTimestamp();
+        let date = project.creationDate || project._id.getTimestamp();
+        if (typeof date === "string") date = new Date(date);
         const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         
         if (!monthlyData[yearMonth]) {
