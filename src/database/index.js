@@ -288,7 +288,7 @@ class Database4Api extends Database {
                     }
                     // If the field is not among date fields then skip it
                     const fieldConfig = this.PATH_QUERY_FIELDS[field];
-                    if (fieldConfig.type !== 'date') return;
+                    if (!fieldConfig || fieldConfig.type !== 'date') return;
                     // Parse the date string into a date
                     // Mongo will handle it as an ISODate
                     if (typeof value === 'string') {
