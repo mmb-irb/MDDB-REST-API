@@ -19,7 +19,7 @@ router.route('/growth').get(
       const cursor = await database.projects.find(
         finder,
         {
-          projection: {_id: 1, creationDate: 1, mds: 1 },
+          projection: {_id: 1, creationDate: 1, mdcount: 1 },
         },
       );
       
@@ -40,8 +40,8 @@ router.route('/growth').get(
         monthlyData[yearMonth].projects++;
         
         // Count MDs for this project
-        if (project.mds) {
-          monthlyData[yearMonth].mds += project.mds.length;
+        if (project.mdcount) {
+          monthlyData[yearMonth].mds += project.mdcount;
         } else {
           // If using old format, count as 1 MD
           monthlyData[yearMonth].mds += 1;
