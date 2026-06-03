@@ -296,7 +296,11 @@ class Database4Api extends Database {
                         continue;
                     }
                     // If it is an object with mongo operators then convert every value inside
+                    // This is useful for operators like $lt (lower than), $gt (greater than), etc.
+                    // However this must not be run for operator like $exists
                     for (const [k, v] of Object.entries(value)) {
+                        // If the value is a boolean then do nothing (e.g. k is $exists)
+                        if (v === true || v === false) continue;
                         value[k] = new Date(v);
                     }
                 }
