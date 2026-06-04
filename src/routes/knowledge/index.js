@@ -68,7 +68,7 @@ router.route('/:pdbid/:project').get(
         if (referenceData.error) return referenceData;
         // Set the available analyses depending on the available fields
         const availableAnalyses = [];
-        if (referenceData.chain_sas) availableAnalyses.push('sasa');
+        if (referenceData.knowledge) availableAnalyses.push('sasa');
         // If no analysis is available then return an error
         if (availableAnalyses.length === 0) return {
           headerError: NOT_FOUND,

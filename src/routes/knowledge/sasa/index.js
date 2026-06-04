@@ -48,11 +48,11 @@ router.route('/').get( handler({ async retriever(request) {
     // Get the PDB reference data
     const referenceData = await database.getReferenceData('pdbs', pdbId);
     if (referenceData.error) return referenceData;
-    // Make sure the reference data has the expected SAS data field
+    // Make sure the reference data has the expected knowledge data field
     // Otherwise it may mean this is an old formatted reference, thus not having the data
-    if (!referenceData.chain_sas) return {
+    if (!referenceData.knowledge) return {
         headerError: NOT_FOUND,
-        error: `PDB reference ${pdbId} has no SAS data.`
+        error: `PDB reference ${pdbId} has no knowledge data.`
     }
     // We must anotate data in PDB reference PDB chains and residues
     // Get chain data according to the FunPDBe schema
@@ -62,31 +62,27 @@ router.route('/').get( handler({ async retriever(request) {
     const isReference = request.params.project === KNOWLEDGE_REFERENCE_KEYWORD
     if (isReference) {
         // Iterate over the different PDB chains
-        for (const [chainLetter, sequence] of Object.entries(referenceData.chain_seq)) {
-            // Get other values from this chain
-            const residueSasValues = referenceData.chain_sas[chainLetter];
-            const residueUniprotNumeration = referenceData.chain_resnum[chainLetter];
-            // If the UniProt was not matched to the sequence (not usual) then skip this chain
-            // We could return the values anyway but probably there is something wrong
-            if (residueUniprotNumeration === 'Missmatched') continue;
+        for (const [chainLetter, residuesData] of Object.entries(referenceData.knowledge)) {
             // Get residue data according to the FunPDBe schema
             const pdbResidues = [];
-            // Iterate residue indices
-            [...sequence].forEach((residueLetter, residueIndex) => {
-                // Get the residue numeration according to the reference (uniprot and thus the PDB)
-                const residueNumber = residueUniprotNumeration[residueIndex];
-                // Get residue name
-                const residueName = PROTEIN_LETTER_RESIDUE_NAMES[residueLetter] || 'NAN';
-                // Get the SAS value for this residue
-                const sasValue = residueSasValues[residueIndex];
+            // Iterate over the different PDB residues
+            for (const residueData of residuesData) {
+                // Get some values from this residue
+                const residueSasValue = residueData.sas;
+                const residueLabel = residueData.num;
+                const residueType = residueData.type;
+                // Get the amino acid single letter code
+                const residueLetter = PROTEIN_RESIDUE_NAME_LETTERS[residueType] || 'X';   
                 // Calculate how much exposed is the residue
-                const exposedReferece = EXPOSED_RESIDUE_REFERENCE_VALUES[residueLetter];
+                const exposedReferece = EXPOSED_RESIDUE_REFERENCE_VALUES[residueLetter] || null;
+                // If there is no reference then it means we don't know this residue type, so skip it
+                if (!exposedReferece) continue;
                 // Conditions stated by Adam Bellaiche
                 // Buried: residues that maintain an RSA < 24%
                 // Exposed: residues that consistently show RSA > 26%
                 // Switching: residues with RSA values fluctuating between < 24% and > 26%
                 // Borderline: residues with RSA values consistently between 24% and 26%
-                const exposure = (sasValue / exposedReferece) * 100;
+                const exposure = (residueSasValue / exposedReferece) * 100;
                 let class_site_data_id;
                 if (exposure <= 24) class_site_data_id = 2;
                 else if (exposure >= 26) class_site_data_id = 1;
@@ -94,8 +90,8 @@ router.route('/').get( handler({ async retriever(request) {
                 // There will never be 'Switching' residues since data is not dynamic
                 // Add current PDB residue to the list
                 pdbResidues.push({
-                    pdb_res_label: residueNumber.toString(),
-                    aa_type: residueName,
+                    pdb_res_label: residueLabel,
+                    aa_type: residueType,
                     additional_residue_annotations: {
                         mddb_rsa: {
                             value: round2tenths(exposure),
@@ -106,12 +102,12 @@ router.route('/').get( handler({ async retriever(request) {
                         "confidence_classification": "high",
                     }],
                 });
-            })
+            }
             // Add the current PDB chain to the list
             pdbChains.push({
                 chain_label: chainLetter,
                 residues: pdbResidues
-            })
+            });
         }
     }
     else {
@@ -129,6 +125,11 @@ router.route('/').get( handler({ async retriever(request) {
             headerError: NOT_FOUND,
             error: `Project ${project.accession} has not "${ANALYSIS_NAME}" data.`
         }
+        // Make sure the reference data has the UniProt to PDB map
+        if (!referenceData.uni2pdb) return {
+            headerError: NOT_FOUND,
+            error: `PDB reference "${pdbId}" is missing the UniProt to PDB map.`
+        }
         // Query the database and retrieve the requested analysis
         const analysisData = await project.getAnalysisData(ANALYSIS_NAME);
         // If there was any problem then return the errors
@@ -143,8 +144,16 @@ router.route('/').get( handler({ async retriever(request) {
             if (atomCountPerResidue[residueIndex]) atomCountPerResidue[residueIndex] += 1;
             else atomCountPerResidue[residueIndex] = 1;
         });
-        // Iterate over the different PDB chains
-        for (const [chainLetter, uniprotId] of Object.entries(referenceData.chain_uniprots)) {
+        // Get residue data according to the FunPDBe schema and sort them by chain
+        const pdbChainResidues = {};
+        // Iterate over the different UniProt ids
+        // Note that we may have more tha one chain in the PDB belonging to the same UniProt
+        // Note that we may have more tha one chain in the simulation to the same UniProt
+        // There are many possible scenarios and there is no simple rule to match chains always
+        // For this reason, for every different UniProt id, we will use only the first chain
+        // We will path values from the first system chain with numeration of the first PDB chain
+        const uniprotIds = new Set(Object.values(referenceData.chain_uniprots));
+        for (const uniprotId of uniprotIds) {
             // Find the reference index in the topology
             const referenceIndex = topologyData.references.indexOf(uniprotId);
             // It may happen that the reference is not found
@@ -155,19 +164,19 @@ router.route('/').get( handler({ async retriever(request) {
             Object.entries(topologyData.residue_reference_indices).forEach(([residueIndex, residueReferenceIndex]) => {
                 if (residueReferenceIndex === referenceIndex) residueIndices.push(residueIndex);
             });
-            // Get residue data according to the FunPDBe schema
-            const pdbResidues = [];
             // Iterate residue indices
-            residueIndices.forEach(residueIndex => {
-                // Get the residue numeration according to the reference (uniprot and thus the PDB)
-                const residueNumber = topologyData.residue_reference_numbers[residueIndex];
-                // Get residue name
-                const residueName = topologyData.residue_names[residueIndex];
+            for (const residueIndex of residueIndices) {
+                // Get the residue numeration according to the reference (uniprot)
+                const residueUniprotNumber = topologyData.residue_reference_numbers[residueIndex];
+                // Now use the uniprot 2 pdb map to get the equivalent PDB values
+                const uniprotKey = `${uniprotId}_${residueUniprotNumber}`;
+                const pdbEquivalent = referenceData.uni2pdb[uniprotKey];
+                if (!pdbEquivalent) continue;
+                // If there is no PDB equivalent then this residue is not present in the PDB
+                // We will return no data for this specific residue
+                const [ chainLetter, residueLabel, residueType ] = pdbEquivalent;
                 // Get the amino acid single letter code
-                const residueLetter = PROTEIN_RESIDUE_NAME_LETTERS[residueName];
-                // Get the classic amino acid name
-                // Otherwise the FunSchema validator will complain because a residue is called HID and it shoud be HIS.
-                const classicResidueName = PROTEIN_LETTER_RESIDUE_NAMES[residueLetter] || 'NAN';
+                const residueLetter = PROTEIN_RESIDUE_NAME_LETTERS[residueType] || 'X';
                 // Get residue atom count
                 const residueAtomCount = atomCountPerResidue[residueIndex];
                 // Get residue SAS values for every frame in the analysis
@@ -181,6 +190,8 @@ router.route('/').get( handler({ async retriever(request) {
                 const maxAbsas = max(absaspf);
                 // Calculate how much exposed is the residue
                 const exposedReferece = EXPOSED_RESIDUE_REFERENCE_VALUES[residueLetter];
+                // If there is no reference then it means we don't know this residue type, so skip it
+                if (!exposedReferece) continue;
                 // Conditions stated by Adam Bellaiche
                 // Buried: residues that maintain an RSA < 24%
                 // Exposed: residues that consistently show RSA > 26%
@@ -195,10 +206,14 @@ router.route('/').get( handler({ async retriever(request) {
                 else if (minExposure >= 26) class_site_data_id = 1;
                 else if (minExposure > 24 && maxExposure < 26) class_site_data_id = 4;
                 else class_site_data_id = 3;
+                // Get the list of residues which belong to the current chain
+                let pdbResidues = pdbChainResidues[chainLetter];
+                if (pdbResidues === undefined)
+                    pdbChainResidues[chainLetter] = pdbResidues = [];
                 // Add current PDB residue to the list
                 pdbResidues.push({
-                    pdb_res_label: residueNumber.toString(),
-                    aa_type: classicResidueName,
+                    pdb_res_label: residueLabel,
+                    aa_type: residueType,
                     additional_residue_annotations: {
                         mddb_rsa: {
                             mean: round2tenths(meanExposure),
@@ -210,13 +225,14 @@ router.route('/').get( handler({ async retriever(request) {
                         "confidence_classification": "high",
                     }],
                 });
-            });
-            // Add the current PDB chain to the list
+            };
+        }
+        Object.entries(pdbChainResidues).forEach(([chainLetter, pdbResidues]) => {
             pdbChains.push({
                 chain_label: chainLetter,
                 residues: pdbResidues
             });
-        }
+        });
     }
     
     // If no PDB chains were found then something is wrong
