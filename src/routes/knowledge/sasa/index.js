@@ -6,6 +6,7 @@ const getDatabase = require('../../../database');
 // Standard HTTP response status codes
 const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
 const { PROTEIN_RESIDUE_NAME_LETTERS, KNOWLEDGE_REFERENCE_KEYWORD } = require('../../../utils/constants');
+const { buildKnowledgeResponse, formatKnowledgeDate } = require('../shared');
 const {
     caluclateMeanAndStandardDeviation,
     min, max, round2tenths, getHost
@@ -251,24 +252,16 @@ router.route('/').get( handler({ async retriever(request) {
     // HARDCODE: De hecho una API podría no tener cliente asociado o tener varios
     const url = isReference ? pdbUrl : `${protocol}://${host}/#/id/${request.params.project}/`;
     // Set the date in the expected format
-    const date = new Date(referenceData.date);
-    const funschemaDate = `${date.getMonth()}/${date.getDate()}/${date.getFullYear()}`;
+    const funschemaDate = formatKnowledgeDate(referenceData.date);
     // Return the final response in the expected format
-    return {
-        data_resource: "MDDB",
-        resource_version: "0.0",
-        resource_entry_url: url,
-        model_coordinates_url: pdbUrl,
-        release_date: funschemaDate,
-        pdb_id: referenceData.id,
-        additional_entry_annotations: {
-            source_id: request.params.project,
-        },
+    return buildKnowledgeResponse({
+        resourceVersion: '0.0',
+        resourceEntryUrl: url,
+        modelCoordinatesUrl: pdbUrl,
+        releaseDate: funschemaDate,
+        pdbId: referenceData.id,
+        sourceId: request.params.project,
         chains: pdbChains,
-        evidence_code_ontology: [{
-            "eco_term": "molecular dynamics evidence used in automatic assertion",
-            "eco_code": "ECO_0006373",
-        }],
         sites: [
             {
                 site_id: 1,
@@ -295,7 +288,7 @@ router.route('/').get( handler({ async retriever(request) {
                 additional_site_annotations: { percentage: "24-26" },
             },
         ],
-    };
+    });
 }}));
 
 module.exports = router;

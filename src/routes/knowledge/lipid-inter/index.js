@@ -5,7 +5,9 @@ const handler = require('../../../utils/generic-handler');
 const getDatabase = require('../../../database');
 // Standard HTTP response status codes
 const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
+const { PROTEIN_RESIDUE_NAME_LETTERS } = require('../../../utils/constants');
 const { getHost } = require('../../../utils/auxiliar-functions');
+const { buildKnowledgeResponse, formatKnowledgeDate } = require('../shared');
 
 // Set the name of the current analysis
 const ANALYSIS_NAME = 'lipid-inter';
@@ -66,25 +68,7 @@ router.route('/').get( handler({ async retriever(request) {
             poreFacingFractions = channelsData.data?.pore_residues?.pore_facing || [];
         }
     }
-    // Set the sites list according to MemProtMD schema
-    const sites = [
-        {
-            site_id: 1,
-            label: "membrane lipid acyl-tail interacting residue",
-        },
-        {
-            site_id: 2,
-            label: "membrane lipid head-group interacting residue",
-        },
-        {
-            site_id: 3,
-            label: "solvent interacting residue",
-        },
-        {
-            site_id: 4,
-            label: "pore-facing residue",
-        },
-    ];
+    
     
     // Helper function to classify confidence based on interaction fraction
     const classifyConfidence = (value) => {
@@ -124,8 +108,14 @@ router.route('/').get( handler({ async retriever(request) {
     // To do so we must anotate data in PDB reference PDB chains and residues
     // Get chain data according to the FunPDBe schema
     const pdbChains = [];
-    // Iterate over the different PDB chains
-    for (const [chainLetter, uniprotId] of Object.entries(pdbReference.chain_uniprots)) {
+    // Iterate over the different UniProt ids
+    // Note that we may have more tha one chain in the PDB belonging to the same UniProt
+    // Note that we may have more tha one chain in the simulation to the same UniProt
+    // There are many possible scenarios and there is no simple rule to match chains always
+    // For this reason, for every different UniProt id, we will use only the first chain
+    // We will path values from the first system chain with numeration of the first PDB chain
+    const uniprotIds = new Set(Object.values(pdbReference.chain_uniprots));
+    for (const uniprotId of uniprotIds) {
         // Find the reference index in the topology
         const referenceIndex = topologyData.references.indexOf(uniprotId);
         // It may happen that the reference is not found
@@ -134,18 +124,22 @@ router.route('/').get( handler({ async retriever(request) {
         // Get residue indices for residues which belong to this reference/chain
         const residueIndices = [];
         Object.entries(topologyData.residue_reference_indices).forEach(([residueIndex, residueReferenceIndex]) => {
-            if (residueReferenceIndex === referenceIndex) residueIndices.push(parseInt(residueIndex));
+            if (residueReferenceIndex === referenceIndex) residueIndices.push(residueIndex);
         });
-        // Get residue data according to the FunPDBe schema
-        const pdbResidues = [];
-        
         // Iterate residue indices
-        residueIndices.forEach(residueIndex => {
-            // Get the residue numeration according to the reference (uniprot and thus the PDB)
-            const residueNumber = topologyData.residue_reference_numbers[residueIndex];
-            // Get residue name
-            const residueName = topologyData.residue_names[residueIndex];
-
+        for (const residueIndex of residueIndices) {
+            // Get the residue numeration according to the reference (uniprot)
+            const residueUniprotNumber = topologyData.residue_reference_numbers[residueIndex];
+            // Now use the uniprot 2 pdb map to get the equivalent PDB values
+            const uniprotKey = `${uniprotId}_${residueUniprotNumber}`;
+            const pdbEquivalent = pdbReference.uni2pdb[uniprotKey];
+            if (!pdbEquivalent) continue;
+            // If there is no PDB equivalent then this residue is not present in the PDB
+            // We will return no data for this specific residue
+            const [chainLetter, residueLabel, residueType] = pdbEquivalent;
+            // Get the amino acid single letter code
+            const residueLetter = PROTEIN_RESIDUE_NAME_LETTERS[residueType] || 'X';
+            
             // Get max contact probability for tail and head across all lipid types
             const tailInteraction = tailByResidue[residueIndex] || 0;
             const headInteraction = headByResidue[residueIndex] || 0;
@@ -173,12 +167,16 @@ router.route('/').get( handler({ async retriever(request) {
                 }
             ];
             
+            // Get the list of residues which belong to the current chain
+            let pdbResidues = pdbChains[chainLetter];
+            if (pdbResidues === undefined)
+                pdbChains[chainLetter] = pdbResidues = [];
             // Add current PDB residue to the list
             pdbResidues.push({
-                pdb_res_label: residueNumber.toString(),
-                aa_type: residueName,
+                pdb_res_label: residueLabel,
+                aa_type: residueType,
                 additional_residue_annotations: {
-                    MDDB_lipid_data: {
+                    mddb_lipid_data: {
                         'group=Tail': tailInteraction,
                         'group=Head': headInteraction,
                         'group=Solvent': solventInteraction,
@@ -187,15 +185,15 @@ router.route('/').get( handler({ async retriever(request) {
                 },
                 site_data: site_data
             });
-        })
-        // Add the current PDB chain to the list
-        pdbChains.push({
-            chain_label: chainLetter,
-            residues: pdbResidues
-        })
+        }
     }
+    // Convert the pdbChains object to an array
+    const finalPdbChains = Object.entries(pdbChains).map(([chainLabel, residues]) => ({
+        chain_label: chainLabel,
+        residues: residues
+    }));
     // If no PDB chains were found then something is wrong
-    if (pdbChains.length === 0) return {
+    if (finalPdbChains.length === 0) return {
         headerError: INTERNAL_SERVER_ERROR,
         error: 'Something went wrong when searching for PDB chains'
     }
@@ -206,22 +204,38 @@ router.route('/').get( handler({ async retriever(request) {
     // Add the cliente equivalent project URL as it has been suggested
     // HARDCODE: El host de la query no tiene por que ser el del cliente
     // HARDCODE: De hecho una API podría no tener cliente asociado o tener varios
-    const url = `${protocol}://${host}/#/id/${project.accession}/`;
+    const url = `${protocol}://${host}/#/id/${request.params.project}/`;
+    // Set the date in the expected format
+    const funschemaDate = formatKnowledgeDate(pdbReference.date);
     // Return the final response in the expected format
-    return {
-        data_resource: "MDDB",
-        resource_version: "0.0",
-        resource_entry_url: url,
-        model_coordinates_url: `https://www.ebi.ac.uk/pdbe/entry/pdb/${pdbReference.id}`,
-        release_date: pdbReference.date,
-        pdb_id: pdbReference.id,
-        chains: pdbChains,
-        evidence_code_ontology: [{
-            "eco_term": "molecular dynamics evidence used in automatic assertion",
-            "eco_code": "ECO_0006373"
-        }],
-        sites: sites,
-    };
+    return buildKnowledgeResponse({
+        resourceVersion: '0.0',
+        resourceEntryUrl: url,
+        modelCoordinatesUrl: `https://www.ebi.ac.uk/pdbe/entry/pdb/${pdbReference.id}`,
+        releaseDate: funschemaDate,
+        pdbId: pdbReference.id,
+        sourceId: request.params.project,
+        chains: finalPdbChains,
+        // Set the sites list according to MemProtMD schema
+        sites: [
+            {
+                site_id: 1,
+                label: "membrane lipid acyl-tail interacting residue",
+            },
+            {
+                site_id: 2,
+                label: "membrane lipid head-group interacting residue",
+            },
+            {
+                site_id: 3,
+                label: "solvent interacting residue",
+            },
+            {
+                site_id: 4,
+                label: "pore-facing residue",
+            },
+        ],
+    });
 }}));
 
 module.exports = router;
