@@ -1231,48 +1231,6 @@ paths:
                 example: >
                   No example is provided since each analysis is different. Look at the schemas
 
-  /projects/{projectAccessionOrID}/chains:
-    get:
-      summary: Get the sequence chains for a project.
-      description: >
-        Get the list of sequence chains for a specific $DATABASE project.
-      parameters:
-        - $ref: '#/definitions/arguments/projectAccessionOrID'
-      tags:
-        - chains
-      responses:
-        200:
-          description: a list of sequence chains
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ChainList'
-  /projects/{projectAccessionOrID}/chains/{chainName}:
-    get:
-      summary: Get a sequence chain for a project.
-      description: >
-        Get a specific sequence chain for a specific $DATABASE project by its
-        name (case-sensitive). It might include sequence analyses run on
-        external services (InterProScan and HMMer)
-      parameters:
-        - $ref: '#/definitions/arguments/projectAccessionOrID'
-        - name: chainName
-          in: path
-          description: chain name (case-sensitive)
-          required: true
-          schema:
-            type: string
-          example: A
-      tags:
-        - chains
-      responses:
-        200:
-          description: an sequence chain object
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Chain'
-
   /nodes:
     get:
       summary: Get a list of available nodes.
@@ -1422,8 +1380,6 @@ components:
           $ref: '#/components/schemas/AnalysisList'
         files:
           $ref: '#/components/schemas/FilesList'
-        chains:
-          $ref: '#/components/schemas/ChainList'
 
     ProjectMetadata:
       type: object
@@ -3095,42 +3051,6 @@ components:
       example:
         - { name: pca, id: 65afd5223837f199fe7671c1 }
         - { name: rgyr, id: 65afd5233837f199fe7671c3 }
-
-    Chain:
-      type: object
-      required:
-        - name
-        - sequence
-      properties:
-        name:
-          type: string
-          description: case-sensitive chain name of a chain in the simulation
-          example: A
-        sequence:
-          type: string
-          description: amino-acid sequence of the chain in one-letter format
-          example: KEPCFREENANFNKIF
-        interproscan:
-          type: object
-          description: >
-            Unprocessed payload of this sequence submitted to the InterProScan
-            service. Might not exist if the sequence is too short. Refer to
-            InterProScan documentation for schema.
-        hmmer:
-          type: object
-          description: >
-            Unprocessed payload of this sequence submitted to the HMMer service.
-            Might not exist if the sequence is too short. Refer to HMMer
-            documentation for schema.
-
-    ChainList:
-      type: array
-      description: list of chains whose information is available
-      items:
-        type: string
-      example:
-        - A
-        - B
 
     KnowledgePdbList:
       type: array

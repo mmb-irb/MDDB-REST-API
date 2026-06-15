@@ -253,8 +253,6 @@ localRouter.use('/:project/trajectory', require('./trajectory'));
 localRouter.use('/:project/files', require('./files'));
 // Filenotes
 localRouter.use('/:project/filenotes', require('./filenotes'));
-// Chains
-localRouter.use('/:project/chains', require('./chains'));
 // Analyses
 localRouter.use('/:project/analyses', require('./analyses'));
 // References
