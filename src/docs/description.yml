@@ -951,6 +951,8 @@ paths:
             Keys are chain sequences while values are the associated pointers.
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Pointer'
 
   /pointers/chains/{ChainSequence}:
     get:
@@ -1006,6 +1008,8 @@ paths:
             Keys are collection IDs while values are the associated pointers.
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Pointer'
 
   /pointers/collections/{CollectionID}:
     get:
@@ -1158,7 +1162,9 @@ paths:
         200:
           description: a file descriptor
           content:
-            $ref: '#/components/schemas/FileDescription'
+            application/json:
+                schema:
+                  $ref: '#/components/schemas/FileDescription'
 
   /projects/{projectAccessionOrID}/analyses:
     get:
