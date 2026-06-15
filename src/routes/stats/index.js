@@ -22,7 +22,8 @@ router.route('/').get(
             const config = getConfig(request);
             const isGlobal = config && config.global;
             // Global stats may not be asked to the global API
-            if (isGlobal) return {
+            const query = request.query.query;
+            if (isGlobal && !query) return {
                 headerError: BAD_REQUEST,
                 error: 'This is the global database and its stats may be missleading.'
                     + ' In order to get the global stats all federated nodes must be asked.'
@@ -34,12 +35,11 @@ router.route('/').get(
             // Compute the real stored size of GridFS files for the queried projects
             // Without a query filter this would require aggregating all files in the DB,
             // so we skip it and fall back to the dbStats figure instead
-            const query = request.query.query;
             let realDataSizeInTB;
             if (!query) {
                 realDataSizeInTB = +(dbStats.dataSize / 1e6);
             } else {
-                // This is expensive so we cache it with a TTL, keyed by query string
+                // This is expensive so we cache it with a TTL (time-to-live), keyed by query string
                 if (!gridFsSizeCache.has(query) 
                     || Date.now() - gridFsSizeCache.get(query).timestamp > CACHE_TTL_MS) {
                     const projectsFinder = database.getBaseFilter();
@@ -47,21 +47,49 @@ router.route('/').get(
                     if (processedQuery.error) return processedQuery;
                     if (!projectsFinder.$and) projectsFinder.$and = processedQuery;
                     else projectsFinder.$and = projectsFinder.$and.concat(processedQuery);
-                    // Get all file IDs, including those in MDs
-                    const projectsCursor = await database.projects.find(
-                        projectsFinder,
-                        { projection: { files: 1, 'mds.files': 1 } },
-                    );
-                    const allProjects = await projectsCursor.toArray();
-                    // Flatten all file IDs
-                    const fileIds = allProjects.flatMap(project => [
-                        ...(project.files ?? []).map(f => f.id),
-                        ...(project.mds   ?? []).flatMap(md => (md.files ?? []).map(f => f.id)),
-                    ]);
-                    // Sum 'length' from fs.files for all those IDs
-                    const sizeAgg = await database.db.collection('fs.files').aggregate([
-                        { $match: { _id: { $in: fileIds } } },
-                        { $group: { _id: null, totalBytes: { $sum: '$length' } } },
+                    // Single aggregation pipeline to do it all
+                    const sizeAgg = await database.projects.aggregate([
+                        // 1. Filter projects
+                        { $match: projectsFinder },
+                        // 2. Extract and flatten file IDs entirely on the DB side
+                        {
+                            $project: {
+                                fileIds: {
+                                    $concatArrays: [
+                                        { $ifNull: [ "$files.id", [] ] },
+                                        {
+                                            $reduce: {
+                                                input: { $ifNull: [ "$mds", [] ] },
+                                                initialValue: [],
+                                                in: { $concatArrays: [ "$$value", { $ifNull: [ "$$this.files.id", [] ] } ] }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        // 3. Flatten the arrays into individual document rows
+                        { $unwind: "$fileIds" },
+                        // 4. Deduplicate IDs across all projects to avoid double-counting shared files
+                        { $group: { _id: "$fileIds" } },
+                        // 5. Join with the fs.files collection using the indexed _id primary key
+                        {
+                            $lookup: {
+                                from: 'fs.files',
+                                localField: '_id',
+                                foreignField: '_id',
+                                as: 'gridFsFile'
+                            }
+                        },
+                        // 6. Unwind the joined file array (will be 1 item max per row)
+                        { $unwind: "$gridFsFile" },
+                        // 7. Sum up the lengths
+                        {
+                            $group: {
+                                _id: null,
+                                totalBytes: { $sum: "$gridFsFile.length" }
+                            }
+                        }
                     ]).toArray();
                     const totalBytes = sizeAgg.length > 0 ? sizeAgg[0].totalBytes : 0;
                     gridFsSizeCache.set(query, { totalBytes, timestamp: Date.now() });
