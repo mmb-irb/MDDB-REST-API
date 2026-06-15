@@ -261,6 +261,7 @@ router.route('/').get( handler({ async retriever(request) {
         releaseDate: funschemaDate,
         pdbId: referenceData.id,
         sourceId: request.params.project,
+        analysisType: ANALYSIS_NAME,
         chains: pdbChains,
         sites: [
             {

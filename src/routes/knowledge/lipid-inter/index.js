@@ -215,6 +215,7 @@ router.route('/').get( handler({ async retriever(request) {
         releaseDate: funschemaDate,
         pdbId: pdbReference.id,
         sourceId: request.params.project,
+        analysisType: ANALYSIS_NAME,
         chains: finalPdbChains,
         // Set the sites list according to MemProtMD schema
         sites: [

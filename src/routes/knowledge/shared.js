@@ -10,6 +10,7 @@ const buildKnowledgeResponse = ({
     releaseDate,
     pdbId,
     sourceId,
+    analysisType,
     chains,
     sites,
 }) => ({
@@ -21,6 +22,7 @@ const buildKnowledgeResponse = ({
     pdb_id: pdbId,
     additional_entry_annotations: {
         source_id: sourceId,
+        annotation_type: analysisType,
     },
     chains,
     evidence_code_ontology: [{
