@@ -523,18 +523,34 @@ paths:
         - references
       parameters:
         - $ref: '#/definitions/arguments/proteinReferenceQuery'
+        - name: limit
+          in: query
+          description: pagination, maximum number of projects per query
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
       responses:
         200:
-          description: List of UniProt IDs
+          description: List of protein references
           content:
             application/json:
-              type: array
-              items:
-                type: string
-              example:
-                - P17427
-                - P27870
-                - Q01842
+              schema:
+                type: object
+                properties:
+                  referencesCount:
+                    type: integer
+                    example: 42
+                  references:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProteinReference'
 
   /references/proteins/{UniProtID}:
     get:
@@ -562,18 +578,33 @@ paths:
         - references
       parameters:
         - $ref: '#/definitions/arguments/pdbReferenceQuery'
+        - name: limit
+          in: query
+          description: pagination, maximum number of projects per query
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
       responses:
         200:
           description: List of PDB IDs
           content:
             application/json:
-              type: array
-              items:
-                type: string
-              example:
-                - 12CA
-                - 153L
-                - 16PK
+              type: object
+              properties:
+                referencesCount:
+                  type: integer
+                  example: 42
+                references:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/PdbReference'
 
   /references/pdbs/{PDBID}:
     get:
@@ -602,6 +633,19 @@ paths:
         - references
       parameters:
         - $ref: '#/definitions/arguments/inchikeyReferenceQuery'
+        - name: limit
+          in: query
+          description: pagination, maximum number of projects per query
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
       responses:
         200:
           description: Object with a count and an array of InChIKey references
@@ -645,6 +689,19 @@ paths:
         - references
       parameters:
         - $ref: '#/definitions/arguments/chainReferenceQuery'
+        - name: limit
+          in: query
+          description: pagination, maximum number of projects per query
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
       responses:
         200:
           description: Object with a count and an array of chain sequence references
@@ -688,6 +745,19 @@ paths:
         - references
       parameters:
         - $ref: '#/definitions/arguments/collectionReferenceQuery'
+        - name: limit
+          in: query
+          description: pagination, maximum number of projects per query
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
       responses:
         200:
           description: Object with a count and an array of collection references
@@ -1195,11 +1265,11 @@ paths:
           schema:
             type: string
             enum: [
+              'pca',
               'dist-perres',
               'energies',
               'fluctuation',
               'hbonds',
-              'pca',
               'pockets',
               'rgyr',
               'rmsd-pairwise',
@@ -3004,7 +3074,7 @@ components:
       properties:
         length:
           type: integer
-          description: length in bytes
+          description: file size in bytes
           example: 368194
         filename:
           type: string
@@ -3199,15 +3269,6 @@ definitions:
       schema:
         type: string
       example: "1986"
-    ligandReferenceQuery:
-      name: query
-      in: query
-      description: >
-        A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
-        It can be used to filter ligand references by any field.
-      schema:
-        type: string
-      example: '{"formula":"C22H23N3O4"}'
     PDBID:
       name: PDBID
       in: path
@@ -3243,7 +3304,7 @@ definitions:
         It can be used to filter InChIKey references by top-level or nested fields.
       schema:
         type: string
-      example: '{"pubchem.formula":"C32H47FN6O4S"}'
+      example: '{"ligand.formula":{"$regex":"P"}}'
     ChainSequence:
       name: ChainSequence
       in: path
