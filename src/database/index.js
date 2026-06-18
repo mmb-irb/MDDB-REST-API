@@ -6,6 +6,8 @@ const { REFERENCE_HEADER } = require('../utils/constants');
 const projectFormatter = require('../utils/project-formatter');
 // Get auxiliar functions
 const { getConfig, parseJSON } = require('../utils/auxiliar-functions');
+// Get the ping function
+const ping = require('../utils/ping');
 // Standard HTTP response status codes
 const { NOT_FOUND, BAD_REQUEST } = require('../utils/status-codes');
 // The project class is used to handle database data from a specific project
@@ -120,6 +122,12 @@ class Database4Api extends Database {
             headerError: NOT_FOUND,
             error: `Project ${this.request.params.project} was not found`
         };
+        // If there is a link with the ping flag then run the ping here
+        if (rawProjectData.metadata && rawProjectData.metadata.LINKS)
+            rawProjectData.metadata.LINKS.forEach(link => {
+                if (link.ping) ping(link.url);
+            });
+        // Return the raw project metadata
         return rawProjectData;
     }
 
