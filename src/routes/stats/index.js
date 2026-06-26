@@ -10,11 +10,6 @@ const { BAD_REQUEST } = require('../../utils/status-codes');
 
 const router = Router({ mergeParams: true });
 
-// In-memory cache for the GridFS size aggregation (expensive full-collection scan)
-const CACHE_TTL_MS = 60 * 60 * 1000 * 24; // 24 hour
-let gridFsSizeCache = new Map();
-
-// Root -> display available PDBs
 router.route('/').get(
     handler({
         async retriever(request) {
@@ -35,82 +30,47 @@ router.route('/').get(
             // Compute the real stored size of GridFS files for the queried projects
             // Without a query filter this would require aggregating all files in the DB,
             // so we skip it and fall back to the dbStats figure instead
-            let realDataSizeInTB;
+            let storageStats;
             if (!query) {
-                realDataSizeInTB = +(dbStats.dataSize / 1e6);
+                // Use the dbStats figures directly, which are already pre-calculated by MongoDB
+                storageStats = {
+                    totalSize: dbStats.dataSize * 1e6, // Convert back to bytes
+                    // databaseName: dbStats.db,
+                    dataSizeInTB: +(dbStats.dataSize / 1e6).toFixed(2),
+                    storageUsedInTB: +(dbStats.storageSize / 1e6).toFixed(2),
+                    indexSizeInMB: +(dbStats.indexSize).toFixed(2),
+                    usedDiskInTB: +(dbStats.fsUsedSize / 1e6).toFixed(2),
+                    availableDiskInTB: +(dbStats.fsTotalSize / 1e6).toFixed(2),
+                    nShards: dbStats.raw ? Object.keys(dbStats.raw).length : 1,
+                    // objectCount: dbStats.objects,
+                    // collections: dbStats.collections,
+                    // indexes: dbStats.indexes
+                };
             } else {
-                // This is expensive so we cache it with a TTL (time-to-live), keyed by query string
-                if (!gridFsSizeCache.has(query) 
-                    || Date.now() - gridFsSizeCache.get(query).timestamp > CACHE_TTL_MS) {
-                    const projectsFinder = database.getBaseFilter();
-                    const processedQuery = await database.processProjectsQuery(query);
-                    if (processedQuery.error) return processedQuery;
-                    if (!projectsFinder.$and) projectsFinder.$and = processedQuery;
-                    else projectsFinder.$and = projectsFinder.$and.concat(processedQuery);
-                    // Single aggregation pipeline to do it all
-                    const sizeAgg = await database.projects.aggregate([
-                        // 1. Filter projects
-                        { $match: projectsFinder },
-                        // 2. Extract and flatten file IDs entirely on the DB side
-                        {
-                            $project: {
-                                fileIds: {
-                                    $concatArrays: [
-                                        { $ifNull: [ "$files.id", [] ] },
-                                        {
-                                            $reduce: {
-                                                input: { $ifNull: [ "$mds", [] ] },
-                                                initialValue: [],
-                                                in: { $concatArrays: [ "$$value", { $ifNull: [ "$$this.files.id", [] ] } ] }
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        // 3. Flatten the arrays into individual document rows
-                        { $unwind: "$fileIds" },
-                        // 4. Deduplicate IDs across all projects to avoid double-counting shared files
-                        { $group: { _id: "$fileIds" } },
-                        // 5. Join with the fs.files collection using the indexed _id primary key
-                        {
-                            $lookup: {
-                                from: 'fs.files',
-                                localField: '_id',
-                                foreignField: '_id',
-                                as: 'gridFsFile'
-                            }
-                        },
-                        // 6. Unwind the joined file array (will be 1 item max per row)
-                        { $unwind: "$gridFsFile" },
-                        // 7. Sum up the lengths
-                        {
-                            $group: {
-                                _id: null,
-                                totalBytes: { $sum: "$gridFsFile.length" }
-                            }
-                        }
-                    ]).toArray();
-                    const totalBytes = sizeAgg.length > 0 ? sizeAgg[0].totalBytes : 0;
-                    gridFsSizeCache.set(query, { totalBytes, timestamp: Date.now() });
-                }
-                realDataSizeInTB = +(gridFsSizeCache.get(query).totalBytes / 1e12);
+                // Use the pre-calculated totalSize stored in project documents
+                // This avoids the expensive full-collection aggregation query
+                const projectsFinder = database.getBaseFilter();
+                const processedQuery = await database.processProjectsQuery(query);
+                if (processedQuery.error) return processedQuery;
+                if (!projectsFinder.$and) projectsFinder.$and = processedQuery;
+                else projectsFinder.$and = projectsFinder.$and.concat(processedQuery);
+                
+                // Sum the totalSize field from all matching projects
+                const sizeAgg = await database.projects.aggregate([
+                    { $match: projectsFinder },
+                    { $group: { _id: null, totalSize: { $sum: '$totalSize' } } }
+                ]).toArray();
+                
+                const totalSize = sizeAgg.length > 0 ? sizeAgg[0].totalSize : 0;
+                const dataSizeInTB = +(totalSize / 1e12).toFixed(2);
+                storageStats = {
+                    totalSize,
+                    dataSizeInTB,
+                    // For backwards compatibility. Remove when all the client>0.0.14
+                    realDataSizeInTB: dataSizeInTB, 
+                };
             }
-            // Create a formatted response with values in TB
-            const storageStats = {
-                // databaseName: dbStats.db,
-                dataSizeInTB: +(dbStats.dataSize / 1e6).toFixed(2),
-                realDataSizeInTB, // Decimals are not fixed because we may have to change the unit (TB vs GB) depending on the value
-                storageUsedInTB: +(dbStats.storageSize / 1e6).toFixed(2),
-                indexSizeInMB: +(dbStats.indexSize).toFixed(2),
-                usedDiskInTB: +(dbStats.fsUsedSize / 1e6).toFixed(2),
-                availableDiskInTB: +(dbStats.fsTotalSize / 1e6).toFixed(2),
-                nShards: dbStats.raw ? Object.keys(dbStats.raw).length : 1,
-                // objectCount: dbStats.objects,
-                // collections: dbStats.collections,
-                // indexes: dbStats.indexes
-            };
-
+            console.log('Storage stats:', storageStats);
             // Send all mined data
             return storageStats;
         }
