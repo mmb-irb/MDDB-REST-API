@@ -35,7 +35,7 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
     projectData.error = error;
     return { headerError: NOT_FOUND, error: error, accession: projectData.accession };
   }
-  const { name, frames, atoms, warnings, metadata, analyses, files, ...rest } = mdData;
+  const { name, frames, atoms, time, warnings, metadata, analyses, files, ...rest } = mdData;
   // Add the mdIndex and the mdNumber to the project itself
   // Note that this value has the same usage and importance than the accession
   projectData.mdIndex = mdIndex;
@@ -45,6 +45,7 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   // Add also the atom and frames count
   projectData.metadata.mdAtoms = atoms;
   projectData.metadata.mdFrames = frames;
+  projectData.metadata.mdTime = time;
   // Project warnings and MD warnings are joined
   const projectWarnings = projectData.metadata.WARNINGS || [];
   const mdWarnings = warnings || [];
