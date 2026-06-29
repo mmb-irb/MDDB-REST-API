@@ -70,7 +70,6 @@ router.route('/').get(
                     realDataSizeInTB: dataSizeInTB, 
                 };
             }
-            console.log('Storage stats:', storageStats);
             // Send all mined data
             return storageStats;
         }
