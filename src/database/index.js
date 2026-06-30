@@ -5,7 +5,7 @@ const { REFERENCE_HEADER } = require('../utils/constants');
 // Get a function to clean raw project data to a standard format
 const projectFormatter = require('../utils/project-formatter');
 // Get auxiliar functions
-const { getConfig, parseJSON } = require('../utils/auxiliar-functions');
+const { getConfig, parseJSON, isObjectId } = require('../utils/auxiliar-functions');
 // Get the ping function
 const ping = require('../utils/ping');
 // Standard HTTP response status codes
@@ -13,16 +13,10 @@ const { NOT_FOUND, BAD_REQUEST } = require('../utils/status-codes');
 // The project class is used to handle database data from a specific project
 const Project = require('./project');
 
-// ObjectId returns an object with the mongo object id
+// Database.ObjectId returns an object with the mongo object id
 // This id is associated to the provided idOrAccession when it is valid
 // When the idOrAccession is not valid for mongo it just returns the same idOrAccession
 // In addition, it returns the provided filters
-const { ObjectId } = require('mongodb');
-
-// Set a function to check if a string is a mongo internal id
-// WARNING: Do not use the builtin 'ObjectId.isValid'
-// WARNING: It returns true with whatever string 12 characters long
-const isObjectId = string => /^[a-z0-9]{24}$/.test(string);
 
 // Set the project class
 class Database4Api extends Database {
@@ -65,7 +59,7 @@ class Database4Api extends Database {
         if (isObjectId(project)) {
             // If so, we must complain
             if (this.isGlobal) return new Error('Internal identifiers are not supported by the global API');
-            query._id = ObjectId(project);
+            query._id = Database.ObjectId(project);
         }
         // This is a patch to support finding a project by its global but temporal non-persistent id
         // These IDs have the following format: <node>-<local accession>

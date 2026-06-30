@@ -1,5 +1,4 @@
 const Router = require('express').Router;
-const { ObjectId } = require('mongodb');
 // A standard request and response handler used widely in most endpoints
 const handler = require('../../utils/generic-handler');
 // Get the database handler
@@ -149,7 +148,7 @@ projectRouter.route('/').get(
       // If there are no results, we try it with the mongo internal ids
       // This only works with the full object id, not partial ids
       if (filteredCount === 0 && /[a-z0-9]{24}/.test(search)) {
-        const id = ObjectId(search.match(/[a-z0-9]{24}/)[0]);
+        const id = database.ObjectId(search.match(/[a-z0-9]{24}/)[0]);
         const newFinder = { _id: id };
         filteredCount = await database.projects.countDocuments(newFinder);
         cursor = await database.projects.find(newFinder);
