@@ -204,6 +204,51 @@ paths:
       description: Get a json object containing data related to atom, residue and chains (e.g. atom names, residue numbers).
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
+        - name: include
+          in: query
+          description: >
+            Set which topology fields are to be included in the response.
+            All fields are included by defautl.
+          schema:
+            type: array
+            items:
+              type: string
+              examples:
+                Atom names:
+                  summary: Atom names
+                  value: atom_names
+                Atom elements:
+                  summary: Atom elements
+                  value: atom_elements
+                Atom charges:
+                  summary: Atomic charges
+                  value: atom_charges
+        - name: exclude
+          in: query
+          description: >
+            Set which topology fields are to be excluded from the response.
+            All fields are included by defautl.
+          schema:
+            type: array
+            items:
+              type: string
+              examples:
+                Atom names:
+                  summary: Atom names
+                  value: atom_names
+                Atom elements:
+                  summary: Atom elements
+                  value: atom_elements
+                Atom charges:
+                  summary: Atomic charges
+                  value: atom_charges
+        - name: raw
+          in: query
+          description: >
+            Set if the response is not to be formatted, but sent as it is stored in the database.
+          schema:
+            type: boolean
+            default: false
       tags:
         - topology
       responses:
