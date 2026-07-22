@@ -2,6 +2,10 @@
 const { NOT_FOUND } = require('../../utils/status-codes');
 // Get auxiliar functions
 const { getValueGetter } = require('../../utils/auxiliar-functions');
+// Import version handler
+const Version = require('../../utils/version');
+// Function to consume a stream entirely
+const consumeStream = require('../../utils/consume-stream');
 // Get tools to handle range queries
 const handleRanges = require('../../utils/handle-ranges');
 const { rangeIndices } = require('../../utils/parse-query-range');
@@ -50,15 +54,72 @@ class Project {
         };
         // If the topology is requested raw then return it as is
         if (raw === true) return topologyData;
+        // Make a copy of the original data so we do not mutate the original
+        let topology = { ...topologyData };
+        // New topology format:
+        // Instead of atom_names and atom_elements we may have atom_species and atom_species_indices
+        // Parse these here so the API response is still compliant with the old format
+        const atomSpecies = topology['atom_species'];
+        if (atomSpecies) {
+            const atomNames = [];
+            const atomElements = [];
+            topology['atom_species_indices'].forEach(atomSpeciesIndex => {
+                const [ atomName, atomElement ] = atomSpecies[atomSpeciesIndex];
+                atomNames.push(atomName);
+                atomElements.push(atomElement);
+            });
+            // Get rid of raw values
+            delete topology['atom_species'];
+            delete topology['atom_species_indices'];
+            // Set the new values
+            // Do it in a way that they come in first, to respect the original order
+            topology = Object.assign({ 'atom_names': atomNames, 'atom_elements': atomElements }, topology);
+        }
+        // Get the topology version
+        const version = new Version(topology['version']);
+        // If we have the modern bonds system then we must modify them to match the old format
+        const atomBonds = topology['atom_bonds'];
+        if (atomBonds && (version.greaterThan('0.1') || version.equals('0.1'))) {
+            const fixedBonds = Array.from({ length: atomBonds.length }, () => []);
+            atomBonds.forEach((bondedAtomIndices, atomIndex) => {
+                fixedBonds[atomIndex] = fixedBonds[atomIndex].concat(bondedAtomIndices);
+                bondedAtomIndices.forEach(bondedAtomIndex => {
+                    fixedBonds[bondedAtomIndex].push(atomIndex);
+                })
+            });
+            // Replace raw bonds with the completed ones
+            topology['atom_bonds'] = fixedBonds;
+        }
         // Otherwise we must make a few changes before returning it
         // Check if atom charges are "per MD" and, if this is the case, then return only the values for the corresponding MD
-        const atomCharges = topologyData['atom_charges'];
+        const atomCharges = topology['atom_charges'];
         if (atomCharges && atomCharges.mdmap && atomCharges.values) {
             const valueIndex = atomCharges.mdmap[this.mdIndex];
-            topologyData['atom_charges'] = atomCharges.values[valueIndex];
+            topology['atom_charges'] = atomCharges.values[valueIndex];
+        }
+        // In case charges are in gridFS this is the moment to load them
+        if (atomCharges && atomCharges === 'gridfs') {
+            // Get the charges file descriptor
+            const chargesDescriptor = await this.database.files.findOne(
+                {   
+                    'metadata.project': this.data.internalId,
+                    filename: { $regex: 'atom_charges' },
+                    'metadata.mds': this.mdIndex,
+                });
+            // At this point it must exist
+            if (!chargesDescriptor) return {
+                headerError: INTERNAL_SERVER_ERROR,
+                error: `Atom charges file descriptor not found for topology`
+            };
+            // Request the actual charges using the descriptor id
+            const chargesStream = this.database.bucket.openDownloadStream(chargesDescriptor._id);
+            const rawCharges = await consumeStream(chargesStream);
+            // Consume the parsed charges
+            const parsedCharges = new Float32Array(rawCharges.buffer);
+            topology['atom_charges'] = Array.from(parsedCharges);
         }
         // Send the processed analysis data
-        return topologyData;
+        return topology;
     }
 
     // Get analysis data
@@ -238,7 +299,7 @@ class Project {
         const projectFileDescriptor = await this.database.files.findOne(projectFileQuery);
         // If we found a result then return it
         if (projectFileDescriptor) return projectFileDescriptor;
-        // If we had no match tehn return an error
+        // If we had no match then return an error
         return {
             headerError: NOT_FOUND,
             error: `File descriptor for "${filename}" was not found in the files collection`
