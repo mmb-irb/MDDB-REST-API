@@ -236,5 +236,7 @@ module.exports = (descriptor, range) => {
     // WARNING: Note that we are asuming some types here, but this is the reality of the database nowadays
     if (valuesBitSize === 2 || valuesBitSize === 3) return bit2values(valuesBitSize, range);
     if (valuesBitSize === 32) return float32values(range);
+    if (valuesBitSize === undefined)
+        throw new Error(`File descriptor for "${descriptor.filename}" is missing the "bitsize" parameter`);
     throw new Error(`Not supported bit size ${valuesBitSize}`);
 };
