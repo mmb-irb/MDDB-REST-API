@@ -59,7 +59,7 @@ class Database4Api extends Database {
         if (isObjectId(project)) {
             // If so, we must complain
             if (this.isGlobal) return new Error('Internal identifiers are not supported by the global API');
-            query._id = Database.ObjectId(project);
+            query._id = new this.constructor.ObjectId(project);
         }
         // This is a patch to support finding a project by its global but temporal non-persistent id
         // These IDs have the following format: <node>-<local accession>
