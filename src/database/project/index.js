@@ -61,7 +61,7 @@ class Project {
         // Instead of atom_names and atom_elements we may have atom_species and atom_species_indices
         // Parse these here so the API response is still compliant with the old format
         const atomSpecies = topology['atom_species'];
-        if (atomSpecies && (fields.has('atom_names') || fields.has('atom_elements'))) {
+        if (atomSpecies && (!fields || fields.has('atom_names') || fields.has('atom_elements'))) {
             const atomNames = [];
             const atomElements = [];
             topology['atom_species_indices'].forEach(atomSpeciesIndex => {
@@ -80,7 +80,7 @@ class Project {
         const version = new Version(topology['version']);
         // If we have the modern bonds system then we must modify them to match the old format
         const atomBonds = topology['atom_bonds'];
-        if (atomBonds && (version.greaterThan('0.1') || version.equals('0.1')) && fields.has('atom_bonds')) {
+        if (atomBonds && (version.greaterThan('0.1') || version.equals('0.1')) && (!fields || fields.has('atom_bonds'))) {
             const fixedBonds = Array.from({ length: atomBonds.length }, () => []);
             atomBonds.forEach((bondedAtomIndices, atomIndex) => {
                 fixedBonds[atomIndex] = fixedBonds[atomIndex].concat(bondedAtomIndices);
@@ -94,12 +94,12 @@ class Project {
         // Otherwise we must make a few changes before returning it
         // Check if atom charges are "per MD" and, if this is the case, then return only the values for the corresponding MD
         const atomCharges = topology['atom_charges'];
-        if (atomCharges && atomCharges.mdmap && atomCharges.values && fields.has('atom_charges')) {
+        if (atomCharges && atomCharges.mdmap && atomCharges.values && (!fields || fields.has('atom_charges'))) {
             const valueIndex = atomCharges.mdmap[this.mdIndex];
             topology['atom_charges'] = atomCharges.values[valueIndex];
         }
         // In case charges are in gridFS this is the moment to load them
-        if (atomCharges && atomCharges === 'gridfs' && fields.has('atom_charges')) {
+        if (atomCharges && atomCharges === 'gridfs' && (!fields || fields.has('atom_charges'))) {
             // Get the charges file descriptor
             const chargesDescriptor = await this.database.files.findOne(
                 {   
@@ -119,6 +119,7 @@ class Project {
             const parsedCharges = new Float32Array(rawCharges.buffer);
             topology['atom_charges'] = Array.from(parsedCharges);
         }
+        if ( fields === null || fields === undefined ) return topology;
         // Remove all fields which were not requested
         const finalTopology = {};
         fields.forEach(field => { finalTopology[field] = topology[field] });
