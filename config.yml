@@ -137,3 +137,13 @@ hosts:
         name: RPBS node
         description: The Parisian Resource in Structural Bioinformatics federated node server
         accession: A000A
+
+    it4i.mddbr.eu:
+        name: IT4I node
+        description: MDDB-IDA database of NA MD simulations in Ostrava
+        accession: A0001
+
+    devmddb.rc.ufl.edu:
+        name: UFL node
+        description: MDDB node from the University of Florida
+        accession: A0005
