@@ -13,6 +13,8 @@ const { metricsMiddleware } = require('../middlewares/metrics');
 const routes = require('../routes');
 //const getCustomTimeout = require('../middlewares/custom-timeout');
 const { version } = require('../../package.json');
+// Software metadata, in CodeMeta format
+const codemeta = require('./codemeta.json');
 
 // Auxiliar functions
 const { getHost } = require('../utils/auxiliar-functions');
@@ -81,6 +83,12 @@ app.get('/rest', (_, res) =>
     'software version': version,
   }),
 );
+
+// EBRAINS software metadata in CodeMeta format
+app.get('/rest/codemeta', (_, res) => {
+  res.type('application/ld+json');
+  res.send(JSON.stringify(codemeta, null, 2));
+});
 
 // Routes with more logic
 app.use('/rest/v1', routes);

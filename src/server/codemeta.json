@@ -1,0 +1,100 @@
+{
+  "@context": "https://w3id.org/codemeta/3.0",
+  "@type": "SoftwareSourceCode",
+  "name": "MDposit REST API",
+  "description": "Programmatic access endpoints to locate and download the MDposit EBRAINS Molecular Dynamics simulation data in batch mode. This includes querying the collection, retrieving project identifiers, and automating bulk downloads of all associated files. MDposit is the central web repository of the European Molecular Dynamics Data Bank (MDDB), giving access to search, browse, visualize, and download dynamic and flexibility data for proteins relevant to the EBRAINS research landscape (among others). The interface supports interactive exploration of MD trajectories, enabling researchers to inspect structural motions, compare systems, and retrieve datasets for further analysis.",
+  "author": [
+    {
+      "givenName": "Adam",
+      "familyName": "Hospital Gasch",
+      "type": "Person",
+      "id": "0000-0002-8291-8071",
+      "affiliation": {
+        "type": "Organization",
+        "name": "IRB-Barcelona"
+      }
+    },
+    {
+      "givenName": "Daniel",
+      "familyName": "Beltrán",
+      "type": "Person",
+      "id": "0000-0002-2294-5393",
+      "affiliation": {
+        "type": "Organization",
+        "name": "IRB-Barcelona"
+      }
+    },
+    {
+      "givenName": "Rubén",
+      "familyName": "Chaves",
+      "type": "Person",
+      "id": "0009-0005-6656-2991",
+      "affiliation": {
+        "type": "Organization",
+        "name": "IRB-Barcelona"
+      }
+    }
+  ],
+  "license": [
+    "https://spdx.org/licenses/Apache-2.0"
+  ],
+  "dateModified": "2026-08-01",
+  "codeRepository": "https://github.com/mmb-irb/MDDB-REST-API",
+  "version": "0.0.15",
+  "relatedLink": [
+    "https://mdposit.mddbr.eu/api/rest/docs/"
+  ],
+  "referencePublication": "https://doi.org/10.1093/nar/gkad991",
+  "downloadUrl": "https://github.com/mmb-irb/MDDB-REST-API/releases/tag/v0.0.15",
+  "operatingSystem": [
+    "Windows",
+    "macOS",
+    "Linux",
+    "Unix"
+  ],
+  "availableOnDevice": [
+    "desktop",
+    "server",
+    "high-performance computer"
+  ],
+  "softwareRequirements": [
+    "HTTP requests library"
+  ],
+  "programmingLanguage": [
+    "Python",
+    "Rust",
+    "Java",
+    "JavaScript",
+    "Go",
+    "Ruby",
+    "C#",
+    "PHP",
+    "C++",
+    "bash",
+    "Unix shell",
+    "TypeScript",
+    "Perl"
+  ],
+  "runtimePlatform": "Rocky Linux 9.5",
+  "developmentStatus": "active",
+  "issueTracker": "https://github.com/mmb-irb/MDDB-REST-API/issues",
+  "keywords": [
+    "Molecular Dynamics",
+    "Database",
+    "MD simulations",
+    "Macromolecular Flexibility",
+    "Macromolecular Dynamics",
+    "Molecular Conformations",
+    "Molecular Ensembles",
+    "MD Trajectories",
+    "MD Topologies",
+    "Molecular Structures"
+  ],
+  "isPartOf": "The European Molecular Dynamics Data Bank (MDDB)",
+  "applicationCategory": "Database",
+  "funder": {
+    "type": "Organization",
+    "name": "Molecular Dynamics Data Bank. The European Repository for Biosimulation Data"
+  },
+  "funding": "101094651"
+}
