@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.16 — 2026-08-13
+
+### Metadata and discoverability
+
+- Added EBRAINS CodeMeta software metadata and a new `/rest/codemeta` endpoint so the API exposes machine-readable metadata for publication and discovery.
+
 ## v0.0.15 — 2026-07-28
 
 Changes since v0.0.1 (2025-08-05).
