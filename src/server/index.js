@@ -14,7 +14,11 @@ const routes = require('../routes');
 //const getCustomTimeout = require('../middlewares/custom-timeout');
 const { version } = require('../../package.json');
 // Software metadata, in CodeMeta format
-const codemeta = require('./codemeta.json');
+const codemeta = {
+  ...require('./codemeta.json'),
+  version,
+  downloadUrl: `https://github.com/mmb-irb/MDDB-REST-API/releases/tag/v${version}`,
+};
 
 // Auxiliar functions
 const { getHost } = require('../utils/auxiliar-functions');
