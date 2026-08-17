@@ -3,8 +3,16 @@ const Router = require('express').Router;
 const handler = require('../../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../../database');
+const createCache = require('../../../utils/cache');
 
 const router = Router({ mergeParams: true });
+
+const summaryCache = createCache();
+
+const getSummaryCacheKey = (request, finder) => JSON.stringify({
+  host: request.hostname,
+  finder,
+});
 
 const asNumber = field => ({ $convert: { input: field, to: 'double', onError: null, onNull: null } });
 const arraySize = field => ({ $cond: [{ $isArray: field }, { $size: field }, 0] });
@@ -174,39 +182,47 @@ router.route('/').get(
         if (!finder.$and) finder.$and = processedQuery;
         else finder.$and = finder.$and.concat(processedQuery);
       }
-      // Aggregate in MongoDB instead of transferring every matching project.
-      const aggregationCursor = database.projects.aggregate(buildSummaryPipeline(finder));
-      const [aggregatedSummary] = await aggregationCursor.toArray();
-      const summaryData = aggregatedSummary || {};
+      const cacheKey = getSummaryCacheKey(request, finder);
+      const buildSummary = async () => {
+        // Aggregate in MongoDB instead of transferring every matching project.
+        const aggregationCursor = database.projects.aggregate(buildSummaryPipeline(finder));
+        const [aggregatedSummary] = await aggregationCursor.toArray();
+        const summaryData = aggregatedSummary || {};
 
-      // Set the summary object to be returned.
-      const summary = {};
-      summary['projectsCount'] = Number(summaryData.projectsCount || 0);
-      summary['mdCount'] = Number(summaryData.mdCount || 0);
-      summary['totalTime'] = Number(summaryData.totalTime || 0).toFixed(2);
-      summary['totalFrames'] = Number(summaryData.totalFrames || 0);
-      summary['totalFiles'] = Number(summaryData.totalFiles || 0);
-      summary['totalAnalyses'] = Number(summaryData.totalAnalyses || 0);
+        // Set the summary object to be returned.
+        const summary = {};
+        summary['projectsCount'] = Number(summaryData.projectsCount || 0);
+        summary['mdCount'] = Number(summaryData.mdCount || 0);
+        summary['totalTime'] = Number(summaryData.totalTime || 0).toFixed(2);
+        summary['totalFrames'] = Number(summaryData.totalFrames || 0);
+        summary['totalFiles'] = Number(summaryData.totalFiles || 0);
+        summary['totalAnalyses'] = Number(summaryData.totalAnalyses || 0);
 
-      // OBSOLETE: To get this information please use the /stats endpoint instead
-      // OBSOLETE: I'll let this here for a few weeks while we update the old web clients
-      // Get database statistics
-      const dbStats = await database.db.command({ dbStats: 1, scale: 1000}); // Results in MB
-      // Create a formatted response with values in TB
-      const storageStats = {
-        // databaseName: dbStats.db,
-        dataSizeInTB: +(dbStats.dataSize / 1e9).toFixed(2),
-        storageUsedInTB: +(dbStats.storageSize / 1e9).toFixed(2),
-        indexSizeInTB: +(dbStats.indexSize / 1e9).toFixed(2),
-        totalSizeInTB: +((dbStats.storageSize + dbStats.indexSize) / 1e9).toFixed(2),
-        // objectCount: dbStats.objects,
-        // collections: dbStats.collections,
-        // indexes: dbStats.indexes
+        // OBSOLETE: To get this information please use the /stats endpoint instead
+        // OBSOLETE: I'll let this here for a few weeks while we update the old web clients
+        // Get database statistics
+        const dbStats = await database.db.command({ dbStats: 1, scale: 1000}); // Results in MB
+        // Create a formatted response with values in TB
+        const storageStats = {
+          // databaseName: dbStats.db,
+          dataSizeInTB: +(dbStats.dataSize / 1e9).toFixed(2),
+          storageUsedInTB: +(dbStats.storageSize / 1e9).toFixed(2),
+          indexSizeInTB: +(dbStats.indexSize / 1e9).toFixed(2),
+          totalSizeInTB: +((dbStats.storageSize + dbStats.indexSize) / 1e9).toFixed(2),
+          // objectCount: dbStats.objects,
+          // collections: dbStats.collections,
+          // indexes: dbStats.indexes
+        };
+        summary['storageStats'] = storageStats;
+
+        // Send all mined data
+        return summary;
       };
-      summary['storageStats'] = storageStats;
-
-      // Send all mined data
-      return summary;
+      return summaryCache.getOrSet(
+        cacheKey,
+        buildSummary,
+        async summary => summary.projectsCount === await database.projects.countDocuments(finder),
+      );
     }
   }),
 );

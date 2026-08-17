@@ -3,6 +3,7 @@ const rootRouter = require('express').Router();
 const handler = require('../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../database');
+const createCache = require('../../utils/cache');
 // Import reference configurations for reference supported by pointers
 const { POINTERS_SUPPORTED_REFERENCES } = require('../../utils/constants');
 const availableReferences = Object.keys(POINTERS_SUPPORTED_REFERENCES).join(', ');
@@ -34,13 +35,17 @@ const FORBIDDEN_REFERENCES = new Set([ undefined, 'noref', 'notfound' ]);
 // Set which reference have all-caps ids
 // Thus for these references, if the user asks for an id with no caps then we can fix it
 const ALL_CAPS_ID_REFERENCES = new Set([ 'proteins', 'inchikeys', 'pdbs', 'chains' ]);
+// Create cache and the key function
+const pointersCache = createCache();
+const getPointersCacheKey = (request, projectCount) => JSON.stringify({
+    host: request.hostname,
+    url: request.originalUrl,
+    projectCount,
+});
 
 // Set the response when a specific reference is requested
 // Return a list with all available reference ids
-const pointersEndpoint = handler({
-    async retriever(request) {
-        // Stablish database connection and retrieve our custom handler
-        const database = await getDatabase(request);
+const retrievePointers = async (request, database) => {
         // Check if a specific output format was requested
         // We will need this later, but if the request is wrong then we can kill the process now
         const format = request.query.format || 'json';
@@ -105,14 +110,16 @@ const pointersEndpoint = handler({
                 residue_reference_indices: true,
                 residue_reference_numbers: supportedCoverage ? true : undefined,
             }};
-            // Set the projects cursor
-            const topologiesCursor = await database.topologies.find({}, topologiesProjector);
+            // Only retrieve topologies belonging to the projects matched above.
+            const projectIds = projectsData.map(project => project._id);
+            const topologiesFinder = { project: { $in: projectIds } };
+            const topologiesCursor = await database.topologies.find(topologiesFinder, topologiesProjector);
             // Consume the projects cursor
             const topologiesData = await topologiesCursor.toArray();
             // Restructure data by setting the projects as keys
             topologiesData.forEach(topology => projectTopologies[topology.project] = topology);
         }
-        // If coverage is supported then measure hte number of residues in every reference
+        // If coverage is supported then measure the number of residues in every reference
         const referencesResidueCounts = {};
         if (supportedCoverage) {
             // Now download reference data
@@ -327,6 +334,14 @@ const pointersEndpoint = handler({
             });
         });
         return csvData;
+};
+
+const pointersEndpoint = handler({
+    async retriever(request) {
+        const database = await getDatabase(request);
+        const projectCount = await database.projects.countDocuments(database.getBaseFilter());
+        const cacheKey = getPointersCacheKey(request, projectCount);
+        return pointersCache.getOrSet(cacheKey, () => retrievePointers(request, database));
     },
     // Handle the response header
     headers(response, retrieved) {
@@ -343,7 +358,7 @@ const pointersEndpoint = handler({
         response.setHeader('Content-disposition', `attachment; filename=pointers.csv`);
     },
     // Handle the response body
-    body(response, retrieved, request) {
+    body(response, retrieved) {
         // If nothing is retrieved then end the response
         // Note that the header 'sendStatus' function should end the response already, but just in case
         if (!retrieved) return response.end();
