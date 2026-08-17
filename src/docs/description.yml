@@ -1889,12 +1889,15 @@ components:
       type: object
       required:
         - projectsCount
+        - mdCount
         - totalTime
         - totalFrames
         - totalFiles
         - totalAnalyses
       properties:
         projectsCount:
+          type: int
+        mdCount:
           type: int
         totalTime:
           type: float
@@ -3435,4 +3438,3 @@ definitions:
     format: binary
     description: Gromacs format. Specification at https://manual.gromacs.org/archive/5.0.4/online/trr.html
     example: <binary>
-

@@ -6,6 +6,48 @@ const getDatabase = require('../../../database');
 
 const router = Router({ mergeParams: true });
 
+const asNumber = field => ({ $convert: { input: field, to: 'double', onError: null, onNull: null } });
+const arraySize = field => ({ $cond: [{ $isArray: field }, { $size: field }, 0] });
+const sumMds = expression => ({ $sum: { $map: { input: { $ifNull: ['$mds', []] }, as: 'md', in: expression } } });
+const sumMdField = field => sumMds(arraySize(`$$md.${field}`));
+const sumMdNumber = field => sumMds(asNumber(`$$md.${field}`));
+
+// Aggregate in MongoDB so the summary does not transfer every matching project
+// to the API process. Precomputed values are preferred; expressions below retain
+// the previous calculations for legacy projects without those fields.
+const buildSummaryPipeline = finder => {
+  const framestep = asNumber('$metadata.FRAMESTEP');
+  const hasFramestep = { $ne: [{ $ifNull: [framestep, 0] }, 0] };
+  const length = asNumber('$metadata.LENGTH');
+  const isMds = { $isArray: '$mds' };
+  const mdFrames = sumMdNumber('frames');
+  const mdTime = sumMds({ $multiply: [asNumber('$$md.frames'), framestep] });
+  const legacyMdCount = { $cond: [isMds, { $size: '$mds' }, 1] };
+  const legacyTotalTime = { $cond: [isMds, { $cond: [hasFramestep, mdTime, { $multiply: [length, { $size: '$mds' }] }] }, length] };
+  const legacyTotalFrames = { $cond: [isMds, mdFrames, asNumber('$metadata.SNAPSHOTS')] };
+  const legacyTotalFiles = { $cond: [isMds, sumMdField('files'), arraySize('$files')] };
+  const legacyTotalAnalyses = { $cond: [isMds, sumMdField('analyses'), arraySize('$analyses')] };
+  return [
+    { $match: finder },
+    { $project: {
+      mdCount: { $ifNull: [asNumber('$mdcount'), legacyMdCount] },
+      totalTime: { $ifNull: [asNumber('$totalTime'), legacyTotalTime] },
+      totalFrames: { $ifNull: [asNumber('$totalFrames'), legacyTotalFrames] },
+      totalFiles: legacyTotalFiles,
+      totalAnalyses: legacyTotalAnalyses,
+    } },
+    { $group: {
+      _id: null,
+      projectsCount: { $sum: 1 },
+      mdCount: { $sum: '$mdCount' },
+      totalTime: { $sum: '$totalTime' },
+      totalFrames: { $sum: '$totalFrames' },
+      totalFiles: { $sum: '$totalFiles' },
+      totalAnalyses: { $sum: '$totalAnalyses' },
+    } },
+  ];
+};
+
 // Endpoint to get project growth timeline data
 router.route('/growth').get(
   handler({
@@ -132,107 +174,19 @@ router.route('/').get(
         if (!finder.$and) finder.$and = processedQuery;
         else finder.$and = finder.$and.concat(processedQuery);
       }
-      // Get all projects
-      const cursor = await database.projects.find(
-        finder,
-        // Discard the heaviest fields we do not need anyway
-        {
-          projection: {
-            id: false,
-            'metadata.pdbInfo': false,
-            'metadata.INTERACTIONS': false,
-            'metadata.CHARGES': false,
-            'metadata.SEQUENCES': false,
-            'metadata.DOMAINS': false,
-          },
-        },
-      );
-      // Consume the cursor
-      const data = await cursor.toArray();
-      // Set the summary object to be returned
-      // Then all mined data will be written into it
+      // Aggregate in MongoDB instead of transferring every matching project.
+      const aggregationCursor = database.projects.aggregate(buildSummaryPipeline(finder));
+      const [aggregatedSummary] = await aggregationCursor.toArray();
+      const summaryData = aggregatedSummary || {};
+
+      // Set the summary object to be returned.
       const summary = {};
-      // Get the number of projects
-      summary['projectsCount'] = data.length;
-      // Count the number of MDs
-      let mdCount = 0;
-      data.forEach(project => {
-        // If it is the old format then it only counts as 1 MD
-        if (!project.mds) return mdCount += 1;
-        // Otherwise, count the number of MDs
-        mdCount += project.mds.length;
-      });
-      summary['mdCount'] = mdCount;
-      // Get the total MD time
-      const totalTime = data
-        .map(project => {
-          const metadata = project.metadata;
-          if (!metadata) return 0;
-          const length = +metadata.LENGTH;
-          const mds = project.mds;
-          if (!mds) return length;
-          // Calculate the time based in the framestep and the number of frames of each MD
-          if (metadata.FRAMESTEP) return mds.reduce((acc, curr) => acc + curr.frames * metadata.FRAMESTEP, 0);
-          // If we are missing the framestep then use the length, but here we assume some error
-          // DANI: Esto no es preciso, pues podrían haber réplicas con menos frames (e.g. las moonshot)
-          // DANI: Esto se solucionará al reemplazar el campo de LENGTH for el de FRAMESTEP
-          return length * mds.length;
-        })
-        .reduce((acc, curr) => {
-          if (curr) {
-            return acc + curr;
-          } else return acc;
-        }, 0);
-      summary['totalTime'] = totalTime.toFixed(2);
-      // Get the total MD number of frames
-      const totalFrames = data
-        .map(project => {
-          const metadata = project.metadata;
-          if (!metadata) return 0;
-          const mds = project.mds;
-          if (!mds) return +metadata.SNAPSHOTS;
-          return mds.reduce((acc, curr) => (acc + curr.frames), 0);
-        })
-        .reduce((acc, curr) => {
-          if (curr) {
-            return acc + curr;
-          } else return acc;
-        }, 0);
-      summary['totalFrames'] = totalFrames;
-      // Get the total number of files
-      const totalFiles = data
-        .map(project => {
-          const mds = project.mds;
-          if (!mds) {
-            const files = project.files;
-            if (!files) return 0;
-            return files.length;
-          }
-          return mds.reduce((acc, curr) => (acc + curr.files ? curr.files.length : 0), 0);
-        })
-        .reduce((acc, curr) => {
-          if (curr) {
-            return acc + curr;
-          } else return acc;
-        }, 0);
-      summary['totalFiles'] = totalFiles;
-      // Get the total number of analyses
-      const totalAnalyses = data
-        .map(project => {
-          const mds = project.mds;
-          if (!mds) {
-            const analyses = project.analyses;
-            if (!analyses) return 0;
-            return analyses.length;
-          }
-          return mds.reduce((acc, curr) => (acc + curr.analyses ? curr.analyses.length : 0), 0);
-        })
-        .reduce((acc, curr) => {
-          if (curr) {
-            return acc + curr;
-          } else return acc;
-        }, 0);
-      summary['totalAnalyses'] = totalAnalyses;
+      summary['projectsCount'] = Number(summaryData.projectsCount || 0);
+      summary['mdCount'] = Number(summaryData.mdCount || 0);
+      summary['totalTime'] = Number(summaryData.totalTime || 0).toFixed(2);
+      summary['totalFrames'] = Number(summaryData.totalFrames || 0);
+      summary['totalFiles'] = Number(summaryData.totalFiles || 0);
+      summary['totalAnalyses'] = Number(summaryData.totalAnalyses || 0);
 
       // OBSOLETE: To get this information please use the /stats endpoint instead
       // OBSOLETE: I'll let this here for a few weeks while we update the old web clients
