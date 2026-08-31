@@ -1,6 +1,7 @@
 const formatKnowledgeDate = (dateValue) => {
     const date = new Date(dateValue);
-    return `${date.getMonth()}/${date.getDate()}/${date.getFullYear()}`;
+    // British style, not USA style, or the validator will complain
+    return `${date.getDate()}/${date.getMonth()}/${date.getFullYear()}`;
 };
 
 const buildKnowledgeResponse = ({
