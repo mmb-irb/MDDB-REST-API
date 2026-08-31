@@ -6,6 +6,11 @@ const { REFERENCE_HEADER } = require('../utils/constants');
 const projectFormatter = require('../utils/project-formatter');
 // Get auxiliar functions
 const { getConfig, parseJSON, isObjectId } = require('../utils/auxiliar-functions');
+// Get reference id query formatters
+const {
+    pdbIdQueryFormatter,
+    referenceIdQueryFormatter,
+} = require('../utils/reference-id-query-formatters');
 // Get the ping function
 const ping = require('../utils/ping');
 // Standard HTTP response status codes
@@ -27,6 +32,9 @@ class Database4Api extends Database {
         this.config = config;
         // Save some internal values
         this._requestedMdIndex = undefined;
+        // Edit some constants to adapt them for the API
+        // Add functions to format reference ids
+        this.REFERENCES.pdbs.idQueryFormatter = pdbIdQueryFormatter;
     };
 
     // Join the published filter, the collection filter and the posited filter in one single filter
@@ -186,7 +194,9 @@ class Database4Api extends Database {
         // Set the target mongo collection
         const collection = this[reference.collectionName];
         // Set the target query
-        const query = { [reference.idField]: referenceId };
+        const query = { [reference.idField]: referenceIdQueryFormatter(reference, referenceId) };
+        // If something is wrong with the id format then return the error
+        if (query.error) return query;
         // Set a projection to get rid of the internal id
         const projection = { projection: { _id: false } };
         // Get the target reference

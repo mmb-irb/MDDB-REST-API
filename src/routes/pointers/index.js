@@ -12,6 +12,8 @@ const { BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND } = require('../../utils/s
 // Import auxiliar functions
 const { getValueGetter, getBaseURL, getHost, round2tenths } = require('../../utils/auxiliar-functions');
 const { rangeNotation } = require('../../utils/parse-query-range');
+// Get the reference id query formatter
+const { referenceIdQueryFormatter } = require('../../utils/reference-id-query-formatters');
 // Set which references support "presence"
 // These are references to be residue-assigned in the topology
 // Thus PDB references do not support presence
@@ -67,6 +69,11 @@ const retrievePointers = async (request, database) => {
         if (targetReferenceId && ALL_CAPS_ID_REFERENCES.has(referenceName))
             targetReferenceId = targetReferenceId.toUpperCase();
         const hasTarget = targetReferenceId !== undefined;
+        // Set the query value to search for the target reference id
+        const targetedQuery = hasTarget && referenceIdQueryFormatter(reference, targetReferenceId);
+        // Set the id values to look for in the references
+        // Note that for some references we may have up to date and legacy formatted ids
+        const targetedIds = hasTarget && new Set((targetedQuery.$in || [ targetedQuery ]));
         // Set a getter function for the project reference ids field
         const idsField = reference.projectIdsField;
         const projectIdsGetter = getValueGetter(idsField);
@@ -76,7 +83,7 @@ const retrievePointers = async (request, database) => {
         // Make sure the projects we query have the ids field and at least one value
         // If we have a target id the query only those projects which contain this specific id
         projectsFinder[idsField] = hasTarget
-            ? targetReferenceId
+            ? targetedQuery
             : { $exists: true, $type: 'array', $ne: [] };
         // Set which data is to be return from the query
         // We only need the reference id and the project accession
@@ -126,7 +133,7 @@ const retrievePointers = async (request, database) => {
             // This is used only to measure the coverage of the reference in the current system
             const collection = database[reference.collectionName];
             // Download the target reference only, or all references if there is not target
-            const referencesFinder = hasTarget ? { [reference.idField]: targetReferenceId } : {};
+            const referencesFinder = hasTarget ? { [reference.idField]: targetedQuery } : {};
             // Set which field are to be retrieved
             // DANI: This is the only hardcoded part
             // DANI: Since these will always be proteins (so far) I know I want the sequence
@@ -171,7 +178,7 @@ const retrievePointers = async (request, database) => {
             // Iterate these reference ids
             referenceIds.forEach(referenceId => {
                 // If we have a target reference id then skip anything else
-                if (hasTarget && targetReferenceId !== referenceId) return;
+                if (hasTarget && !targetedIds.has(referenceId)) return;
                 // If the reference id is among the forbidden values then skip it
                 if (FORBIDDEN_REFERENCES.has(referenceId)) return;
                 // Get the current point
@@ -253,7 +260,7 @@ const retrievePointers = async (request, database) => {
         if (database.pointers) {
             // Set the pointers cursor
             const externalPointersFinder = hasTarget
-                ? { [`${referenceName}.${reference.idField}`]: targetReferenceId }
+                ? { [`${referenceName}.${reference.idField}`]: targetedQuery }
                 : { [referenceName]: { $exists: true, $not: { $size: 0 } } };
             const externalPointersCursor = await database.pointers.find(externalPointersFinder);
             // Consume the pointers cursor
@@ -278,7 +285,7 @@ const retrievePointers = async (request, database) => {
                 referenceData.forEach(ref => {
                     // If only une reference is requested then ignore others
                     const referenceId = ref[reference.idField];
-                    if (hasTarget && targetReferenceId !== referenceId) return;
+                    if (hasTarget && !targetedIds.has(referenceId)) return;
                     // Duplicate the pointer so we do not mutate the original
                     const referenceExternalPointer = { ...externalPointer };
                     // Add presence and or coverage when supported and available
@@ -304,12 +311,16 @@ const retrievePointers = async (request, database) => {
         // If no pointers were found after all then complain
         if (Object.keys(pointers).length === 0) return {
             headerError: NOT_FOUND,
-            error: targetReferenceId
+            error: hasTarget
                 ? `No project or external pointer was found to include references to "${targetReferenceId}" ${referenceName}`
                 : `There are no references to ${referenceName} at all`
         }
-        // If there is no output format then return the response as is
-        if (format === 'json') return hasTarget ? pointers[targetReferenceId] : pointers;
+        // If there is no output format then return the response now
+        // If this is a targeted query then return the contents of the object directly
+        // Note that here we support even scenarios where up to date and legacy id formats coexist in the database
+        if (format === 'json') return hasTarget
+            ? Object.values(pointers).reduce((all, newValues) => all.concat(newValues), [])
+            : pointers;
         // At this point (for now) it means the requested format is CSV
         // Start with the CSV header
         let csvData = hasTarget ? '' : `${reference.idField}${SEP}`;

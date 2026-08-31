@@ -10,6 +10,8 @@ const availableReferences = Object.keys(POINTERS_SUPPORTED_REFERENCES).join(', '
 const { BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND } = require('../../../utils/status-codes');
 // Auxiliar functions
 const { getHost } = require('../../../utils/auxiliar-functions');
+// Get the reference id query formatter
+const { referenceIdQueryFormatter } = require('../../../utils/reference-id-query-formatters');
 // Set a list of supported formats
 const SUPPORTED_FORMATS = ['json', 'csv'];
 const availableFormats = SUPPORTED_FORMATS.join(', ');
@@ -45,7 +47,9 @@ const pointerLinksEndpoint = handler({
         const protocol = request.protocol;
         const host = getHost(request);
         // Get from the database all reference ids
-        const referencesFinder = targetReferenceId ? { [reference.idField]: targetReferenceId } : {};
+        const referencesFinder = targetReferenceId
+            ? { [reference.idField]: referenceIdQueryFormatter(reference, targetReferenceId) }
+            : {};
         const referencesProjector = { [reference.idField]: true };
         const referencesCursor = await database[reference.collectionName]
             .find(referencesFinder)
@@ -54,7 +58,7 @@ const pointerLinksEndpoint = handler({
         // If no references were found then it means some reference id was searched and not found
         if (referencesData.length === 0) return {
             headerError: NOT_FOUND,
-            error: targetReferenceId
+            error: hasTarget
                 ? `No project was found to include references to "${targetReferenceId}" ${referenceName}`
                 : `There are no references to ${referenceName} at all`
         }
