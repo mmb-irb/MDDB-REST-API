@@ -1,3 +1,6 @@
+// Standard HTTP response status codes
+const { BAD_REQUEST } = require('../status-codes');
+
 // Set regular expressions for PDB's new accession formats
 const PDB12 = new RegExp("^(pdb|PDB)_([0-9A-Za-z]{8})$");
 const PDB12LEGACY = new RegExp("^(pdb|PDB)_0000([0-9A-Za-z]{4})$");

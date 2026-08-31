@@ -71,6 +71,7 @@ const retrievePointers = async (request, database) => {
         const hasTarget = targetReferenceId !== undefined;
         // Set the query value to search for the target reference id
         const targetedQuery = hasTarget && referenceIdQueryFormatter(reference, targetReferenceId);
+        if (targetedQuery.error) return targetedQuery;
         // Set the id values to look for in the references
         // Note that for some references we may have up to date and legacy formatted ids
         const targetedIds = hasTarget && new Set((targetedQuery.$in || [ targetedQuery ]));

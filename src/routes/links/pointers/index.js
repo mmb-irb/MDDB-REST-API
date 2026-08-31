@@ -42,14 +42,15 @@ const pointerLinksEndpoint = handler({
         // Check if a specific reference id is requested
         const targetReferenceId = request.params.id;
         const hasTarget = targetReferenceId !== undefined;
+        // Set the query value to search for the target reference id
+        const targetedQuery = hasTarget && referenceIdQueryFormatter(reference, targetReferenceId);
+        if (targetedQuery.error) return targetedQuery;
         // Get the requesting protocol, host and URL base
         // It will be used to generate the URLs
         const protocol = request.protocol;
         const host = getHost(request);
         // Get from the database all reference ids
-        const referencesFinder = targetReferenceId
-            ? { [reference.idField]: referenceIdQueryFormatter(reference, targetReferenceId) }
-            : {};
+        const referencesFinder = hasTarget ? { [reference.idField]: targetedQuery } : {};
         const referencesProjector = { [reference.idField]: true };
         const referencesCursor = await database[reference.collectionName]
             .find(referencesFinder)

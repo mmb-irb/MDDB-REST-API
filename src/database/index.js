@@ -193,8 +193,11 @@ class Database4Api extends Database {
         };
         // Set the target mongo collection
         const collection = this[reference.collectionName];
+        // Set the query value to search for the target reference id
+        const targetedQuery = referenceIdQueryFormatter(reference, referenceId);
+        if (targetedQuery.error) return targetedQuery;
         // Set the target query
-        const query = { [reference.idField]: referenceIdQueryFormatter(reference, referenceId) };
+        const query = { [reference.idField]: targetedQuery };
         // If something is wrong with the id format then return the error
         if (query.error) return query;
         // Set a projection to get rid of the internal id
