@@ -104,10 +104,16 @@ const retrievePointers = async (request, database) => {
         const projectionValueGetters = Object.fromEntries(
             projection.map(field => [ field, getValueGetter(field) ])
         ) 
+        // Check if we have topology collection
+        // DANI: Esto es un arreglo para una cagada
+        // DANI: Hace poco borré las topologías globales pensando que ya no se usaban para nada
+        // DANI: Estos datos habrá que precalcularlos y guardarlos en la project data
+        // DANI: Hasta entonces perdemos presence y coverage
+        const hasTopologies = database.topologies !== undefined;
         // Check if the requested reference supports "presence" measuring
-        const supportedPresence = PRESENCE_SUPPORTED_REFERENCES.includes(referenceName);
+        const supportedPresence = hasTopologies && PRESENCE_SUPPORTED_REFERENCES.includes(referenceName);
         // Check if the requested reference supports "coverage" measuring
-        const supportedCoverage = COVERAGE_SUPPORTED_REFERENCES.includes(referenceName);
+        const supportedCoverage = hasTopologies && COVERAGE_SUPPORTED_REFERENCES.includes(referenceName);
         // If presence is supported then we must download topologies as well
         const projectTopologies = {};
         if (supportedPresence || supportedCoverage) {
