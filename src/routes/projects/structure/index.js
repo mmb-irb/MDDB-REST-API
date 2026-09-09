@@ -33,29 +33,62 @@ const structureHandler = handler({
     if (structureDescriptor.error) return structureDescriptor;
     // Get the topology data
     const topologyData = await project.getTopologyData();
-    // Get the NGL atom selection, if any
+    // Get any kind of requested selection
+    // If multiple values are passed then the sum of them will be returned
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
-    const selection = request.body.selection || request.query.selection;
-    // The user may request directly a list of atom indices instead through a POST (although we also check the query)
-    let atomIndices = request.body.atomindices || request.query.atomindices;
+    // The user may request directly a list of atom indices
+    let atomIndices = request.body.atomindices || request.query.atomindices || [];
     if (typeof atomIndices === 'string') atomIndices = rangedSelectionParser(atomIndices);
-    // These arguments are not compatible
-    if (selection && atomIndices) return {
-      headerError: BAD_REQUEST,
-      error: `Arguments "selection" and "atomindices" are not compatible. Use one of them only.`
-    }
+    // The user may request directly a list of residue indices
+    let residueIndices = request.body.resindices || request.query.resindices || [];
+    if (typeof residueIndices === 'string') residueIndices = rangedSelectionParser(residueIndices);
+    // The user may request directly a list of residue indices
+    let chainIndices = request.body.chaindices || request.query.chaindices || [];
+    if (typeof chainIndices === 'string') chainIndices = rangedSelectionParser(chainIndices);
+    // Get the NGL atom selection, if any
+    const selection = request.body.selection || request.query.selection;
+    // Check if there was any atom selection argument
+    const anySelection = Boolean(atomIndices.length || residueIndices.length || chainIndices.length || selection);
     // In case of an NGL selection we will parse the selection to a list of atom indices using NGL itself
     if (selection) {
       // Get reference frame coordinates
       const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame);
       if (frameCoordinates.error) return frameCoordinates;
       // Produce a filtered PDB file using both the topology data and reference frame coordinates
-      const pdbContent = producePdb(topologyData, frameCoordinates, atomIndices);
+      const pdbContent = producePdb(topologyData, frameCoordinates);
       // Convert the PDB content to a buffer adn then to a stream
       const bufferPdb = Buffer.from(pdbContent, 'utf-8');
       // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
-      atomIndices = await getAtomIndices(bufferPdb, selection);
+      const nglAtomIndices = await getAtomIndices(bufferPdb, selection);
+      atomIndices.push(...nglAtomIndices);
     }
+    // In case chain indices are passed we must convert them to residue indices
+    if (chainIndices) {
+      chainIndices = new Set(chainIndices);
+      topologyData.residue_chain_indices.forEach((chainIndex, residueIndex) => {
+        if (chainIndices.has(chainIndex)) residueIndices.push(residueIndex);
+      });
+    }
+    // In case residue indices are passed we must convert them to atom indices
+    if (residueIndices) {
+      residueIndices = new Set(residueIndices);
+      topologyData.atom_residue_indices.forEach((residueIndex, atomIndex) => {
+        if (residueIndices.has(residueIndex)) atomIndices.push(atomIndex);
+      });
+    }
+    // In case any selection argument was passed, make sure it matched something
+    if (anySelection) {
+      // If there are no atoms indices after a sellection then return an error
+      if (atomIndices.length === 0) return {
+        headerError: BAD_REQUEST,
+        error: 'Your custom selection is matching no atoms'
+      }
+      // Make sure atom indices are unique
+      atomIndices = [...new Set(atomIndices)];
+    }
+    // If no selection was made then set the atom indices as undefined
+    // Thus further functions will interpret that there is no selection and all atoms are to be returned
+    else atomIndices = undefined;
     // Get reference frame coordinates
     const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame, atomIndices);
     if (frameCoordinates.error) return frameCoordinates;

@@ -19,7 +19,9 @@ const consumeStream = require('../../../utils/consume-stream');
 const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
 
 // Get a function to issue a standard output filename
-const { setOutputFilename, getConfig } = require('../../../utils/auxiliar-functions');
+const { setOutputFilename, getConfig, rangedSelectionParser } = require('../../../utils/auxiliar-functions');
+// Function to produce a PDB from topology and coordinates (used when resolving NGL selections)
+const producePdb = require('../structure/produce-pdb');
 
 // Standard HTTP response status codes
 const {
@@ -115,35 +117,73 @@ const trajectoryHandler = handler({
         Object.keys(trajectoryFormats).join(', ')
     };
 
+    // The user may request directly a list of atom indices
+    // The legacy name for this field is 'atoms', and this is handled by the 'handleRanges' function
+    // Then I added 'atomindices' to make it coherent with the structure endpoint which is handled here
+    let atomIndices = request.body.atomindices || request.query.atomindices || [];
+    if (typeof atomIndices === 'string') atomIndices = rangedSelectionParser(atomIndices);
+    // The user may request directly a list of residue indices
+    let residueIndices = request.body.resindices || request.query.resindices || [];
+    if (typeof residueIndices === 'string') residueIndices = rangedSelectionParser(residueIndices);
+    // The user may request a list of chain indices
+    let chainIndices = request.body.chaindices || request.query.chaindices || [];
+    if (typeof chainIndices === 'string') chainIndices = rangedSelectionParser(chainIndices);
     // In case we have a selection we must parse it to atoms
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
-    let rangedAtoms;
     const selectionRequest = request.body.selection || request.query.selection;
-    if (selectionRequest) {
-      // Make sure atoms were not requested as well
-      // We check both the body (in case it is a POST) and the query (in case it is a GET)
-      const atomsRequest = request.body.atoms || request.query.atoms;
-      if (atomsRequest) return {
-        headerError: BAD_REQUEST,
-        error: 'Cannot request "selection" and "atoms" at the same time'
-      };
-      // Download the main structure file descriptor
-      const structureDescriptor = await project.getFileDescriptor(database.STANDARD_STRUCTURE_FILENAME);
-      // If the object ID is not found in the data base, return here
-      if (structureDescriptor.error) return structureDescriptor;
-      // Open a stream and save it completely into memory
-      const pdbFile = await consumeStream(
-        bucket.openDownloadStream(structureDescriptor._id),
-      );
-      // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
-      const atomIndices = await getAtomIndices(pdbFile, selectionRequest);
-      // If no atoms where found, then return here and set the header to NOT_FOUND
-      if (!atomIndices) return {
-        headerError: BAD_REQUEST,
-        error: 'Atoms selection is empty or wrong'
-      };
-      // Get arnged atom indices
-      rangedAtoms = rangeIndices(atomIndices);
+    // The legacy 'atoms' param cannot be combined with the new selection params
+    const atomsRequest = request.body.atoms || request.query.atoms;
+    const anyNewSelection = atomIndices.length || residueIndices.length || chainIndices.length || selectionRequest;
+    if (atomsRequest && anyNewSelection) return {
+      headerError: BAD_REQUEST,
+      error: 'Cannot use "atoms" together with "atomindices", "resindices", "chaindices", or "selection"'
+    };
+    // In case chain or residue indices are passed we must resolve them to atom indices
+    if (chainIndices.length || residueIndices.length || selectionRequest) {
+      const topologyData = await project.getTopologyData();
+      // In case chain indices are passed we must convert them to residue indices
+      if (chainIndices.length) {
+        chainIndices = new Set(chainIndices);
+        topologyData.residue_chain_indices.forEach((chainIndex, residueIndex) => {
+          if (chainIndices.has(chainIndex)) residueIndices.push(residueIndex);
+        });
+      }
+      // In case residue indices are passed we must convert them to atom indices
+      if (residueIndices.length) {
+        residueIndices = new Set(residueIndices);
+        topologyData.atom_residue_indices.forEach((residueIndex, atomIndex) => {
+          if (residueIndices.has(residueIndex)) atomIndices.push(atomIndex);
+        });
+      }
+      // In case we have a selection, generate PDB file with the whole system to feed NGL and parse the selection
+      if (selectionRequest) {
+        // Get reference frame coordinates
+        const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame);
+        if (frameCoordinates.error) return frameCoordinates;
+        // Produce a filtered PDB file using both the topology data and reference frame coordinates
+        const pdbContent = producePdb(topologyData, frameCoordinates);
+        // Convert the PDB content to a buffer adn then to a stream
+        const bufferPdb = Buffer.from(pdbContent, 'utf-8');
+        // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
+        const nglIndices = await getAtomIndices(bufferPdb, selectionRequest);
+        if (!nglIndices || nglIndices.length === 0) return {
+          headerError: BAD_REQUEST,
+          error: 'Atoms selection is empty or wrong'
+        };
+        atomIndices.push(...nglIndices);
+      }
+    }
+    // If any selection was requested but no atoms were matched, return an error
+    if (anyNewSelection && atomIndices.length === 0) return {
+      headerError: BAD_REQUEST,
+      error: 'Your custom selection is matching no atoms'
+    };
+    // Set the ranged, unique and sorted atoms
+    let rangedAtoms;
+    // If atom indices were resolved from index params, convert to ranged format
+    if (atomIndices.length) {
+      const uniqueSorted = [...new Set(atomIndices)].sort((a, b) => a - b);
+      rangedAtoms = rangeIndices(uniqueSorted);
     }
     // When there is a selection or frame query (e.g. .../files/trajectory?selection=x)
     const parsedRanges = rangedAtoms ? { y: rangedAtoms } : {}
