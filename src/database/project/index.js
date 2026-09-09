@@ -213,11 +213,12 @@ class Project {
         const rawCoordinates = Buffer.concat(chunks);
         // Buffer size must be equal to the number of coordinates * the number of bytes per coordinate (4)
         const bufferSize = rawCoordinates.length;
-        const nAtoms = sortedAtomIndices ? sortedAtomIndices.length : trajectoryDescriptor.atoms;
+        const nAtoms = sortedAtomIndices ? sortedAtomIndices.length : trajectoryDescriptor.metadata.atoms;
         const nCoordinates = nAtoms * 3;
-        if (bufferSize != nCoordinates * 4) return {
+        const nBytes = nCoordinates * 4;
+        if (bufferSize != nBytes) return {
             headerError: INTERNAL_SERVER_ERROR,
-            error: 'Unexpected buffer size in frame coordinates'
+            error: `Unexpected buffer size in frame coordinates. It is ${bufferSize} while it should be ${nBytes}`
         }
         // Parse binary values to float32 numeric values
         // Store coordinates in lists of 3 values (x,y,z) thus representing each atom coordinates

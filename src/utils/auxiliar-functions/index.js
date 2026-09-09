@@ -203,6 +203,32 @@ const getSearchQuery = searchText => {
   };
 }
 
+// Set an equivalent to python's range function but with step = 1
+function* range (start, stop) {
+  for (let i = start; i < stop; i++) yield i;
+}
+// This function transforms a range selection string into a numeric array
+// It handles abbreviated selection syntax to literal selection syntax
+// e.g. "1, 3, 5-8" => [1, 3, 5, 6, 7, 8]
+const rangedSyntax = /^([0-9]*)-([0-9]*)$/;
+// Support when numbers are separated with any combination of spaces and coma
+// e.g. 1, 2 ; 1,2 ; 1 , 2
+const separator = /\s*,\s*/;
+const rangedSelectionParser = selection => {
+  // Filter data
+  const units = selection.split(separator);
+  const parsedSelection = [];
+  for (const u of units) {
+    // If the ranged syntax is found, get all numbers in between
+    if (u.match(rangedSyntax)) {
+      const matches = rangedSyntax.exec(u);
+      const rangedUnits = range(+matches[1], +matches[2] + 1);
+      parsedSelection.push(...rangedUnits);
+    } else parsedSelection.push(+u);
+  }
+  return parsedSelection;
+};
+
 module.exports = {
     getRequestUrl,
     parseJSON,
@@ -223,4 +249,5 @@ module.exports = {
     parseType,
     escapeRegExp,
     getSearchQuery,
+    rangedSelectionParser,
 }

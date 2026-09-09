@@ -8,7 +8,7 @@ const consumeStream = require('../../../utils/consume-stream');
 // Standard HTTP response status codes
 const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-codes');
 // Get a function to issue a standard output filename
-const { setOutputFilename } = require('../../../utils/auxiliar-functions');
+const { setOutputFilename, rangedSelectionParser } = require('../../../utils/auxiliar-functions');
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 // Function to produce a PDB from topology and coordinates
 const producePdb = require('./produce-pdb');
@@ -22,8 +22,6 @@ const structureHandler = handler({
   async retriever(request) {
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);
-    // Set the bucket, which allows downloading big files from the database
-    const bucket = database.bucket;
     // Find the requested project data
     const project = await database.getProject();
     // If there was any problem then return the errors
@@ -33,44 +31,41 @@ const structureHandler = handler({
     // If the object ID is not found in the data base the we have a mess
     // This is our fault, since a file id coming from a project must exist
     if (structureDescriptor.error) return structureDescriptor;
-    // Get the file id
-    const fileId = structureDescriptor._id;
-    // Open a stream with the corresponding ID
-    let stream = bucket.openDownloadStream(fileId);
+    // Get the topology data
+    const topologyData = await project.getTopologyData();
     // Get the NGL atom selection, if any
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
     const selection = request.body.selection || request.query.selection;
-    // The user may request directly a list of atom indices instead through a POST
-    let atomIndices = request.body.atomindices;
+    // The user may request directly a list of atom indices instead through a POST (although we also check the query)
+    let atomIndices = request.body.atomindices || request.query.atomindices;
+    if (typeof atomIndices === 'string') atomIndices = rangedSelectionParser(atomIndices);
     // These arguments are not compatible
     if (selection && atomIndices) return {
       headerError: BAD_REQUEST,
       error: `Arguments "selection" and "atomindices" are not compatible. Use one of them only.`
     }
-    // In case of selection query we will produce a filtered PDB and then parse it to atom indices
+    // In case of an NGL selection we will parse the selection to a list of atom indices using NGL itself
     if (selection) {
-      // Open a stream and save it completely into memory
-      const pdbFile = await consumeStream(bucket.openDownloadStream(fileId));
-      // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
-      atomIndices = await getAtomIndices(pdbFile, selection);
-    }
-    // In case of selection query we will produce a filtered PDB
-    if (atomIndices) {
-      // Get the topology data
-      const topologyData = await project.getTopologyData();
       // Get reference frame coordinates
-      const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame, atomIndices);
+      const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame);
       if (frameCoordinates.error) return frameCoordinates;
       // Produce a filtered PDB file using both the topology data and reference frame coordinates
       const pdbContent = producePdb(topologyData, frameCoordinates, atomIndices);
       // Convert the PDB content to a buffer adn then to a stream
       const bufferPdb = Buffer.from(pdbContent, 'utf-8');
-      stream = Readable.from([bufferPdb]);
-      // Modify the original descriptor length
-      structureDescriptor.length = bufferPdb.length;
-    } else {
-      stream = bucket.openDownloadStream(fileId);
+      // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
+      atomIndices = await getAtomIndices(bufferPdb, selection);
     }
+    // Get reference frame coordinates
+    const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame, atomIndices);
+    if (frameCoordinates.error) return frameCoordinates;
+    // Produce a filtered PDB file using both the topology data and reference frame coordinates
+    const pdbContent = producePdb(topologyData, frameCoordinates, atomIndices);
+    // Convert the PDB content to a buffer adn then to a stream
+    const bufferPdb = Buffer.from(pdbContent, 'utf-8');
+    stream = Readable.from([bufferPdb]);
+    // Modify the original descriptor length
+    structureDescriptor.length = bufferPdb.length;
     // Set the output filename according to some standards
     const filename = setOutputFilename(project.data, structureDescriptor);
     return { filename, structureDescriptor, stream };
