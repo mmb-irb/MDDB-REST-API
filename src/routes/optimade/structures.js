@@ -4,6 +4,7 @@ const {
   buildMeta, buildLinks, buildResponse,
   getBaseUrl, getQueryRepresentation,
   getPagination, buildNextUrl, applyResponseFields,
+  resolveLocalOptimadeUrl,
 } = require('./utils');
 const { parseFilter } = require('./filter-parser');
 
@@ -197,7 +198,7 @@ router.get('/:id', async (request, response) => {
 
     const project = await database.projects.findOne(finder, {
       projection: {
-        accession: 1, _id: 1, updateDate: 1,
+        accession: 1, _id: 1, updateDate: 1, local: 1, node: 1,
         'metadata.NAME': 1, 'metadata.DESCRIPTION': 1, 'metadata.PDBIDS': 1,
         'metadata.COLLECTIONS': 1, 'metadata.PROGRAM': 1, 'metadata.METHOD': 1,
         'metadata.TEMP': 1, 'metadata.FF': 1, 'metadata.ENSEMBLE': 1,
@@ -212,6 +213,12 @@ router.get('/:id', async (request, response) => {
       return response.status(404).json({
         errors: [{ title: `Structure '${id}' not found`, status: '404' }],
       });
+    }
+
+    // In global mode, topology lives on the local node — redirect there
+    if (database.isGlobal) {
+      const redirectUrl = await resolveLocalOptimadeUrl(database, project, `structures/${project.local}`, request);
+      if (redirectUrl) return response.redirect(302, redirectUrl);
     }
 
     // Fetch topology to populate element-level OPTIMADE fields

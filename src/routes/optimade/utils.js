@@ -101,6 +101,21 @@ function applyResponseFields(data, responseFieldsParam) {
   return Array.isArray(data) ? data.map(filterEntry) : filterEntry(data);
 }
 
+// Resolve the OPTIMADE redirect URL for a project hosted on a local node.
+// Returns null if project has no node info or node has no api_url.
+// localPath: the OPTIMADE path segment after /optimade/v1/ using the LOCAL accession.
+async function resolveLocalOptimadeUrl(database, project, localPath, request) {
+  if (!project.node) return null;
+  const nodeDoc = await database.nodes.findOne({ alias: project.node });
+  if (!nodeDoc?.api_url) return null;
+  const origin        = new URL(nodeDoc.api_url).origin;
+  const currentOrigin = `${request.protocol}://${request.get('host')}`;
+  // Same host (e.g. development) — no redirect needed, data is available locally
+  if (origin === currentOrigin) return null;
+  const search = new URL(request.originalUrl, currentOrigin).search;
+  return `${origin}/optimade/v1/${localPath}${search}`;
+}
+
 module.exports = {
   OPTIMADE_VERSION,
   PROVIDER,
@@ -113,4 +128,5 @@ module.exports = {
   getPagination,
   buildNextUrl,
   applyResponseFields,
+  resolveLocalOptimadeUrl,
 };

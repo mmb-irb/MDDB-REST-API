@@ -10,6 +10,7 @@ const {
   buildMeta, buildLinks, buildResponse,
   getBaseUrl, getQueryRepresentation,
   getPagination, buildNextUrl,
+  resolveLocalOptimadeUrl,
 } = require('./utils');
 const { parseFilter } = require('./filter-parser');
 const getRangedStream = require('../../utils/get-ranged-stream');
@@ -143,7 +144,7 @@ function formatTrajectory(project, mdIndex, baseUrl, topology) {
 
 // Minimal projection for list queries
 const LIST_PROJECTION = {
-  accession: 1, _id: 1, updateDate: 1,
+  accession: 1, _id: 1, updateDate: 1, local: 1, node: 1,
   'mds.name': 1, 'mds.frames': 1, 'mds.atoms': 1, 'mds.time': 1,
   'metadata.NAME': 1, 'metadata.DESCRIPTION': 1, 'metadata.PDBIDS': 1,
   'metadata.COLLECTIONS': 1, 'metadata.PROGRAM': 1, 'metadata.METHOD': 1,
@@ -197,12 +198,15 @@ router.get('/', async (request, response) => {
     const pageSlots = trajectorySlots.slice(offset, offset + limit);
 
     // Fetch topologies for the projects on this page in one query
-    const pageProjectIds = [...new Set(pageSlots.map(({ project }) => project._id))];
-    const topologies = await database.topologies
-      .find({ project: { $in: pageProjectIds } }, { projection: TOPOLOGY_PROJECTION })
-      .toArray();
+    // Global node has no topology data — skip the query and return nulls for element fields
     const topologyMap = {};
-    for (const topo of topologies) topologyMap[topo.project.toString()] = topo;
+    if (!database.isGlobal) {
+      const pageProjectIds = [...new Set(pageSlots.map(({ project }) => project._id))];
+      const topologies = await database.topologies
+        .find({ project: { $in: pageProjectIds } }, { projection: TOPOLOGY_PROJECTION })
+        .toArray();
+      for (const topo of topologies) topologyMap[topo.project.toString()] = topo;
+    }
 
     const data = pageSlots.map(({ project, mdIndex }) =>
       formatTrajectory(project, mdIndex, baseUrl, topologyMap[project._id.toString()]),
@@ -237,6 +241,24 @@ router.get('/:id/cartesian_site_positions', async (request, response) => {
 
   try {
     const database = await getDatabase(request);
+
+    // In global mode, binary trajectory data lives on the local node — redirect there
+    if (database.isGlobal) {
+      const parts     = rawId.split('.');
+      const accession = parts[0];
+      const mdNumber  = parts.length > 1 ? parseInt(parts[1], 10) : 1;
+      const proj = await database.projects.findOne(
+        { ...database.getBaseFilter(), accession },
+        { projection: { local: 1, node: 1, _id: 0 } },
+      );
+      if (proj) {
+        const localId  = `${proj.local}.${mdNumber}`;
+        const redirectUrl = await resolveLocalOptimadeUrl(
+          database, proj, `trajectories/${localId}/cartesian_site_positions`, request,
+        );
+        if (redirectUrl) return response.redirect(302, redirectUrl);
+      }
+    }
 
     // Reuse the project infrastructure by mapping the OPTIMADE id to request.params.project
     request.params.project = rawId;
@@ -335,6 +357,13 @@ router.get('/:id', async (request, response) => {
           status: '404',
         }],
       });
+    }
+
+    // In global mode, topology lives on the local node — redirect there
+    if (database.isGlobal) {
+      const localId = `${project.local}.${mdNumber}`;
+      const redirectUrl = await resolveLocalOptimadeUrl(database, project, `trajectories/${localId}`, request);
+      if (redirectUrl) return response.redirect(302, redirectUrl);
     }
 
     const topology = await database.topologies.findOne(
