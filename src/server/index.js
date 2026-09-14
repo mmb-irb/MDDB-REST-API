@@ -77,7 +77,7 @@ if (PUBLIC_DIR)
   app.use('/public', express.static(PUBLIC_DIR));
 
 // Root routes
-app.get('/', (_, res) => res.json({ 'api types': ['rest'] }));
+app.get('/', (_, res) => res.json({ 'api types': ['rest', 'optimade'] }));
 app.get('/rest', (_, res) =>
   res.json({
     'api versions': ['v1', 'current'],
@@ -143,6 +143,16 @@ app.use('/rest/docs', (request, response, next) => {
 
 // Federated specification
 app.use('/rest/spec', swaggerUI.serve, swaggerSpec);
+
+// OPTIMADE API — https://www.optimade.org/
+// Specification: https://github.com/Materials-Consortia/OPTIMADE/blob/develop/optimade.rst
+// LORE: Previously handled in a separate Docker container using optimade-python-tools
+// LORE: (branch JPBergsma_BioExcel by Johan Bergsma, with MDDB compatibility layers)
+// LORE: Now implemented natively in this Node.js server.
+// Endpoints: /optimade  /optimade/v1/info  /optimade/v1/links
+//            /optimade/v1/structures[/:id]  /optimade/v1/references[/:id]
+//            /optimade/v1/trajectories[/:id]
+app.use('/optimade', require('../routes/optimade'));
 
 module.exports = {
   app,
