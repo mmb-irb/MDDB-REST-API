@@ -1,14 +1,11 @@
 // Returns the OPTIMADE HTML landing page for base URLs (/optimade/ and /optimade/v1/).
 // Per the OPTIMADE spec, the base URL should return a human-readable page when accessed
 // via a browser. JSON data for programmatic access is available at /optimade/v1/info.
-const { OPTIMADE_VERSION, PROVIDER, IMPLEMENTATION } = require('./utils');
+const { OPTIMADE_VERSION, PROVIDER, IMPLEMENTATION, getBaseUrl } = require('./utils');
 
 // Build the URL carefully so it works both locally and behind a reverse proxy
 function getBaseHtml(request) {
-  const proto = request.get('x-forwarded-proto') || request.protocol;
-  const host  = request.get('host');
-  const match = request.originalUrl.match(/^(.*\/optimade)/);
-  const base  = `${proto}://${host}${match ? match[1] : '/optimade'}/v1`;
+  const base = getBaseUrl(request);
 
   const endpointLinks = ['links', 'references', 'trajectories', 'structures', 'info']
     .map(ep => `<li><a href="${base}/${ep}">${base}/${ep}</a></li>`)

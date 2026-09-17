@@ -43,13 +43,12 @@ function buildResponse({ data, meta, links }) {
 }
 
 function getBaseUrl(request) {
-  const proto = request.get('x-forwarded-proto') || request.protocol;
   const host = request.get('host');
-  // Extract everything up to /optimade (preserving any reverse-proxy prefix like /api),
-  // then always append /v1 so the base is correct regardless of where the request landed.
-  const match = request.originalUrl.match(/^(.*\/optimade)/);
-  const prefix = match ? match[1] : '/optimade';
-  return `${proto}://${host}${prefix}/v1`;
+  if (host?.match(/^localhost(:\d+)?$/)) {
+    return `http://${host}/optimade/v1`;
+  }
+  const proto = request.get('x-forwarded-proto') || 'https';
+  return `${proto}://${host}/api/optimade/v1`;
 }
 
 // Returns the portion of the URL relative to /optimade/v1
