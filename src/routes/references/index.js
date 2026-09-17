@@ -3,6 +3,8 @@ const rootRouter = require('express').Router();
 const handler = require('../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../database');
+// Get auxiliar functions
+const { parseJSON, isObjectId } = require('../../utils/auxiliar-functions');
 // Import references configuration
 const { REFERENCES } = require('mddb-database/utils/constants');
 const AVAILABLE_REFERENCES = Object.keys(REFERENCES).join(', ');
@@ -115,6 +117,116 @@ const specificReferenceResponse = handler({
     }
 });
 
+// Set the response when a list of files from a specific reference id is requested
+const specificReferenceFilesResponse = handler({
+    async retriever(request) {
+        // Stablish database connection and retrieve our custom handler
+        const database = await getDatabase(request);
+        // Get the requested reference configuration
+        const referenceName = request.params.reference;
+        // Get the requested id
+        const referenceId = request.params.id;
+        // Get the reference data
+        const referenceData = await database.getReferenceData(referenceName, referenceId);
+        // Iterate the shallowest fields to get the expected files to be available for this reference
+        const expectedFiles = [];
+        Object.values(referenceData).forEach(value => {
+            // Check if the following value is a reference to a file
+            if (typeof value !== 'string') return;
+            if (!value.startsWith('file:')) return;
+            const filename = value.slice(5);
+            expectedFiles.push(filename);
+        });
+        return expectedFiles;
+    }
+});
+
+// Set the response when a specific file from a specific reference id is requested
+const specificReferenceSpecificFileResponse = handler({
+    async retriever(request) {
+        // If the query is an object id itself we refuse it
+        // This was before supported but never used
+        if (isObjectId(request.params.filename)) return {
+            headerError: BAD_REQUEST,
+            error: 'Requesting a file by its internal ID is no longer supported'
+        };
+        // Stablish database connection and retrieve our custom handler
+        const database = await getDatabase(request);
+        // Set the bucket, which allows downloading big files from the database
+        const bucket = database.bucket;
+        // Get the requested filename and reference context
+        const referenceName = request.params.reference;
+        const referenceId = request.params.id;
+        const filename = request.params.filename;
+        // Find the file descriptor in the database
+        const query = { 'metadata.reftype': referenceName, 'metadata.refid': referenceId, filename };
+        const descriptor = await database.files.findOne(query);
+        if (!descriptor) return {
+            headerError: NOT_FOUND,
+            error: `File "${filename}" not found for ${referenceName} "${referenceId}"`
+        };
+        // Open the read stream from the bucket using the file's internal id
+        const stream = bucket.openDownloadStream(descriptor._id);
+        return { descriptor, byteSize: descriptor.length, filename: descriptor.filename, stream };
+    },
+    // Handle the response header
+    headers(response, retrieved) {
+        // There should always be a retrieved object
+        if (!retrieved) return response.sendStatus(INTERNAL_SERVER_ERROR);
+        // If there is any specific header error in the retrieved then send it
+        if (retrieved.headerError) return response.status(retrieved.headerError);
+        // If there is an active stream, send range and length content
+        const descriptor = retrieved.descriptor;
+        const contentRanges = [`bytes=*/${descriptor.length}`];
+        if (descriptor.metadata.frames) {
+            contentRanges.push(`frames=*/${descriptor.metadata.frames}`);
+        }
+        if (descriptor.metadata.atoms) {
+            contentRanges.push(`atoms=*/${descriptor.metadata.atoms}`);
+        }
+        // NEVER FORGET: 'content-range' where disabled and now this data is got from project files
+        // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
+        //response.set('content-range', contentRanges);
+        response.set('content-length', retrieved.byteSize);
+        // Send content type also if known
+        if (descriptor.contentType) {
+            response.set('content-type', descriptor.contentType);
+        }
+        // Set the output filename
+        response.setHeader('Content-disposition', `attachment; filename=${retrieved.filename}`);
+    },
+    // Handle the response body
+    body(response, retrieved, request) {
+        // If nothing is retrieved then end the response
+        // Note that the header 'sendStatus' function should end the response already, but just in case
+        if (!retrieved) return response.end();
+        // If there is any error in the body then just send the error
+        if (retrieved.error) return response.json(retrieved.error);
+        // If the client has aborted the request before the streams starts, destroy the stream
+        if (request.aborted) {
+            retrieved.stream.destroy();
+            return;
+        }
+        // If there is a retrieved stream, start sending data through the stream
+        retrieved.stream.on('data', data => {
+            retrieved.stream.pause();
+            response.write(data, () => {
+            retrieved.stream.resume();
+            });
+        });
+        // If there is an error, send the error to the console and end the data transfer
+        retrieved.stream.on('error', error => {
+            console.error(error);
+            response.end();
+        });
+        // Close the response when the read stream has finished
+        retrieved.stream.on('end', data => response.end(data));
+        // Close the stream when the request is closed
+        request.on('close', () => retrieved.stream.destroy());
+    },
+});
+
+
 // Set the routing
 rootRouter.route('/').get((_, response) => {
     // Return a message with all possible routes
@@ -123,5 +235,7 @@ rootRouter.route('/').get((_, response) => {
 });
 rootRouter.route('/:reference').get(wholeReferenceResponse);
 rootRouter.route('/:reference/:id').get(specificReferenceResponse);
+rootRouter.route('/:reference/:id/files').get(specificReferenceFilesResponse);
+rootRouter.route('/:reference/:id/files/:filename').get(specificReferenceSpecificFileResponse);
 
 module.exports = rootRouter;
