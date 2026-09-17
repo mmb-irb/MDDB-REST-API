@@ -12,7 +12,7 @@ info:
     <br />
     <br />
     Data may be accessed also through an
-    <a href="//$CLIENT_URL/optimade/" target="_blank" rel="noreferrer noopener">OPTIMADE API</a>.
+    <a href="//$CLIENT_URL/api/optimade/" target="_blank" rel="noreferrer noopener">OPTIMADE API</a>.
     <br />
     <br />
     This API is used by the
