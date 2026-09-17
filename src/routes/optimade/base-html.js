@@ -7,7 +7,8 @@ const { OPTIMADE_VERSION, PROVIDER, IMPLEMENTATION } = require('./utils');
 function getBaseHtml(request) {
   const proto = request.get('x-forwarded-proto') || request.protocol;
   const host  = request.get('host');
-  const base  = `${proto}://${host}/optimade/v1`;
+  const match = request.originalUrl.match(/^(.*\/optimade\/v1)/);
+  const base  = `${proto}://${host}${match ? match[1] : '/optimade/v1'}`;
 
   const endpointLinks = ['links', 'references', 'trajectories', 'structures', 'info']
     .map(ep => `<li><a href="${base}/${ep}">${base}/${ep}</a></li>`)

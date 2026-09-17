@@ -31,7 +31,7 @@ router.get('/', (request, response) => {
   }));
 });
 
-// Property schemas for entry info endpoints — extracted from the OPTIMADE 1.1.0 spec.
+// Property schemas for entry info endpoints — extracted from the OPTIMADE 1.2.0 spec.
 // Only includes description and type metadata; sortable flag included where applicable.
 const STRUCTURE_PROPERTIES = {
   id: { description: 'An entry\'s ID as defined in section Definition of Terms.', sortable: true, type: 'string' },

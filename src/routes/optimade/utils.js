@@ -1,6 +1,6 @@
 const { version } = require('../../../package.json');
 
-const OPTIMADE_VERSION = '1.1.0';
+const OPTIMADE_VERSION = '1.2.0';
 const DEFAULT_PAGE_LIMIT = 10;
 const MAX_PAGE_LIMIT = 100;
 
@@ -8,7 +8,7 @@ const PROVIDER = {
   name: 'MDDB',
   description: 'Molecular Dynamics DataBase at IRB Barcelona',
   prefix: 'mddb',
-  homepage: 'https://mddb.irbbarcelona.org',
+  homepage: 'https://mddbr.eu/',
 };
 
 const IMPLEMENTATION = {
@@ -26,7 +26,7 @@ function buildMeta({ query, dataReturned, dataAvailable, moreDataAvailable, warn
     data_returned: dataReturned,
     data_available: dataAvailable,
     more_data_available: moreDataAvailable,
-    schema: 'https://schemas.optimade.org/openapi/v1.1/optimade.json',
+    schema: 'https://schemas.optimade.org/openapi/v1.2/optimade.json',
     provider: PROVIDER,
     implementation: IMPLEMENTATION,
   };
@@ -45,7 +45,11 @@ function buildResponse({ data, meta, links }) {
 function getBaseUrl(request) {
   const proto = request.get('x-forwarded-proto') || request.protocol;
   const host = request.get('host');
-  return `${proto}://${host}/optimade/v1`;
+  // Extract everything up to /optimade/v1 from the actual request path so that
+  // any reverse-proxy prefix (e.g. /api) is preserved automatically.
+  const match = request.originalUrl.match(/^(.*\/optimade\/v1)/);
+  const basePath = match ? match[1] : '/optimade/v1';
+  return `${proto}://${host}${basePath}`;
 }
 
 // Returns the portion of the URL relative to /optimade/v1
