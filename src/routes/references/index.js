@@ -246,74 +246,74 @@ referencesLocalRouter.route('/:reference/:id/files/:filename').get(specificRefer
 // If we are using the global API then any further query is mapped to the corresponding database
 // Set a handler to be used for both GET and POST methods
 const redirectHandler = handler({
-  async retriever(request) {
-    // Stablish database connection and retrieve our custom handler
-    const database = await getDatabase(request);
-    // Get the requested reference configuration
-    const referenceName = request.params.reference;
-    // Get the requested id
-    const referenceId = request.params.id;
-    // Get the reference data
-    const referenceData = await database.getReferenceData(referenceName, referenceId);
-    if (referenceData.error) return referenceData;
-    // Get the reference configuration
-    const referenceConfig = database.REFERENCES[referenceName];
-    // Find one database where this reference should be present
-    // Note that a reference may be duplicated in different nodes
-    // However all of them should do the job, although they may be not identical
-    // We must attempt to ask a node which will have the most updated version
-    // To do so, find the most recently updated project including this reference
-    // Then redirect to its node
-    const projectsCursor = await database.projects
-        .find({ [referenceConfig.projectIdsField]: referenceId })
-        .sort({ updateDate: -1 })
-        .project({ node: true });
-    // Get the first result
-    const newestProject = await projectsCursor.next();
-    const nodeAlias = newestProject.node;
-    if (!nodeAlias) return {
-      headerError: INTERNAL_SERVER_ERROR,
-      error: `The "${referenceName}" reference "${referenceId}" is missing the node field.`
-    };
-    // Get the corresponding node
-    const node = await database.nodes.findOne({ alias: nodeAlias });
-    if (!node) return {
-      headerError: INTERNAL_SERVER_ERROR,
-      error: `Node "${nodeAlias}" not found`
-    };
-    // Get url path removing the first slash
-    const urlPath = request.originalUrl.substring(1);
-    // Build the new forwarded URL using the corresponding node API url
-    const forwardedRef = node.api_url + urlPath;
-    // The response code must change depending on the request method
-    let code;
-    if (request.method === 'GET') code = 302;
-    else if (request.method === 'POST') code = 307;
-    else throw new Error(`Unsupported method ${request.method}`);
-    return { code, url: forwardedRef };
-  },
-  // Handle the response body
-  body(response, retrieved) {
-    // If nothing is retrieved then end the response
-    // Note that the header should end the response already, but just in case
-    if (!retrieved) return response.end();
-    // If there is any error in the body then just send the error
-    if (retrieved.error) return response.json(retrieved.error);
-    // Send the response
-    response.redirect(retrieved.code, retrieved.url);
-  },
+    async retriever(request) {
+        // Stablish database connection and retrieve our custom handler
+        const database = await getDatabase(request);
+        // Get the requested reference configuration
+        const referenceName = request.params.reference;
+        // Get the requested id
+        const referenceId = request.params.id;
+        // Get the reference data
+        const referenceData = await database.getReferenceData(referenceName, referenceId);
+        if (referenceData.error) return referenceData;
+        // Get the reference configuration
+        const referenceConfig = database.REFERENCES[referenceName];
+        // Find one database where this reference should be present
+        // Note that a reference may be duplicated in different nodes
+        // However all of them should do the job, although they may be not identical
+        // We must attempt to ask a node which will have the most updated version
+        // To do so, find the most recently updated project including this reference
+        // Then redirect to its node
+        const projectsCursor = await database.projects
+            .find({ [referenceConfig.projectIdsField]: referenceId })
+            .sort({ updateDate: -1 })
+            .project({ node: true });
+        // Get the first result
+        const newestProject = await projectsCursor.next();
+        const nodeAlias = newestProject.node;
+        if (!nodeAlias) return {
+            headerError: INTERNAL_SERVER_ERROR,
+            error: `The "${referenceName}" reference "${referenceId}" is missing the node field.`
+        };
+        // Get the corresponding node
+        const node = await database.nodes.findOne({ alias: nodeAlias });
+        if (!node) return {
+            headerError: INTERNAL_SERVER_ERROR,
+            error: `Node "${nodeAlias}" not found`
+        };
+        // Get url path removing the first slash
+        const urlPath = request.originalUrl.substring(1);
+        // Build the new forwarded URL using the corresponding node API url
+        const forwardedRef = node.api_url + urlPath;
+        // The response code must change depending on the request method
+        let code;
+        if (request.method === 'GET') code = 302;
+        else if (request.method === 'POST') code = 307;
+        else throw new Error(`Unsupported method ${request.method}`);
+        return { code, url: forwardedRef };
+    },
+    // Handle the response body
+    body(response, retrieved) {
+        // If nothing is retrieved then end the response
+        // Note that the header should end the response already, but just in case
+        if (!retrieved) return response.end();
+        // If there is any error in the body then just send the error
+        if (retrieved.error) return response.json(retrieved.error);
+        // Send the response
+        response.redirect(retrieved.code, retrieved.url);
+    },
 });
 
 // Now depending on the request host:
 // Redirect to children routes if this is a local request
 // Redirect to other APIs if this is a global request
 const hostRedirection = (request, response, next) => {
-  // Find out if the request host is configured as global
-  const config = getConfig(request);
-  const isGlobal = config && config.global;
-  // Redirect accordingly
-  if (isGlobal) return redirectHandler(request, response, next);
-  return referencesLocalRouter(request, response, next)
+    // Find out if the request host is configured as global
+    const config = getConfig(request);
+    const isGlobal = config && config.global;
+    // Redirect accordingly
+    if (isGlobal) return redirectHandler(request, response, next);
+    return referencesLocalRouter(request, response, next)
 };
 
 referencesRouter.route('/:reference/:id/files/:filename').get(hostRedirection);
