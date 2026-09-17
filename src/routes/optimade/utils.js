@@ -45,11 +45,11 @@ function buildResponse({ data, meta, links }) {
 function getBaseUrl(request) {
   const proto = request.get('x-forwarded-proto') || request.protocol;
   const host = request.get('host');
-  // Extract everything up to /optimade/v1 from the actual request path so that
-  // any reverse-proxy prefix (e.g. /api) is preserved automatically.
-  const match = request.originalUrl.match(/^(.*\/optimade\/v1)/);
-  const basePath = match ? match[1] : '/optimade/v1';
-  return `${proto}://${host}${basePath}`;
+  // Extract everything up to /optimade (preserving any reverse-proxy prefix like /api),
+  // then always append /v1 so the base is correct regardless of where the request landed.
+  const match = request.originalUrl.match(/^(.*\/optimade)/);
+  const prefix = match ? match[1] : '/optimade';
+  return `${proto}://${host}${prefix}/v1`;
 }
 
 // Returns the portion of the URL relative to /optimade/v1
@@ -112,12 +112,16 @@ async function resolveLocalOptimadeUrl(database, project, localPath, request) {
   if (!project.node) return null;
   const nodeDoc = await database.nodes.findOne({ alias: project.node });
   if (!nodeDoc?.api_url) return null;
-  const origin        = new URL(nodeDoc.api_url).origin;
+  const nodeUrl       = nodeDoc.api_url;
+  const origin        = new URL(nodeUrl).origin;
   const currentOrigin = `${request.protocol}://${request.get('host')}`;
   // Same host (e.g. development) — no redirect needed, data is available locally
   if (origin === currentOrigin) return null;
-  const search = new URL(request.originalUrl, currentOrigin).search;
-  return `${origin}/optimade/v1/${localPath}${search}`;
+  // Derive the OPTIMADE base from the node's api_url (preserving any path prefix like /api)
+  const match        = nodeUrl.match(/^(.*\/optimade)/);
+  const optimadeBase = match ? `${match[1]}/v1` : `${origin}/optimade/v1`;
+  const search       = new URL(request.originalUrl, currentOrigin).search;
+  return `${optimadeBase}/${localPath}${search}`;
 }
 
 module.exports = {
