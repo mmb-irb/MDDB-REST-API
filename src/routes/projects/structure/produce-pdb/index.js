@@ -57,7 +57,8 @@ const producePdb = (topologyData, frameCoordinates, atomIndices) => {
         const tempFactor = '0.00';
         // Add 1 to de count and set the PDB index according to the count
         count += 1;
-        const pdbCount = count.toString().padStart(5, ' ');
+        // Wrap the displayed serial to 1 after 99999 to keep its five-column field fixed.
+        const pdbCount = ((count - 1) % 99999 + 1).toString().padStart(5, ' ');
         // Add the new line to the PDB content
         pdbContent += `ATOM  ${pdbCount} ${pdbAtomName} ${pdbResidueName}${pdbChainName}${pdbResidueNumber}` +
             `${pdbResidueIcode}   ${xCoord}${yCoord}${zCoord}  ${occupancy}  ${tempFactor}          ${pdbAtomElements}\n`;
