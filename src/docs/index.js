@@ -74,7 +74,7 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   const accessionExample = config.accession || '< No example available >';
   replaceAnywhere(swaggerDocs, '$ACCESSION', accessionExample);
   // If optimade is not to be shown then remove this part from the docs
-  if (!config.optimade) {
+  if (config.optimade == false) {
     const optimadeRegExp = new RegExp("<br />.*OPTIMADE API</a>.");
     swaggerDocs.info.description = swaggerDocs.info.description.replace(optimadeRegExp, '');
   }

@@ -82,7 +82,6 @@ hosts:
         name: MMB node
         description: The MMB federated node server
         accession: A0001
-        optimade: true
 
     mmb.mddbr.eu:
         name: MMB node
@@ -94,7 +93,6 @@ hosts:
         name: IRB node
         description: The IRB federated node server
         accession: A0001
-        optimade: true
 
     irb.mddbr.eu:
         name: IRB node
