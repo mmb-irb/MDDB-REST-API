@@ -7,7 +7,7 @@ const getDatabase = require('../../../database');
 const router = Router({ mergeParams: true });
 
 // Get the versions of all data related to the requested project (references excluded)
-// This includes the project metadata, every MD metadata and every analysis
+// This includes the project metadata, the topology, every MD metadata and every analysis
 router.route('/').get(
   handler({
     async retriever(request) {
@@ -25,6 +25,11 @@ router.route('/').get(
         { projection: { _id: false, name: true, md: true, 'value.version': true } },
       );
       const analyses = await cursor.toArray();
+      // Get the topology version, but not the topology data itself
+      const topology = await database.topologies.findOne(
+        { project: projectData._id },
+        { projection: { _id: false, version: true } },
+      );
       // Set the versions of project-wide analyses (i.e. those with no MD)
       const projectAnalyses = {};
       // Set the versions of every MD, including its analyses
@@ -42,6 +47,7 @@ router.route('/').get(
       });
       return {
         metadata: (projectData.metadata && projectData.metadata.ver) || null,
+        topology: (topology && topology.version) || null,
         analyses: projectAnalyses,
         mds,
       };

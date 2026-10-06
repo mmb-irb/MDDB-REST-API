@@ -1350,7 +1350,7 @@ paths:
     get:
       summary: Get the versions of all data in a project.
       description: >
-        Get the versions of the project metadata, every MD metadata and every analysis in a specific $DATABASE project.
+        Get the versions of the project metadata, the topology, every MD metadata and every analysis in a specific $DATABASE project.
         Versions of all MDs are returned, even if a specific MD is requested.
         References are not included. Missing versions are returned as null.
       parameters:
@@ -1369,6 +1369,10 @@ paths:
                     type: string
                     nullable: true
                     description: Project metadata version
+                  topology:
+                    type: string
+                    nullable: true
+                    description: Topology version
                   analyses:
                     type: object
                     description: Versions of project-wide analyses, by analysis name
@@ -1394,6 +1398,7 @@ paths:
                             nullable: true
               example:
                 metadata: '0.0.7'
+                topology: '0.1.0'
                 analyses: {}
                 mds:
                   - name: replica 1
