@@ -1346,6 +1346,62 @@ paths:
                 example: >
                   No example is provided since each analysis is different. Look at the schemas
 
+  /projects/{projectAccessionOrID}/versions:
+    get:
+      summary: Get the versions of all data in a project.
+      description: >
+        Get the versions of the project metadata, every MD metadata and every analysis in a specific $DATABASE project.
+        Versions of all MDs are returned, even if a specific MD is requested.
+        References are not included. Missing versions are returned as null.
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+      tags:
+        - projects
+      responses:
+        200:
+          description: an object containing data versions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metadata:
+                    type: string
+                    nullable: true
+                    description: Project metadata version
+                  analyses:
+                    type: object
+                    description: Versions of project-wide analyses, by analysis name
+                    additionalProperties:
+                      type: string
+                      nullable: true
+                  mds:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        metadata:
+                          type: string
+                          nullable: true
+                          description: MD metadata version
+                        analyses:
+                          type: object
+                          description: Versions of MD analyses, by analysis name
+                          additionalProperties:
+                            type: string
+                            nullable: true
+              example:
+                metadata: '0.0.7'
+                analyses: {}
+                mds:
+                  - name: replica 1
+                    metadata: null
+                    analyses:
+                      rmsds: '1.0.0'
+                      fluctuation: '0.1.0'
+
   /nodes:
     get:
       summary: Get a list of available nodes.
