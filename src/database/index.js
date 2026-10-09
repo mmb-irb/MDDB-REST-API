@@ -14,9 +14,11 @@ const {
 // Get the ping function
 const ping = require('../utils/ping');
 // Standard HTTP response status codes
-const { NOT_FOUND, BAD_REQUEST } = require('../utils/status-codes');
+const { NOT_FOUND, BAD_REQUEST, INTERNAL_SERVER_ERROR } = require('../utils/status-codes');
 // The project class is used to handle database data from a specific project
 const Project = require('./project');
+// The node class is used to handle database data from a specific node
+const Node = require('./node');
 
 // Database.ObjectId returns an object with the mongo object id
 // This id is associated to the provided idOrAccession when it is valid
@@ -160,6 +162,20 @@ class Database4Api extends Database {
         if (projectData.error) return projectData;
         // Return the project handler
         return new Project(projectData, this);
+    }
+
+    // Get a node by its alias
+    // If there is any problem send informative errors
+    getNode = async nodeAlias => {
+        // Get node data from the database
+        const nodeData = await this.nodes.findOne({ alias: nodeAlias });
+        // If we did not found the node then stop here
+        if (!nodeData) return {
+            headerError: INTERNAL_SERVER_ERROR,
+            error: `Node "${nodeAlias}" not found`
+        };
+        // Return the node handler
+        return new Node(nodeData, this);
     }
 
     // Get all ids available in a given reference

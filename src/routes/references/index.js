@@ -276,15 +276,12 @@ const redirectHandler = handler({
             error: `The "${referenceName}" reference "${referenceId}" is missing the node field.`
         };
         // Get the corresponding node
-        const node = await database.nodes.findOne({ alias: nodeAlias });
-        if (!node) return {
-            headerError: INTERNAL_SERVER_ERROR,
-            error: `Node "${nodeAlias}" not found`
-        };
+        const node = await database.getNode(nodeAlias);
+        if (node.error) return node;
         // Get url path removing the first slash
         const urlPath = request.originalUrl.substring(1);
         // Build the new forwarded URL using the corresponding node API url
-        const forwardedRef = node.api_url + urlPath;
+        const forwardedRef = node.apiUrl + urlPath;
         // The response code must change depending on the request method
         let code;
         if (request.method === 'GET') code = 302;

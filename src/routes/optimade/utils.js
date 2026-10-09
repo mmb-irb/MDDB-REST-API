@@ -109,9 +109,9 @@ function applyResponseFields(data, responseFieldsParam) {
 // localPath: the OPTIMADE path segment after /optimade/v1/ using the LOCAL accession.
 async function resolveLocalOptimadeUrl(database, project, localPath, request) {
   if (!project.node) return null;
-  const nodeDoc = await database.nodes.findOne({ alias: project.node });
-  if (!nodeDoc?.api_url) return null;
-  const nodeUrl       = nodeDoc.api_url;
+  const node = await database.getNode(project.node);
+  if (node.error || !node.apiUrl) return null;
+  const nodeUrl       = node.apiUrl;
   const origin        = new URL(nodeUrl).origin;
   const currentOrigin = `${request.protocol}://${request.get('host')}`;
   // Same host (e.g. development) — no redirect needed, data is available locally

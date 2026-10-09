@@ -141,11 +141,8 @@ const redirectHandler = handler({
     // Find the database thes project belongs to
     const nodeAlias = projectData.node;
     // Get the corresponding node
-    const node = await database.nodes.findOne({ alias: nodeAlias });
-    if (!node) return {
-      headerError: INTERNAL_SERVER_ERROR,
-      error: `Node "${nodeAlias}" not found`
-    };
+    const node = await database.getNode(nodeAlias);
+    if (node.error) return node;
     // Get url path removing the first slash
     const urlPath = request.originalUrl.substring(1);
     // Replace the global id by the local id
@@ -153,7 +150,7 @@ const redirectHandler = handler({
     splittedPath[4] = localAccession;
     const replacedPath = splittedPath.join('/');
     // Build the new forwarded URL using the corresponding node API url
-    const forwardedRef = node.api_url + replacedPath;
+    const forwardedRef = node.apiUrl + replacedPath;
     // The response code must change depending on the request method
     let code;
     if (request.method === 'GET') code = 302;
