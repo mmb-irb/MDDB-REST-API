@@ -379,6 +379,44 @@ paths:
             allCInBackbone:
               summary: All carbon atoms in the backbone
               value: backbone and _C
+        - name: atomindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of atom indices for the returned structure.<br>
+            Atom indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            Atom, residue and chain indices may be combined with each other and with the NGL selection,
+            and the result is the sum of all of them. Atoms are always returned sorted by their index.<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            atomRange:
+              summary: First 100 atoms and atom 500
+              value: 0-99,500
+        - name: resindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of residue indices for the returned structure. All atoms in these residues are returned.<br>
+            Residue indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            residueRange:
+              summary: First 10 residues
+              value: 0-9
+        - name: chaindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of chain indices for the returned structure. All atoms in these chains are returned.<br>
+            Chain indices are 0-based and may be written as ranges (e.g. 0-1).<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            firstChain:
+              summary: First chain
+              value: 0
       tags:
         - structure
       responses:
@@ -423,6 +461,44 @@ paths:
             allCInBackbone:
               summary: All carbon atoms in the backbone
               value: backbone and _C
+        - name: atomindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of atom indices for the returned structure.<br>
+            Atom indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            Atom, residue and chain indices may be combined with each other and with the NGL selection,
+            and the result is the sum of all of them. Atoms are always returned sorted by their index.<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            atomRange:
+              summary: First 100 atoms and atom 500
+              value: 0-99,500
+        - name: resindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of residue indices for the returned structure. All atoms in these residues are returned.<br>
+            Residue indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            residueRange:
+              summary: First 10 residues
+              value: 0-9
+        - name: chaindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of chain indices for the returned structure. All atoms in these chains are returned.<br>
+            Chain indices are 0-based and may be written as ranges (e.g. 0-1).<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            firstChain:
+              summary: First chain
+              value: 0
       tags:
         - structure
       responses:
@@ -501,6 +577,44 @@ paths:
             allCInBackbone:
               summary: All carbon atoms in the backbone
               value: backbone and _C
+        - name: atomindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of atom indices for the returned trajectory.<br>
+            Atom indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            Atom, residue and chain indices may be combined with each other and with the NGL selection,
+            and the result is the sum of all of them. Atoms are always returned sorted by their index.<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            atomRange:
+              summary: First 100 atoms and atom 500
+              value: 0-99,500
+        - name: resindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of residue indices for the returned trajectory. All atoms in these residues are returned.<br>
+            Residue indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            residueRange:
+              summary: First 10 residues
+              value: 0-9
+        - name: chaindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of chain indices for the returned trajectory. All atoms in these chains are returned.<br>
+            Chain indices are 0-based and may be written as ranges (e.g. 0-1).<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            firstChain:
+              summary: First chain
+              value: 0
       tags:
         - trajectory
       responses:
@@ -593,6 +707,44 @@ paths:
             allCInBackbone:
               summary: All carbon atoms in the backbone
               value: backbone and _C
+        - name: atomindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of atom indices for the returned trajectory.<br>
+            Atom indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            Atom, residue and chain indices may be combined with each other and with the NGL selection,
+            and the result is the sum of all of them. Atoms are always returned sorted by their index.<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            atomRange:
+              summary: First 100 atoms and atom 500
+              value: 0-99,500
+        - name: resindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of residue indices for the returned trajectory. All atoms in these residues are returned.<br>
+            Residue indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            residueRange:
+              summary: First 10 residues
+              value: 0-9
+        - name: chaindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of chain indices for the returned trajectory. All atoms in these chains are returned.<br>
+            Chain indices are 0-based and may be written as ranges (e.g. 0-1).<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            firstChain:
+              summary: First chain
+              value: 0
       tags:
         - trajectory
       responses:
