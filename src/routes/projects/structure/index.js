@@ -45,6 +45,13 @@ const structureHandler = handler({
     // The user may request directly a list of residue indices
     let chainIndices = request.body.chaindices || request.query.chaindices || [];
     if (typeof chainIndices === 'string') chainIndices = rangedSelectionParser(chainIndices);
+    // Make sure all indices are positive integers
+    const wrongIndices = [...atomIndices, ...residueIndices, ...chainIndices].map(Number)
+      .filter(index => !Number.isInteger(index) || index < 0);
+    if (wrongIndices.length > 0) return {
+      headerError: BAD_REQUEST,
+      error: 'Atom, residue and chain indices must be positive integers (0-based) or ranges of them (e.g. 0-9,12)'
+    };
     // Get the NGL atom selection, if any
     const selection = request.body.selection || request.query.selection;
     // Check if there was any atom selection argument

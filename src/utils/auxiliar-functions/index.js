@@ -210,7 +210,8 @@ function* range (start, stop) {
 // This function transforms a range selection string into a numeric array
 // It handles abbreviated selection syntax to literal selection syntax
 // e.g. "1, 3, 5-8" => [1, 3, 5, 6, 7, 8]
-const rangedSyntax = /^([0-9]*)-([0-9]*)$/;
+const rangedSyntax = /^([0-9]+)-([0-9]+)$/;
+const numberSyntax = /^[0-9]+$/;
 // Support when numbers are separated with any combination of spaces and coma
 // e.g. 1, 2 ; 1,2 ; 1 , 2
 const separator = /\s*,\s*/;
@@ -224,7 +225,10 @@ const rangedSelectionParser = selection => {
       const matches = rangedSyntax.exec(u);
       const rangedUnits = range(+matches[1], +matches[2] + 1);
       parsedSelection.push(...rangedUnits);
-    } else parsedSelection.push(+u);
+    }
+    // Anything which is not a positive integer (e.g. -1, 1.5, 'a' or nothing) is added as NaN
+    // Thus it fails further when indices are validated
+    else parsedSelection.push(u.match(numberSyntax) ? +u : NaN);
   }
   return parsedSelection;
 };

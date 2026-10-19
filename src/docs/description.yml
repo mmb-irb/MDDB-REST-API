@@ -242,6 +242,52 @@ paths:
                 Atom charges:
                   summary: Atomic charges
                   value: atom_charges
+        - name: atomindices
+          in: query
+          description: >
+            Return only the topology of the requested atoms.
+            Atom indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            Atom, residue and chain selections may be combined, and the result is the sum of all of them.<br>
+            The returned topology contains only the selected atoms, together with their residues, chains and references.
+            All indices are renumbered so the topology is coherent by itself.
+            Atoms are sorted as in the structure and trajectory endpoints with the same selection.<br>
+            Bonds with atoms out of the selection are removed.
+          schema:
+            type: string
+          examples:
+            atomRange:
+              summary: First 100 atoms and atom 500
+              value: 0-99,500
+        - name: resindices
+          in: query
+          description: >
+            Return only the topology of all atoms in the requested residues.
+            Residue indices are 0-based and may be written as ranges (e.g. 0-9,12).
+          schema:
+            type: string
+          examples:
+            residueRange:
+              summary: First 10 residues
+              value: 0-9
+        - name: chaindices
+          in: query
+          description: >
+            Return only the topology of all atoms in the requested chains.
+            Chain indices are 0-based and may be written as ranges (e.g. 0-1).
+          schema:
+            type: string
+          examples:
+            firstChain:
+              summary: First chain
+              value: 0
+        - name: dupbonds
+          in: query
+          description: >
+            Set if every bond is to be returned in both bonded atoms.<br>
+            By default every bond is returned only once, in one of the two bonded atoms.
+          schema:
+            type: boolean
+            default: false
         - name: raw
           in: query
           description: >
@@ -249,6 +295,52 @@ paths:
           schema:
             type: boolean
             default: false
+      tags:
+        - topology
+      responses:
+        200:
+          description: JSON formatted topology
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Topology'
+    post:
+      summary: Get the simulation topology (long atom selections allowed).
+      description: >
+        Get a json object containing data related to atom, residue and chains (e.g. atom names, residue numbers).
+        Atom, residue and chain selections may be sent in the request body, which allows long selections.
+        Other arguments are the same as in the GET method.
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                atomindices:
+                  description: Atom indices (0-based), either as a list or as a string with ranges (e.g. 0-9,12)
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: integer
+                resindices:
+                  description: Residue indices (0-based), either as a list or as a string with ranges (e.g. 0-9,12)
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: integer
+                chaindices:
+                  description: Chain indices (0-based), either as a list or as a string with ranges (e.g. 0-1)
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: integer
+            example:
+              atomindices: [ 0, 1, 2, 500, 501 ]
       tags:
         - topology
       responses:
@@ -2014,7 +2106,10 @@ components:
               - 1
         atom_bonds:
           type: array
-          description: A list containing atom indices of other atoms bonded to the current one
+          description: >
+            A list containing atom indices of other atoms bonded to the current one.
+            Every bond is given only in one of the two bonded atoms, unless the dupbonds argument is passed.
+            Atoms with missing bonds information have the value 'MB' instead of a list.
           items:
             type: array
             example:

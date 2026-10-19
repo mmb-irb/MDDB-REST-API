@@ -128,6 +128,13 @@ const trajectoryHandler = handler({
     // The user may request a list of chain indices
     let chainIndices = request.body.chaindices || request.query.chaindices || [];
     if (typeof chainIndices === 'string') chainIndices = rangedSelectionParser(chainIndices);
+    // Make sure all indices are positive integers
+    const wrongIndices = [...atomIndices, ...residueIndices, ...chainIndices].map(Number)
+      .filter(index => !Number.isInteger(index) || index < 0);
+    if (wrongIndices.length > 0) return {
+      headerError: BAD_REQUEST,
+      error: 'Atom, residue and chain indices must be positive integers (0-based) or ranges of them (e.g. 0-9,12)'
+    };
     // In case we have a selection we must parse it to atoms
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
     const selectionRequest = request.body.selection || request.query.selection;
