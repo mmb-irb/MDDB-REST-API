@@ -77,7 +77,14 @@ const parseQueryRange = (string, limit, dimensionName) => {
     // If no "step" group is found then step is 1
     const step = +(stepFormatParsed.groups.step || 1);
     // If the step is 1 then simply use the range
-    if (step === 1) return [{ start: start - 1, end: end - 1 }];
+    // Return error if the range end exceeds the limit, as we do with the rest of formats below
+    if (step === 1) {
+      if (end > limit) return {
+        headerError: BAD_REQUEST,
+        error: `End of requested ${dimensionName} (${end}) is beyond the limit (${limit})`
+      };
+      return [{ start: start - 1, end: end - 1 }];
+    }
     for (let index = start; index <= end; index += step) {
       accumulated.push(index);
     }
