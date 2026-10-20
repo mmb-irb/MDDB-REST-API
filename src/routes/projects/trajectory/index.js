@@ -332,15 +332,16 @@ const trajectoryHandler = handler({
 
     // Write the input readable stream with the trajectroy data into the response
     // This is possible since the response is a writable stream itself
+    // Resume when the response drains instead of using write callbacks
+    // The compression middleware does not call write callbacks, which would stall the stream
+    // A single listener is used since 'once' listeners are not removed while compressing
+    response.on('drain', () => stream.resume());
     stream.on('data', data => {
       // If you are having this error it means some 'end' event is beeing triggered before all data is consumed
       if (response.finished)
         return console.error('ERROR: Potential data loss');
-      stream.pause();
-      // Check that local buffer is sending data out before continue to prevent memory leaks
-      response.write(data, () => {
-        stream.resume();
-      });
+      // Pause until the response drains (see the 'drain' listener above)
+      if (!response.write(data)) stream.pause();
       // use these lines to prevent system collapse in case of memory leak
       /*
       if(process.memoryUsage().rss > 300000000){

@@ -1,6 +1,8 @@
 const express = require('express');
 const paginate = require('express-paginate');
 const cors = require('cors');
+const compression = require('compression');
+const zlib = require('zlib');
 const swaggerUI = require('swagger-ui-express');
 const serveStatic = swaggerUI.serve[1];
 const getSwaggerDocs = require(`${__dirname}/../docs`);
@@ -56,6 +58,19 @@ app.use(
     origin: '*',
     methods: ['GET', 'POST', 'HEAD', 'OPTIONS'],
     exposedHeaders: ['content-length', 'content-range'],
+  }),
+);
+
+// Compress responses (brotli or gzip, as the client accepts)
+// Low levels on purpose: topologies and structures can be tens of MB and higher levels cost seconds per request
+// chemical/x-pdb is not in the default compressible types, so it is added here
+app.use(
+  compression({
+    level: 1,
+    brotli: { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 1 } },
+    filter: (request, response) =>
+      compression.filter(request, response) ||
+      String(response.getHeader('Content-Type')).startsWith('chemical/x-pdb'),
   }),
 );
 

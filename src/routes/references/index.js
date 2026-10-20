@@ -212,11 +212,13 @@ const specificReferenceSpecificFileResponse = handler({
             return;
         }
         // If there is a retrieved stream, start sending data through the stream
+        // Resume when the response drains instead of using write callbacks
+        // The compression middleware does not call write callbacks, which would stall the stream
+        // A single listener is used since 'once' listeners are not removed while compressing
+        response.on('drain', () => retrieved.stream.resume());
         retrieved.stream.on('data', data => {
-            retrieved.stream.pause();
-            response.write(data, () => {
-            retrieved.stream.resume();
-            });
+            // Pause until the response drains (see the 'drain' listener above)
+            if (!response.write(data)) retrieved.stream.pause();
         });
         // If there is an error, send the error to the console and end the data transfer
         retrieved.stream.on('error', error => {
