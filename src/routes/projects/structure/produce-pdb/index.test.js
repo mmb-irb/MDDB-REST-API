@@ -31,3 +31,24 @@ test('atom serial rollover preserves fixed columns and coordinate indexing', () 
     expect(line.slice(76, 78)).toBe(' C');
   }
 });
+
+// The structure route loads only these topology fields, so the PDB must not need any other
+test('reads only the topology fields it declares', () => {
+  const topology = {
+    atom_names: ['CA'],
+    atom_elements: ['C'],
+    atom_residue_indices: [0],
+    residue_names: ['ALA'],
+    residue_numbers: [1],
+    residue_icodes: ['A'],
+    residue_chain_indices: [0],
+    chain_names: ['A'],
+  };
+  const strictTopology = new Proxy(topology, {
+    get: (target, field) => {
+      if (!producePdb.TOPOLOGY_FIELDS.has(field)) throw new Error(`Undeclared topology field read: ${field}`);
+      return target[field];
+    },
+  });
+  expect(producePdb(strictTopology, [[1, 2, 3]])).toBe(producePdb(topology, [[1, 2, 3]]));
+});

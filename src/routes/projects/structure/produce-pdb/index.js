@@ -67,4 +67,12 @@ const producePdb = (topologyData, frameCoordinates, atomIndices) => {
     return pdbContent;
 };
 
+// Topology fields read to build the PDB
+// The structure route loads only these, since loading the whole topology is slow for big systems
+producePdb.TOPOLOGY_FIELDS = new Set([
+    'atom_names', 'atom_elements', 'atom_residue_indices',
+    'residue_names', 'residue_numbers', 'residue_icodes', 'residue_chain_indices',
+    'chain_names',
+]);
+
 module.exports = producePdb;

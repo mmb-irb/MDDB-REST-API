@@ -31,8 +31,9 @@ const structureHandler = handler({
     // If the object ID is not found in the data base the we have a mess
     // This is our fault, since a file id coming from a project must exist
     if (structureDescriptor.error) return structureDescriptor;
-    // Get the topology data
-    const topologyData = await project.getTopologyData();
+    // Get the topology data, only the fields needed to build the PDB
+    // Note that the selections below use some of these fields as well
+    const topologyData = await project.getTopologyData(producePdb.TOPOLOGY_FIELDS);
     // Get any kind of requested selection
     // If multiple values are passed then the sum of them will be returned
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
