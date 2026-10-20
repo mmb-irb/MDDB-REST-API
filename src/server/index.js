@@ -1,8 +1,6 @@
 const express = require('express');
 const paginate = require('express-paginate');
 const cors = require('cors');
-const compression = require('compression');
-const zlib = require('zlib');
 const swaggerUI = require('swagger-ui-express');
 const serveStatic = swaggerUI.serve[1];
 const getSwaggerDocs = require(`${__dirname}/../docs`);
@@ -11,6 +9,7 @@ const boxen = require('boxen');
 const chalk = require('chalk');
 // logging for grafana
 const { metricsMiddleware } = require('../middlewares/metrics');
+const { compressionMiddleware } = require('../middlewares/compression');
 
 const routes = require('../routes');
 //const getCustomTimeout = require('../middlewares/custom-timeout');
@@ -61,18 +60,8 @@ app.use(
   }),
 );
 
-// Compress responses (brotli or gzip, as the client accepts)
-// Low levels on purpose: topologies and structures can be tens of MB and higher levels cost seconds per request
-// chemical/x-pdb is not in the default compressible types, so it is added here
-app.use(
-  compression({
-    level: 1,
-    brotli: { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 1 } },
-    filter: (request, response) =>
-      compression.filter(request, response) ||
-      String(response.getHeader('Content-Type')).startsWith('chemical/x-pdb'),
-  }),
-);
+// Compress JSON and PDB responses
+app.use(compressionMiddleware());
 
 // Add POST request size limit
 // Defualt would be 100Kb which is not enought
