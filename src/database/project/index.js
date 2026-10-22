@@ -492,6 +492,23 @@ class Project {
         return fileDescriptor;
     }
 
+    // Get the box file descriptor
+    // The box file stores the 3 box vectors (3 coordinates each) for every frame
+    // Note that we add few metadata values to adapt it to the "dimensions" format
+    getBoxFileDescriptor = async () => {
+        // Get the file descriptor
+        const fileDescriptor = await this.getFileDescriptor(this.database.STANDARD_BOX_FILENAME);
+        // If there was any problem then return here
+        if (fileDescriptor.error) return fileDescriptor;
+        // Modify the descriptor to adapt it to the "dimensions" format
+        fileDescriptor.metadata.x = { name: 'coords', length: 3 };
+        fileDescriptor.metadata.y = { name: 'vectors', length: 3 };
+        fileDescriptor.metadata.z = { name: 'frames', length: fileDescriptor.metadata.frames };
+        fileDescriptor.metadata.bitsize = 32;
+        // Return the modified descriptor
+        return fileDescriptor;
+    }
+
 }
 
 module.exports = Project

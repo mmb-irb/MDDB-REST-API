@@ -779,6 +779,73 @@ paths:
               schema:
                 $ref: '#/definitions/mdcrd format'
 
+  /projects/{projectAccessionOrID}/trajectory/box:
+    get:
+      summary: Get the simulation box along the trajectory.
+      description: >
+        Get the simulation box for all or some frames of the trajectory.<br>
+        The box is returned in the internal binary format (bin): 3 box vectors with 3 coordinates (x, y, z) each per frame.
+        Every coordinate is a 32-bit float (little-endian), so every frame takes 36 bytes.<br>
+        Note that the box is not available for all projects.
+      produces:
+        - application/octet-stream
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+        - name: frames
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a frame range for the returned box.<br>
+            Ranges are defined by dashes, and multiple ranges can be defined
+            separated by commas. It can also be defined as the -start:end:step
+            format, with '-1' to select the last frame.<br>
+            1-based numbering.
+          examples:
+            firstFrame:
+              summary: box of the first frame
+              value: 1
+            everyTwoFrames:
+              summary: every two frames from frame 10 to frame 20
+              value: 10:20:2
+      tags:
+        - trajectory
+      responses:
+        200:
+          description: the simulation box
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+    post:
+      summary: Get the simulation box along the trajectory (long frame selections allowed).
+      description: >
+        Same as the GET method but parameters are passed in the request body.
+      produces:
+        - application/octet-stream
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                frames:
+                  type: string
+                  description: Frame range for the returned box (1-based, same format as in GET).
+      tags:
+        - trajectory
+      responses:
+        200:
+          description: the simulation box
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
   /projects/{projectAccessionOrID}/references:
     get:
       summary: Get the simulation references.

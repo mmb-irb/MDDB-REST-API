@@ -89,6 +89,108 @@ const acceptTransformFormat = requestedFormat => {
 
 const router = Router({ mergeParams: true });
 
+// Handle the response header of streamed binary files
+// This is used by both the trajectory and the box endpoints
+const streamHeaders = (
+  response,
+  {
+    stream,
+    filename,
+    trajectoryDescriptor,
+    range,
+    transformFormat,
+    acceptRanges,
+    headerError,
+  },
+) => {
+  // In case of error
+  if (headerError) return response.status(headerError);
+  // Something went wrong here
+  if (!stream) return response.sendStatus(INTERNAL_SERVER_ERROR);
+  
+  // NEVER FORGET: 'content-range' were disabled and now this data is got from project files
+  // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
+  //response.set('content-range', range.responseHeaders);
+
+  // NEVER FORGET: This partial content (i.e. 206) makes Chrome fail when downloading data directly from API
+  //response.status(PARTIAL_CONTENT);
+
+  // Send the expected bytes length of the file
+  // WARNING: If sent bytes are less than specified the download will fail with error signal
+  // WARNING: If sent bytes are more than specified the download will succed but it will be cutted
+  // WARNING: If sent bytes are a decimal number or null then it will generate an error 502 (Bad Gateway)
+  // If we dont send this header the download works anyway, but the user does not know how long it is going to take
+  if (range.byteSize) {
+    if (range.byteSize % 1 !== 0) console.error('ERROR: Size is not integer');
+    response.set('content-length', range.byteSize);
+  }
+  if (trajectoryDescriptor.contentType) {
+    response.set(
+      'content-type',
+      // Here trajectoryDescriptor.contentType should be "application/octet-stream"
+      transformFormat.contentType,
+    );
+  }
+  // Set the output filename
+  response.setHeader(
+    'Content-disposition',
+    `attachment; filename=${filename}`,
+  );
+
+  response.set('accept-ranges', acceptRanges);
+};
+
+// Handle the response body of streamed binary files
+const streamBody = (response, { stream, error }, request) => {
+  // In case of error
+  if (error) return response.json(error);
+  // Something went very wrong here
+  if (!stream) return response.end();
+
+  if (request.aborted) {
+    stream.destroy();
+    return;
+  }
+
+  // WARNING: Do not substitute the supervised "response.write" by a "stream.pipe(response)"
+  // "pipe" is not able to detect overloading in the response (Unknown reason)
+  // Therefore, if response is piped, there may be a memory leak in some situations
+  // For example, when client stops receiving data but connection is not closed
+  // (e.g. When you pause but do not cancell the download from Chrome)
+
+  // Write the input readable stream with the trajectroy data into the response
+  // This is possible since the response is a writable stream itself
+  // Resume when the response drains instead of using write callbacks
+  // The compression middleware does not call write callbacks, which would stall the stream
+  // A single listener is used since 'once' listeners are not removed while compressing
+  response.on('drain', () => stream.resume());
+  stream.on('data', data => {
+    // If you are having this error it means some 'end' event is beeing triggered before all data is consumed
+    if (response.finished)
+      return console.error('ERROR: Potential data loss');
+    // Pause until the response drains (see the 'drain' listener above)
+    if (!response.write(data)) stream.pause();
+    // use these lines to prevent system collapse in case of memory leak
+    /*
+    if(process.memoryUsage().rss > 300000000){
+      console.error("Memory leak detected");
+      stream.destroy();
+      console.error("Current stream has been destroyed");
+      return;
+    }
+    */
+  });
+  // In case of error, print error in console
+  stream.on('error', error => {
+    console.error(error);
+    response.end();
+  });
+  // Close the response when the read stream has finished
+  stream.on('end', data => response.end(data));
+  // Close the stream when request is over
+  request.on('close', () => stream.destroy());
+};
+
 // When trajectory is requested (i.e. .../trajectory)
 // Note that trajectory may be requested both trough GET and POST methods
 // POST method was implemented to allow long atom/frame selections
@@ -262,110 +364,56 @@ const trajectoryHandler = handler({
       filename,
       trajectoryDescriptor,
       range,
-      transformFormat
+      transformFormat,
+      acceptRanges: ['bytes', 'atoms', 'frames'],
     };
   },
-  // Handle the response header
-  headers(
-    response,
-    {
+  headers: streamHeaders,
+  body: streamBody,
+});
+
+// When the box is requested (i.e. .../trajectory/box)
+// The box is returned in .bin format: 3 vectors of 3 float32 coordinates per frame
+const boxHandler = handler({
+  async retriever(request) {
+    // Stablish database connection and retrieve our custom handler
+    const database = await getDatabase(request);
+    // Set the bucket, which allows downloading big files from the database
+    const bucket = database.bucket;
+    // Find the requested project data
+    const project = await database.getProject();
+    // If there was any problem then return the errors
+    if (project.error) return project;
+    // Download the box file descriptor
+    const boxDescriptor = await project.getBoxFileDescriptor();
+    // If the object ID is not found in the data base, return here
+    if (boxDescriptor.error) return boxDescriptor;
+    // Only frame selections are supported (e.g. .../trajectory/box?frames=1-10)
+    const range = handleRanges(request, {}, boxDescriptor);
+    // If something is wrong with ranges then return the error
+    if (range.error) return range;
+    // Return a simple stream when asking for the whole file (i.e. range is not iterable)
+    // Return an internally managed stream when asking for specific ranges
+    const stream = getRangedStream(bucket, boxDescriptor._id, range);
+    // Set the output filename according to some standards
+    const filename = setOutputFilename(project.data, boxDescriptor, 'bin');
+    return {
       stream,
       filename,
-      trajectoryDescriptor,
+      trajectoryDescriptor: boxDescriptor,
       range,
-      transformFormat,
-      headerError,
-    },
-  ) {
-    // In case of error
-    if (headerError) return response.status(headerError);
-    // Something went wrong here
-    if (!stream) return response.sendStatus(INTERNAL_SERVER_ERROR);
-    
-    // NEVER FORGET: 'content-range' were disabled and now this data is got from project files
-    // NEVER FORGET: This is because, sometimes, the header was bigger than the 8 Mb limit
-    //response.set('content-range', range.responseHeaders);
-
-    // NEVER FORGET: This partial content (i.e. 206) makes Chrome fail when downloading data directly from API
-    //response.status(PARTIAL_CONTENT);
-
-    // Send the expected bytes length of the file
-    // WARNING: If sent bytes are less than specified the download will fail with error signal
-    // WARNING: If sent bytes are more than specified the download will succed but it will be cutted
-    // WARNING: If sent bytes are a decimal number or null then it will generate an error 502 (Bad Gateway)
-    // If we dont send this header the download works anyway, but the user does not know how long it is going to take
-    if (range.byteSize) {
-      if (range.byteSize % 1 !== 0) console.error('ERROR: Size is not integer');
-      response.set('content-length', range.byteSize);
-    }
-    if (trajectoryDescriptor.contentType) {
-      response.set(
-        'content-type',
-        // Here trajectoryDescriptor.contentType should be "application/octet-stream"
-        transformFormat.contentType,
-      );
-    }
-    // Set the output filename
-    response.setHeader(
-      'Content-disposition',
-      `attachment; filename=${filename}`,
-    );
-
-    response.set('accept-ranges', ['bytes', 'atoms', 'frames']);
+      transformFormat: trajectoryFormats.bin,
+      acceptRanges: ['bytes', 'frames'],
+    };
   },
-  body(response, { stream, error }, request) {
-    // In case of error
-    if (error) return response.json(error);
-    // Something went very wrong here
-    if (!stream) return response.end();
-
-    if (request.aborted) {
-      stream.destroy();
-      return;
-    }
-
-    // WARNING: Do not substitute the supervised "response.write" by a "stream.pipe(response)"
-    // "pipe" is not able to detect overloading in the response (Unknown reason)
-    // Therefore, if response is piped, there may be a memory leak in some situations
-    // For example, when client stops receiving data but connection is not closed
-    // (e.g. When you pause but do not cancell the download from Chrome)
-
-    // Write the input readable stream with the trajectroy data into the response
-    // This is possible since the response is a writable stream itself
-    // Resume when the response drains instead of using write callbacks
-    // The compression middleware does not call write callbacks, which would stall the stream
-    // A single listener is used since 'once' listeners are not removed while compressing
-    response.on('drain', () => stream.resume());
-    stream.on('data', data => {
-      // If you are having this error it means some 'end' event is beeing triggered before all data is consumed
-      if (response.finished)
-        return console.error('ERROR: Potential data loss');
-      // Pause until the response drains (see the 'drain' listener above)
-      if (!response.write(data)) stream.pause();
-      // use these lines to prevent system collapse in case of memory leak
-      /*
-      if(process.memoryUsage().rss > 300000000){
-        console.error("Memory leak detected");
-        stream.destroy();
-        console.error("Current stream has been destroyed");
-        return;
-      }
-      */
-    });
-    // In case of error, print error in console
-    stream.on('error', error => {
-      console.error(error);
-      response.end();
-    });
-    // Close the response when the read stream has finished
-    stream.on('end', data => response.end(data));
-    // Close the stream when request is over
-    request.on('close', () => stream.destroy());
-  },
+  headers: streamHeaders,
+  body: streamBody,
 });
 
 // Support both the http GET and POST methods
 router.route('/').get(trajectoryHandler);
 router.route('/').post(trajectoryHandler);
+router.route('/box').get(boxHandler);
+router.route('/box').post(boxHandler);
 
 module.exports = router;
