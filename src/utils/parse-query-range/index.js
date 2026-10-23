@@ -17,7 +17,7 @@ const rangeIndices = indices => {
   // Transform all the "sorted" values, which are integers, into a specific format string
   // Join all values into a single string separated by comas
   // Merge consecutive indices into ranges
-  let lastIndex = 0;
+  let lastIndex;
   let lasti = 0;
   const entries = Object.entries(indices);
   const ranges = []

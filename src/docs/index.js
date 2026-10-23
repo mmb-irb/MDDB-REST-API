@@ -25,13 +25,17 @@ const replaceAnywhere = (targetObject, targetString, replaceString) => {
     // If it is a string then apply the replacement
     if (typeof value === 'string') targetObject[inderOrKey] = value.replaceAll(targetString, replaceString);
     // If it is an array or object then apply this function recursively
-    else if (typeof targetObject === 'object') replaceAnywhere(value, targetString, replaceString);
-    else throw new Error(`Unsupported type ${typeof value} when replacing anywhere`);
+    else if (value !== null && typeof value === 'object') replaceAnywhere(value, targetString, replaceString);
+    // Other YAML scalars (numbers, booleans and nulls) have nothing to replace
+    else if (value !== null && typeof value !== 'number' && typeof value !== 'boolean')
+      throw new Error(`Unsupported type ${typeof value} when replacing anywhere`);
     // If this is an object and thus we are iterating its keys, then also replace the key strings
     if (typeof inderOrKey === 'string') {
       const replacedKey = inderOrKey.replaceAll(targetString, replaceString);
-      targetObject[replacedKey] = targetObject[inderOrKey];
-      delete inderOrKey;
+      if (replacedKey !== inderOrKey) {
+        targetObject[replacedKey] = targetObject[inderOrKey];
+        delete targetObject[inderOrKey];
+      }
     }
   }
 };

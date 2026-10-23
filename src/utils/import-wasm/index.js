@@ -32,7 +32,7 @@ const importWA = (path, memorySize = 1) => {
         `abort called at ${instance.__getString(file)}: ${line}:${column}`,
       );
     },
-    trace(msg, ...args) {
+    trace(msg) {
       //console.log('there was a trace: ' + msg);
       console.log(instance.__getString(msg));
     },

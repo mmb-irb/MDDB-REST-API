@@ -4,7 +4,6 @@ const { Readable } = require('stream');
 const handler = require('../../../utils/generic-handler');
 // Get the database handler
 const getDatabase = require('../../../database');
-const consumeStream = require('../../../utils/consume-stream');
 // Standard HTTP response status codes
 const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-codes');
 // Get a function to issue a standard output filename
@@ -104,7 +103,7 @@ const structureHandler = handler({
     const pdbContent = producePdb(topologyData, frameCoordinates, atomIndices);
     // Convert the PDB content to a buffer adn then to a stream
     const bufferPdb = Buffer.from(pdbContent, 'utf-8');
-    stream = Readable.from([bufferPdb]);
+    const stream = Readable.from([bufferPdb]);
     // Modify the original descriptor length
     structureDescriptor.length = bufferPdb.length;
     // Set the output filename according to some standards

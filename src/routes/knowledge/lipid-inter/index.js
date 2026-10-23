@@ -5,7 +5,6 @@ const handler = require('../../../utils/generic-handler');
 const getDatabase = require('../../../database');
 // Standard HTTP response status codes
 const { NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../../utils/status-codes');
-const { PROTEIN_RESIDUE_NAME_LETTERS } = require('../../../utils/constants');
 const { getHost } = require('../../../utils/auxiliar-functions');
 const { buildKnowledgeResponse, formatKnowledgeDate } = require('../shared');
 
@@ -137,8 +136,6 @@ router.route('/').get( handler({ async retriever(request) {
             // If there is no PDB equivalent then this residue is not present in the PDB
             // We will return no data for this specific residue
             const [chainLetter, residueLabel, residueType] = pdbEquivalent;
-            // Get the amino acid single letter code
-            const residueLetter = PROTEIN_RESIDUE_NAME_LETTERS[residueType] || 'X';
             
             // Get max contact probability for tail and head across all lipid types
             const tailInteraction = tailByResidue[residueIndex] || 0;

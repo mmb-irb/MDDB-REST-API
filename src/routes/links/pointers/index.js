@@ -101,7 +101,7 @@ const pointerLinksEndpoint = handler({
         response.setHeader('Content-disposition', `attachment; filename=pointers.csv`);
     },
     // Handle the response body
-    body(response, retrieved, request) {
+    body(response, retrieved) {
         // If nothing is retrieved then end the response
         // Note that the header 'sendStatus' function should end the response already, but just in case
         if (!retrieved) return response.end();

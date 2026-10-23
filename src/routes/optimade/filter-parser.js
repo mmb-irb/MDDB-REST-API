@@ -236,8 +236,8 @@ function evalConstant(constVal, ast) {
   if (op === 'CMP') {
     const v = ast.value.v;
     switch (ast.cmp) {
-      case '=':  return constVal == v;   // eslint-disable-line eqeqeq
-      case '!=': return constVal != v;   // eslint-disable-line eqeqeq
+      case '=':  return constVal == v;
+      case '!=': return constVal != v;
       case '<':  return constVal <  v;
       case '>':  return constVal >  v;
       case '<=': return constVal <= v;
@@ -264,8 +264,8 @@ function evalConstant(constVal, ast) {
     const len = Array.isArray(constVal) ? constVal.length : 0;
     const v = ast.value.v;
     switch (ast.cmp) {
-      case '=':  return len == v;   // eslint-disable-line eqeqeq
-      case '!=': return len != v;   // eslint-disable-line eqeqeq
+      case '=':  return len == v;
+      case '!=': return len != v;
       case '<':  return len <  v;
       case '>':  return len >  v;
       case '<=': return len <= v;

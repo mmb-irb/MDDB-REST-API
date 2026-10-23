@@ -15,7 +15,6 @@ const getRangedStream = require('../../../utils/get-ranged-stream');
 // Returns the selected atom indices as a string ("i1-i1,i2-i2,i3-i3..."")
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 // Translates the frames query string format into a explicit frame selection in string format
-const consumeStream = require('../../../utils/consume-stream');
 const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
 
 // Get a function to issue a standard output filename

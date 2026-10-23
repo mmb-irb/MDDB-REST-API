@@ -7,7 +7,7 @@ const getDatabase = require('../../../database');
 const { isObjectId } = require('../../../utils/auxiliar-functions');
 
 // Standard HTTP response status codes
-const { INTERNAL_SERVER_ERROR, BAD_REQUEST, NOT_FOUND } = require('../../../utils/status-codes');
+const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-codes');
 
 // Handle query ranges
 const handleRanges = require('../../../utils/handle-ranges');

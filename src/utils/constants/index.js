@@ -8,7 +8,7 @@ const POINTERS_SUPPORTED_REFERENCES = { ...REFERENCES };
 POINTERS_NOT_SUPPORTED_REFERENCES.forEach(referenceName => delete POINTERS_SUPPORTED_REFERENCES[referenceName]);
 
 // Amino acid letters
-PROTEIN_RESIDUE_NAME_LETTERS = {
+const PROTEIN_RESIDUE_NAME_LETTERS = {
     'ALA':'A',
     'ALAN':'A',
     'ALAC':'A',
@@ -88,7 +88,7 @@ PROTEIN_RESIDUE_NAME_LETTERS = {
 }
 
 // Amino acid letters
-PROTEIN_LETTER_RESIDUE_NAMES = {
+const PROTEIN_LETTER_RESIDUE_NAMES = {
     'A':'ALA',
     'R':'ARG',
     'N': 'ASN',

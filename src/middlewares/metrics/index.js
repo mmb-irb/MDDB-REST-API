@@ -220,7 +220,7 @@ function removeEmpty(obj) {
   } else if (obj && typeof obj === 'object') {
     return Object.fromEntries(
       Object.entries(obj)
-        .filter(([_, v]) => v !== '' && v !== null && v !== undefined)
+        .filter(([, v]) => v !== '' && v !== null && v !== undefined)
         .map(([k, v]) => [k, removeEmpty(v)])
     );
   }
@@ -268,7 +268,7 @@ function metricsMiddleware(basePaths = ['/rest/current', '/rest/v1'], debug = fa
       const { route, params } = normalizePath(fullPath, matchers);
       if (debug) console.log(`Normalized request: ${route}`);
       const host = getHost(req).split(':')[0];
-      data = {
+      const data = {
         host,
         status_code: res.statusCode,
         latency: (Date.now() - startMs) / 1000,

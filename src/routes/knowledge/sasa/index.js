@@ -278,13 +278,13 @@ router.route('/').get( handler({ async retriever(request) {
             },
             {
                 site_id: 3,
-                label: "Switching residue (fluctuating between < 24% and > 26%)",
+                //label: "Switching residue (fluctuating between < 24% and > 26%)",
                 label: "Switching",
                 additional_site_annotations: { percentage: "24-26" },
             },
             {
                 site_id: 4,
-                label: "Borderline residue (between < 24% and > 26% all the time)",
+                //label: "Borderline residue (between < 24% and > 26% all the time)",
                 label: "Borderline",
                 additional_site_annotations: { percentage: "24-26" },
             },

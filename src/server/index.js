@@ -29,10 +29,6 @@ if (!PORT) throw new Error('Missing listen port in env');
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
 
-const SECOND = 1000;
-const MINUTE = 60 * SECOND;
-const HOUR = 60 * MINUTE;
-
 const app = express();
 
 // Middleware to track endpoint usage and response times
@@ -43,6 +39,9 @@ app.disable('x-powered-by');
 
 // custom timeout middleware
 // DANI: He quitado esto porque si no sabes que está aquí te mata las descargas largas silenciosamente
+// const SECOND = 1000;
+// const MINUTE = 60 * SECOND;
+// const HOUR = 60 * MINUTE;
 // app.use(
 //   getCustomTimeout({
 //     general: 5 * MINUTE,
