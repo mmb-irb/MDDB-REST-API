@@ -2,7 +2,7 @@ const yaml = require('yamljs');
 const geoip = require('geoip-lite');
 const rawSpec = yaml.load(`${__dirname}/../../docs/description.yml`);
 const { getHost } = require('../../utils/auxiliar-functions');
-const { SeverityNumber } = require('@opentelemetry/api-logs');
+const { SeverityNumber } = require('@opentelemetry/api');
 const { LoggerProvider, BatchLogRecordProcessor } = require('@opentelemetry/sdk-logs');
 const { OTLPLogExporter } = require('@opentelemetry/exporter-logs-otlp-http');
 const { resourceFromAttributes } = require('@opentelemetry/resources');
@@ -22,7 +22,7 @@ const loggerProvider = new LoggerProvider({
     ['node']: process.env.NODE_NAME || 'unknown-node',  // Add node name for multi-node setups
 
   }),
-  processors: [new BatchLogRecordProcessor(exporter)]
+  processors: [new BatchLogRecordProcessor({ exporter })]
 });
 
 // Create a logger and emit a log
