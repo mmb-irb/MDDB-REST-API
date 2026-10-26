@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.0.18 — 2026-10-26
+
+Changes since v0.0.17 (2026-09-02).
+
+### Deployment
+
+- **Node.js 26.12.1 or newer is now required** (`engines` in `package.json`). It includes the October 2026 Node.js security releases (Brotli decoder RCE, TLS hostname verification bypasses, among 10 CVEs).
+- **`package-lock.json` is now tracked**, so deployments install the exact tested dependency versions.
+
+### Security and dependencies
+
+- `npm audit` goes from 108 vulnerabilities to none: express 4.22, jsdom 30, OpenTelemetry 0.300 and updated dev tools (jest 30, eslint 10, prettier 3, nodemon 3, pm2 7).
+- Fixed Grafana metrics, which OpenTelemetry 0.300 would have stopped exporting silently.
+
+### New endpoints
+
+- **OPTIMADE** API (v1.2) at `/optimade`, for both local and global databases, shown by default in the docs.
+- **`/projects/{id}/versions`** — versions of the project metadata, topology, MDs and analyses.
+- **`/projects/{id}/trajectory/box`** — simulation box per frame in binary format, with frame selection.
+- **Reference files** — `/references/{reference}/{id}/files` and `/files/{filename}`, also in the global API.
+
+### Topology, structure and trajectory
+
+- Topology supports per-atom and per-residue fields stored as binary files in GridFS, atom/residue/chain selections with renumbered indices, deduplicated bonds by default (`dupbonds` to get them in both atoms) and atoms with missing bonds.
+- `resindices` and `chaindices` selections in structure and trajectory.
+- `/structure` is always built from the topology, loading only the fields the PDB needs.
+- Fixed atom numbers in PDB files with more than 100k atoms.
+- Ranged selections reject negative, malformed and out-of-limit indices.
+
+### Performance
+
+- JSON and PDB responses are compressed (brotli/gzip); binary trajectories are not, so they keep their content length.
+
+### Other
+
+- Nodes may define an `api_dev_url` besides `api_url`.
+- Fixed several latent bugs reported by the new linter (implicit globals, swagger docs placeholder replacement).
+
 ## v0.0.16 — 2026-08-13
 
 ### Metadata and discoverability
