@@ -1,4 +1,4 @@
-image: node:11
+image: node:26.12.1
 
 before_script:
   - npm ci
