@@ -353,12 +353,13 @@ paths:
 
   /projects/{projectAccessionOrID}/structure:
     get:
-      summary: Get the main structure of the project in pdb format.
+      summary: Get the main structure of the project in pdb or mmCIF format.
       description: >
-        Get the main structure of the project in pdb format.
+        Get the main structure of the project in pdb or mmCIF format.
         Structure may be filtered by specific atoms.
       produces:
         - chemical/x-pdb
+        - chemical/x-mmcif
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: selection
@@ -417,6 +418,18 @@ paths:
             firstChain:
               summary: First chain
               value: 0
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [pdb, mmcif, cif]
+            default: pdb
+          description: >
+            Set the format of the returned structure: PDB (default) or mmCIF (also 'cif').<br>
+            Format names are case insensitive.<br>
+            In mmCIF, author fields (e.g. auth_seq_id) have the author residue numeration, which may have been renumbered for coherence,
+            and label fields (e.g. label_seq_id) have the UniProt numeration, or the author numeration in residues with no UniProt numeration.<br>
+            In POST requests this argument may also be sent in the request body.
       tags:
         - structure
       responses:
@@ -427,20 +440,29 @@ paths:
               schema:
                 type: string
                 format: binary
+            chemical/x-mmcif:
+              schema:
+                type: string
+                format: binary
         206:
           description: an atom filtered structure
           content:
             chemical/x-pdb:
+              schema:
+                type: string
+                format: binary
+            chemical/x-mmcif:
               schema:
                 type: string
                 format: binary
     post:
-      summary: Get the main structure of the project in pdb format (long atom selections allowed).
+      summary: Get the main structure of the project in pdb or mmCIF format (long atom selections allowed).
       description: >
-        Get the main structure of the project in pdb format.
+        Get the main structure of the project in pdb or mmCIF format.
         Structure may be filtered by specific atoms.
       produces:
         - chemical/x-pdb
+        - chemical/x-mmcif
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: selection
@@ -499,6 +521,18 @@ paths:
             firstChain:
               summary: First chain
               value: 0
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [pdb, mmcif, cif]
+            default: pdb
+          description: >
+            Set the format of the returned structure: PDB (default) or mmCIF (also 'cif').<br>
+            Format names are case insensitive.<br>
+            In mmCIF, author fields (e.g. auth_seq_id) have the author residue numeration, which may have been renumbered for coherence,
+            and label fields (e.g. label_seq_id) have the UniProt numeration, or the author numeration in residues with no UniProt numeration.<br>
+            In POST requests this argument may also be sent in the request body.
       tags:
         - structure
       responses:
@@ -509,10 +543,18 @@ paths:
               schema:
                 type: string
                 format: binary
+            chemical/x-mmcif:
+              schema:
+                type: string
+                format: binary
         206:
           description: an atom filtered structure
           content:
             chemical/x-pdb:
+              schema:
+                type: string
+                format: binary
+            chemical/x-mmcif:
               schema:
                 type: string
                 format: binary

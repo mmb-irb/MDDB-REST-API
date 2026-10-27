@@ -27,14 +27,14 @@ const ngl = require('ngl');
 /**
  * This is the main part of the worker's logic
  *
- * @param {Buffer} pdbFile - Buffer containing the PDB reference file content
+ * @param {Buffer} mmcifFile - Buffer containing the mmCIF reference file content
  * @param {string} selection - NGL-formatted selection (see http://nglviewer.org/ngl/api/manual/usage/selection-language.html)
  * @returns {string} Atom ranges, not collapsed, in a HTTP Range header format
  */
-const main = async (pdbFile, selection) => {
-  // Save the pdbFile as a Blob (Binary large object), which is a format for storing data
-  const structure = await ngl.autoLoad(new global.Blob([pdbFile]), {
-    ext: 'pdb',
+const main = async (mmcifFile, selection) => {
+  // Save the mmcifFile as a Blob (Binary large object), which is a format for storing data
+  const structure = await ngl.autoLoad(new global.Blob([mmcifFile]), {
+    ext: 'cif',
   });
   // Save the selection in ngl format (structureComponent)
   const sel = new ngl.Selection(selection);

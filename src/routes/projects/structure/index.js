@@ -11,6 +11,16 @@ const { setOutputFilename, rangedSelectionParser } = require('../../../utils/aux
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 // Function to produce a PDB from topology and coordinates
 const producePdb = require('./produce-pdb');
+// Function to produce a mmCIF from topology and coordinates
+const produceMmcif = require('./produce-mmcif');
+
+// Supported output formats
+// Note that format names are case insensitive
+const structureFormats = {
+  pdb: { extension: 'pdb', contentType: 'chemical/x-pdb', producer: producePdb },
+  mmcif: { extension: 'cif', contentType: 'chemical/x-mmcif', producer: produceMmcif },
+};
+structureFormats.cif = structureFormats.mmcif;
 
 const router = Router({ mergeParams: true });
 
@@ -25,14 +35,25 @@ const structureHandler = handler({
     const project = await database.getProject();
     // If there was any problem then return the errors
     if (project.error) return project;
+    // Get the requested output format, which is PDB by default
+    const requestedFormat = request.body.format || request.query.format || 'pdb';
+    const structureFormat = structureFormats[String(requestedFormat).toLowerCase()];
+    if (!structureFormat) return {
+      headerError: BAD_REQUEST,
+      error: `Not supported format "${requestedFormat}". Supported formats are PDB and mmCIF (or CIF)`
+    };
     // Download the main structure file descriptor
     const structureDescriptor = await project.getFileDescriptor(database.STANDARD_STRUCTURE_FILENAME);
     // If the object ID is not found in the data base the we have a mess
     // This is our fault, since a file id coming from a project must exist
     if (structureDescriptor.error) return structureDescriptor;
-    // Get the topology data, only the fields needed to build the PDB
+    // Get the NGL atom selection, if any
+    const selection = request.body.selection || request.query.selection;
+    // Get the topology data, only the fields needed to build the structure
+    // Note that NGL selections are always parsed from a mmCIF, no matter the requested format
     // Note that the selections below use some of these fields as well
-    const topologyData = await project.getTopologyData(producePdb.TOPOLOGY_FIELDS);
+    const topologyFields = selection ? produceMmcif.TOPOLOGY_FIELDS : structureFormat.producer.TOPOLOGY_FIELDS;
+    const topologyData = await project.getTopologyData(topologyFields);
     // Get any kind of requested selection
     // If multiple values are passed then the sum of them will be returned
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
@@ -52,8 +73,6 @@ const structureHandler = handler({
       headerError: BAD_REQUEST,
       error: 'Atom, residue and chain indices must be positive integers (0-based) or ranges of them (e.g. 0-9,12)'
     };
-    // Get the NGL atom selection, if any
-    const selection = request.body.selection || request.query.selection;
     // Check if there was any atom selection argument
     const anySelection = Boolean(atomIndices.length || residueIndices.length || chainIndices.length || selection);
     // In case of an NGL selection we will parse the selection to a list of atom indices using NGL itself
@@ -61,12 +80,14 @@ const structureHandler = handler({
       // Get reference frame coordinates
       const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame);
       if (frameCoordinates.error) return frameCoordinates;
-      // Produce a filtered PDB file using both the topology data and reference frame coordinates
-      const pdbContent = producePdb(topologyData, frameCoordinates);
-      // Convert the PDB content to a buffer adn then to a stream
-      const bufferPdb = Buffer.from(pdbContent, 'utf-8');
+      // Produce a mmCIF file using both the topology data and reference frame coordinates
+      // Note that mmCIF has no limits in atom numbers, residue numbers or chain names, unlike PDB
+      const mmcifContent = produceMmcif(topologyData, frameCoordinates);
+      if (mmcifContent.error) return mmcifContent;
+      // Convert the mmCIF content to a buffer
+      const bufferMmcif = Buffer.from(mmcifContent, 'utf-8');
       // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
-      const nglAtomIndices = await getAtomIndices(bufferPdb, selection);
+      const nglAtomIndices = await getAtomIndices(bufferMmcif, selection);
       atomIndices.push(...nglAtomIndices);
     }
     // In case chain indices are passed we must convert them to residue indices
@@ -99,15 +120,19 @@ const structureHandler = handler({
     // Get reference frame coordinates
     const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame, atomIndices);
     if (frameCoordinates.error) return frameCoordinates;
-    // Produce a filtered PDB file using both the topology data and reference frame coordinates
-    const pdbContent = producePdb(topologyData, frameCoordinates, atomIndices);
-    // Convert the PDB content to a buffer adn then to a stream
-    const bufferPdb = Buffer.from(pdbContent, 'utf-8');
-    const stream = Readable.from([bufferPdb]);
-    // Modify the original descriptor length
-    structureDescriptor.length = bufferPdb.length;
+    // Produce a filtered structure file in the requested format
+    // Use both the topology data and reference frame coordinates
+    const dataName = project.data.accession || project.data.internalId.toString();
+    const structureContent = structureFormat.producer(topologyData, frameCoordinates, atomIndices, dataName);
+    if (structureContent.error) return structureContent;
+    // Convert the structure content to a buffer adn then to a stream
+    const bufferStructure = Buffer.from(structureContent, 'utf-8');
+    const stream = Readable.from([bufferStructure]);
+    // Modify the original descriptor length and content type
+    structureDescriptor.length = bufferStructure.length;
+    structureDescriptor.contentType = structureFormat.contentType;
     // Set the output filename according to some standards
-    const filename = setOutputFilename(project.data, structureDescriptor);
+    const filename = setOutputFilename(project.data, structureDescriptor, structureFormat.extension);
     return { filename, structureDescriptor, stream };
   },
   // Handle the response header

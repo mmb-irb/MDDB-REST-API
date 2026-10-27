@@ -28,7 +28,7 @@ const getHeaders = contentType => new Promise((resolve, reject) => {
 });
 
 describe('compression middleware', () => {
-  it.each(['application/json; charset=utf-8', 'chemical/x-pdb'])('compresses %s', async contentType => {
+  it.each(['application/json; charset=utf-8', 'chemical/x-pdb', 'chemical/x-mmcif'])('compresses %s', async contentType => {
     const headers = await getHeaders(contentType);
     expect(headers['content-encoding']).toBe('br');
   });

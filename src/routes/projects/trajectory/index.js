@@ -20,7 +20,7 @@ const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
 // Get a function to issue a standard output filename
 const { setOutputFilename, getConfig, rangedSelectionParser } = require('../../../utils/auxiliar-functions');
 // Function to produce a PDB from topology and coordinates (used when resolving NGL selections)
-const producePdb = require('../structure/produce-pdb');
+const produceMmcif = require('../structure/produce-mmcif');
 
 // Standard HTTP response status codes
 const {
@@ -263,17 +263,19 @@ const trajectoryHandler = handler({
           if (residueIndices.has(residueIndex)) atomIndices.push(atomIndex);
         });
       }
-      // In case we have a selection, generate PDB file with the whole system to feed NGL and parse the selection
+      // In case we have a selection, generate a mmCIF file with the whole system to feed NGL and parse the selection
+      // Note that the structure endpoint does the same, so the same selection returns the same atoms in both
       if (selectionRequest) {
         // Get reference frame coordinates
         const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame);
         if (frameCoordinates.error) return frameCoordinates;
-        // Produce a filtered PDB file using both the topology data and reference frame coordinates
-        const pdbContent = producePdb(topologyData, frameCoordinates);
-        // Convert the PDB content to a buffer adn then to a stream
-        const bufferPdb = Buffer.from(pdbContent, 'utf-8');
+        // Produce a mmCIF file using both the topology data and reference frame coordinates
+        const mmcifContent = produceMmcif(topologyData, frameCoordinates);
+        if (mmcifContent.error) return mmcifContent;
+        // Convert the mmCIF content to a buffer
+        const bufferMmcif = Buffer.from(mmcifContent, 'utf-8');
         // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
-        const nglIndices = await getAtomIndices(bufferPdb, selectionRequest);
+        const nglIndices = await getAtomIndices(bufferMmcif, selectionRequest);
         if (!nglIndices || nglIndices.length === 0) return {
           headerError: BAD_REQUEST,
           error: 'Atoms selection is empty or wrong'

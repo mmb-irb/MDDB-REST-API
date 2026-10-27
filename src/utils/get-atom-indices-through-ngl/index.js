@@ -4,11 +4,11 @@
 // POSSIBLE ERROR: Cannot find module 'worker_threads'
 // Node must be version 11 or higher.
 const { Worker } = require('worker_threads');
-const getAtomIndices = (pdbFile, selection) =>
+const getAtomIndices = (mmcifFile, selection) =>
   new Promise((resolve, reject) => {
     const worker = new Worker(`${__dirname}/worker.js`);
     // Starts the worker
-    worker.postMessage({ type: 'init', file: pdbFile, selection });
+    worker.postMessage({ type: 'init', file: mmcifFile, selection });
     // Recibes the worker output and terminates the worker
     worker.addListener('message', message => {
       worker.unref();
