@@ -19,8 +19,10 @@ const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
 
 // Get a function to issue a standard output filename
 const { setOutputFilename, getConfig, rangedSelectionParser } = require('../../../utils/auxiliar-functions');
-// Function to produce a PDB from topology and coordinates (used when resolving NGL selections)
+// Function to produce a mmCIF from topology and coordinates (used when resolving NGL selections)
 const produceMmcif = require('../structure/produce-mmcif');
+// Functions to handle the residue numeration
+const { NUMBERINGS, parseNumbering, applyNumbering } = require('../../../utils/topology-tools');
 
 // Standard HTTP response status codes
 const {
@@ -239,6 +241,13 @@ const trajectoryHandler = handler({
     // In case we have a selection we must parse it to atoms
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
     const selectionRequest = request.body.selection || request.query.selection;
+    // Get the residue numeration used by the selection, which is the author numeration by default
+    const requestedNumbering = request.body.numbering || request.query.numbering;
+    const numbering = parseNumbering(requestedNumbering);
+    if (!numbering) return {
+      headerError: BAD_REQUEST,
+      error: `Not supported numbering "${requestedNumbering}". Supported numberings are ${NUMBERINGS.join(', ')}`
+    };
     // The legacy 'atoms' param cannot be combined with the new selection params
     const atomsRequest = request.body.atoms || request.query.atoms;
     const anyNewSelection = atomIndices.length || residueIndices.length || chainIndices.length || selectionRequest;
@@ -270,7 +279,8 @@ const trajectoryHandler = handler({
         const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame);
         if (frameCoordinates.error) return frameCoordinates;
         // Produce a mmCIF file using both the topology data and reference frame coordinates
-        const mmcifContent = produceMmcif(topologyData, frameCoordinates);
+        // Note that NGL reads the residue numbers from the author fields, where the requested numeration is written
+        const mmcifContent = produceMmcif(applyNumbering(topologyData, numbering), frameCoordinates);
         if (mmcifContent.error) return mmcifContent;
         // Convert the mmCIF content to a buffer
         const bufferMmcif = Buffer.from(mmcifContent, 'utf-8');

@@ -1,5 +1,6 @@
 const getAtomIndices = require('.');
 const produceMmcif = require('../../routes/projects/structure/produce-mmcif');
+const { applyNumbering } = require('../topology-tools');
 
 jest.setTimeout(15000);
 
@@ -55,5 +56,22 @@ describe('getAtomIndices', () => {
     expect(await getAtomIndices(example, '10000')).toEqual([2]);
     expect(await getAtomIndices(example, ':LONG')).toEqual([2]);
     expect(await getAtomIndices(example, 'ALA and :A')).toEqual([0]);
+  });
+
+  // The UniProt numeration is applied to the topology before producing the mmCIF
+  test('UniProt numbers', async () => {
+    const example = Buffer.from(produceMmcif(applyNumbering({
+      atom_names: ['CA', 'CA', 'C1'],
+      atom_elements: ['C', 'C', 'C'],
+      atom_residue_indices: [0, 1, 2],
+      residue_names: ['ALA', 'GLY', 'LIG'],
+      residue_numbers: [1, 2, 3],
+      residue_reference_numbers: [101, 102, null],
+      residue_chain_indices: [0, 0, 1],
+      chain_names: ['A', 'B'],
+    }, 'uniprot'), [[0, 0, 0], [3.8, 0, 0], [20, 0, 0]]));
+    expect(await getAtomIndices(example, '102')).toEqual([1]);
+    expect(await getAtomIndices(example, '2')).toEqual([]);
+    expect(await getAtomIndices(example, '3')).toEqual([2]);
   });
 });

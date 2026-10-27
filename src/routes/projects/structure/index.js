@@ -8,6 +8,8 @@ const getDatabase = require('../../../database');
 const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-codes');
 // Get a function to issue a standard output filename
 const { setOutputFilename, rangedSelectionParser } = require('../../../utils/auxiliar-functions');
+// Functions to handle the residue numeration
+const { NUMBERINGS, parseNumbering, applyNumbering } = require('../../../utils/topology-tools');
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 // Function to produce a PDB from topology and coordinates
 const producePdb = require('./produce-pdb');
@@ -42,6 +44,15 @@ const structureHandler = handler({
       headerError: BAD_REQUEST,
       error: `Not supported format "${requestedFormat}". Supported formats are PDB and mmCIF (or CIF)`
     };
+    // Get the requested residue numeration, which is the author numeration by default
+    // It is used by the NGL selection and in the residue numbers of the PDB
+    // Note that the mmCIF has always both numerations
+    const requestedNumbering = request.body.numbering || request.query.numbering;
+    const numbering = parseNumbering(requestedNumbering);
+    if (!numbering) return {
+      headerError: BAD_REQUEST,
+      error: `Not supported numbering "${requestedNumbering}". Supported numberings are ${NUMBERINGS.join(', ')}`
+    };
     // Download the main structure file descriptor
     const structureDescriptor = await project.getFileDescriptor(database.STANDARD_STRUCTURE_FILENAME);
     // If the object ID is not found in the data base the we have a mess
@@ -51,9 +62,13 @@ const structureHandler = handler({
     const selection = request.body.selection || request.query.selection;
     // Get the topology data, only the fields needed to build the structure
     // Note that NGL selections are always parsed from a mmCIF, no matter the requested format
+    // Note that the mmCIF fields include the reference numbers, which are needed by the UniProt numeration
     // Note that the selections below use some of these fields as well
-    const topologyFields = selection ? produceMmcif.TOPOLOGY_FIELDS : structureFormat.producer.TOPOLOGY_FIELDS;
+    const needsMmcifFields = selection || numbering !== 'author';
+    const topologyFields = needsMmcifFields ? produceMmcif.TOPOLOGY_FIELDS : structureFormat.producer.TOPOLOGY_FIELDS;
     const topologyData = await project.getTopologyData(topologyFields);
+    // Set the topology with the requested numeration, used by the NGL selection and the PDB
+    const numberedTopologyData = applyNumbering(topologyData, numbering);
     // Get any kind of requested selection
     // If multiple values are passed then the sum of them will be returned
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
@@ -82,7 +97,8 @@ const structureHandler = handler({
       if (frameCoordinates.error) return frameCoordinates;
       // Produce a mmCIF file using both the topology data and reference frame coordinates
       // Note that mmCIF has no limits in atom numbers, residue numbers or chain names, unlike PDB
-      const mmcifContent = produceMmcif(topologyData, frameCoordinates);
+      // Note that NGL reads the residue numbers from the author fields, where the requested numeration is written
+      const mmcifContent = produceMmcif(numberedTopologyData, frameCoordinates);
       if (mmcifContent.error) return mmcifContent;
       // Convert the mmCIF content to a buffer
       const bufferMmcif = Buffer.from(mmcifContent, 'utf-8');
@@ -123,7 +139,9 @@ const structureHandler = handler({
     // Produce a filtered structure file in the requested format
     // Use both the topology data and reference frame coordinates
     const dataName = project.data.accession || project.data.internalId.toString();
-    const structureContent = structureFormat.producer(topologyData, frameCoordinates, atomIndices, dataName);
+    // The mmCIF has always both numerations, while the PDB has only the requested one
+    const outputTopologyData = structureFormat.producer === produceMmcif ? topologyData : numberedTopologyData;
+    const structureContent = structureFormat.producer(outputTopologyData, frameCoordinates, atomIndices, dataName);
     if (structureContent.error) return structureContent;
     // Convert the structure content to a buffer adn then to a stream
     const bufferStructure = Buffer.from(structureContent, 'utf-8');

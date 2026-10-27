@@ -1,4 +1,4 @@
-const { MISSING_BONDS, duplicateBonds, subsetTopology } = require('.');
+const { MISSING_BONDS, duplicateBonds, subsetTopology, parseNumbering, applyNumbering } = require('.');
 
 describe('duplicateBonds()', () => {
   test('adds every bond to the other atom', () => {
@@ -82,5 +82,36 @@ describe('subsetTopology()', () => {
       odd: { n: 2, re: [1], at: [1] },
       everything: 'all',
     });
+  });
+});
+
+describe('parseNumbering()', () => {
+  test('is the author numbering by default and case insensitive', () => {
+    expect(parseNumbering(undefined)).toBe('author');
+    expect(parseNumbering('Author')).toBe('author');
+    expect(parseNumbering('UNIPROT')).toBe('uniprot');
+  });
+
+  test('returns null for not supported numberings', () => {
+    expect(parseNumbering('pdb')).toBeNull();
+  });
+});
+
+describe('applyNumbering()', () => {
+  const topology = { residue_numbers: [1, 2, 3], residue_reference_numbers: [101, null, 103] };
+
+  test('keeps the author numbering', () => {
+    expect(applyNumbering(topology, 'author')).toBe(topology);
+  });
+
+  test('uses UniProt numbers and the author numbers where there are not', () => {
+    expect(applyNumbering(topology, 'uniprot').residue_numbers).toEqual([101, 2, 103]);
+    // The original topology is not modified
+    expect(topology.residue_numbers).toEqual([1, 2, 3]);
+  });
+
+  test('keeps the author numbering with no references at all', () => {
+    expect(applyNumbering({ residue_numbers: [1, 2], residue_reference_numbers: null }, 'uniprot').residue_numbers)
+      .toEqual([1, 2]);
   });
 });

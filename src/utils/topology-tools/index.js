@@ -146,6 +146,35 @@ const subsetTopology = (topology, atomIndices, allAtomResidueIndices, allResidue
   return subset;
 };
 
+// Residue numerations which may be requested
+// The author numeration may have been renumbered for coherence
+// The UniProt numeration is only available for proteins, so other residues keep the author numeration
+const NUMBERINGS = ['author', 'uniprot'];
+
+// Get the requested residue numeration, which is the author numeration by default
+// Numeration names are case insensitive
+// Return null if the numeration is not supported
+const parseNumbering = requested => {
+  if (requested === undefined) return 'author';
+  const numbering = String(requested).toLowerCase();
+  return NUMBERINGS.includes(numbering) ? numbering : null;
+};
+
+// Get a topology whose residue numbers follow the requested numeration
+// Topology fields needed: residue_numbers and, for the UniProt numeration, residue_reference_numbers
+const applyNumbering = (topology, numbering) => {
+  if (numbering === 'author') return topology;
+  if (numbering !== 'uniprot') throw new Error(`Not supported numbering "${numbering}"`);
+  const referenceNumbers = topology['residue_reference_numbers'];
+  // If there are no references at all then the author numeration is kept
+  if (!referenceNumbers) return topology;
+  const residueNumbers = topology['residue_numbers'].map((authorNumber, residueIndex) => {
+    const referenceNumber = referenceNumbers[residueIndex];
+    return referenceNumber === undefined || referenceNumber === null ? authorNumber : referenceNumber;
+  });
+  return { ...topology, residue_numbers: residueNumbers };
+};
+
 module.exports = {
   MISSING_BONDS,
   ATOM_FIELDS,
@@ -153,4 +182,7 @@ module.exports = {
   sortedUnique,
   duplicateBonds,
   subsetTopology,
+  NUMBERINGS,
+  parseNumbering,
+  applyNumbering,
 };
