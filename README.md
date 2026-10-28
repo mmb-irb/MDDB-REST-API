@@ -69,16 +69,20 @@ The file in the repository provides an explanation on every field and several ex
 ### chemfiles installation
 
 Clone and install the [chemfiles fork](https://github.com/d-beltran/chemfiles) customized to support '.bin' format reading and streaming.
+It is installed as a static library in the `build/chemfiles` directory of this repository, so no root permissions are needed.
+The library is then embedded in the converter executable when running `npm run build`.
 
 ```bash
 git clone https://github.com/d-beltran/chemfiles
 cd chemfiles
 mkdir build
 cd build
-cmake ..
+cmake .. -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<path to this repository>/build/chemfiles
 make
-sudo make install
+make install
 ```
+
+After updating the chemfiles fork, repeat the `make` and `make install` steps and then run `npm run build` again.
 
 ## Development
 

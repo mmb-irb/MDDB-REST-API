@@ -20,7 +20,7 @@
     "asbuild:crdparse": "asc assembly/crd_parser.ts -b build/crd_parser.wasm -t build/crd_parser.wat --sourceMap --validate --importMemory --optimize",
     "asbuild": "npm run asbuild:untouched && npm run asbuild:crdparse",
     "asbuild:watch": "nodemon --watch assembly --ext ts --exec \"npm run asbuild\"",
-    "asbuild:chemfiles": "g++ -o build/chemfiles_bin_converter assembly/chemfiles_bin_converter.cpp -L /usr/local/lib -lchemfiles",
+    "asbuild:chemfiles": "g++ -std=c++17 -o build/chemfiles_bin_converter assembly/chemfiles_bin_converter.cpp -I build/chemfiles/include -L build/chemfiles/lib -lchemfiles",
     "asbuild:binparse": "asc assembly/binary_parser.ts -b build/binary_parser.wasm -t build/binary_parser.wat --sourceMap --validate --importMemory --optimize",
     "asbuild:f32parse": "asc assembly/float32_parser.ts -b build/float32_parser.wasm -t build/float32_parser.wat --sourceMap --validate --importMemory --optimize"
   },
