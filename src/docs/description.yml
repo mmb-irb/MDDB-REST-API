@@ -897,6 +897,238 @@ paths:
               schema:
                 $ref: '#/definitions/mdcrd format'
 
+  /projects/{projectAccessionOrID}/trajectory/coordinates:
+    get:
+      summary: Get the coordinates of a complete or partial trajectory of the project.
+      description: >
+        Get the coordinates of a complete or partial trajectory of the project.<br>
+        Coordinates are always returned in the internal binary format (bin) used by the web client,
+        with the same atom and frame selections than the trajectory endpoint.<br>
+        This process may take some time since trajectories are heavy files.
+      produces:
+        - application/octet-stream
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+        - name: frames
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a frame range for the returned coordinates.<br>
+            The user can request only specific frames instead of the whole file.<br>
+            Ranges are defined by dashes, and multiple ranges can be defined
+            separated by commas. It can also be defined as the -start:end:step
+            format, with '-1' to select the last frame.<br>
+            1-based numbering.
+          examples:
+            firstFrame:
+              summary: content of the first frame
+              value: 1
+            tenFrames:
+              summary: ten frames, from two different ranges
+              value: 1-5,11-15
+            everyTwoFrames:
+              summary: every two frames from frame 10 to frame 20
+              value: 10:20:2
+        - name: selection
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a NGL-formatted selection for the returned coordinates.<br>
+            The user can request specific atoms instead of the whole file.<br>
+            [See here for the kind of selection that can be used](http://nglviewer.org/ngl/api/manual/usage/selection-language.html).
+          examples:
+            allCAtoms:
+              summary: All carbon atoms
+              value: _C
+            backbone:
+              summary: Backbone atoms
+              value: backbone
+            allCInBackbone:
+              summary: All carbon atoms in the backbone
+              value: backbone and _C
+        - name: numbering
+          in: query
+          schema:
+            type: string
+            enum: [author, uniprot]
+            default: author
+          description: >
+            Set the residue numeration used by the NGL selection: author (default) or UniProt.<br>
+            The author numeration may have been renumbered for coherence.
+            Residues with no UniProt numeration (e.g. not proteins) keep the author numeration.<br>
+            Numeration names are case insensitive.<br>
+            In POST requests this argument may also be sent in the request body.
+        - name: atomindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of atom indices for the returned coordinates.<br>
+            Atom indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            Atom, residue and chain indices may be combined with each other and with the NGL selection,
+            and the result is the sum of all of them. Atoms are always returned sorted by their index.<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            atomRange:
+              summary: First 100 atoms and atom 500
+              value: 0-99,500
+        - name: resindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of residue indices for the returned coordinates. All atoms in these residues are returned.<br>
+            Residue indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            residueRange:
+              summary: First 10 residues
+              value: 0-9
+        - name: chaindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of chain indices for the returned coordinates. All atoms in these chains are returned.<br>
+            Chain indices are 0-based and may be written as ranges (e.g. 0-1).<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            firstChain:
+              summary: First chain
+              value: 0
+      tags:
+        - trajectory
+      responses:
+        200:
+          description: the trajectory coordinates
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/definitions/bin format'
+        206:
+          description: partial trajectory coordinates
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/definitions/bin format'
+    post:
+      summary: Get the coordinates of a complete or partial trajectory of the project (long atom and frame selections allowed).
+      description: >
+        Get the coordinates of a complete or partial trajectory of the project.<br>
+        Coordinates are always returned in the internal binary format (bin) used by the web client,
+        with the same atom and frame selections than the trajectory endpoint.<br>
+        This process may take some time since trajectories are heavy files.
+      produces:
+        - application/octet-stream
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+        - name: frames
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a frame range for the returned coordinates.<br>
+            The user can request only specific frames instead of the whole file.<br>
+            Ranges are defined by dashes, and multiple ranges can be defined
+            separated by commas. It can also be defined as the -start:end:step
+            format, with '-1' to select the last frame.<br>
+            1-based numbering.
+          examples:
+            firstFrame:
+              summary: content of the first frame
+              value: 1
+            tenFrames:
+              summary: ten frames, from two different ranges
+              value: 1-5,11-15
+            everyTwoFrames:
+              summary: every two frames from frame 10 to frame 20
+              value: 10:20:2
+        - name: selection
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a NGL-formatted selection for the returned coordinates.<br>
+            The user can request specific atoms instead of the whole file.<br>
+            [See here for the kind of selection that can be used](http://nglviewer.org/ngl/api/manual/usage/selection-language.html).
+          examples:
+            allCAtoms:
+              summary: All carbon atoms
+              value: _C
+            backbone:
+              summary: Backbone atoms
+              value: backbone
+            allCInBackbone:
+              summary: All carbon atoms in the backbone
+              value: backbone and _C
+        - name: numbering
+          in: query
+          schema:
+            type: string
+            enum: [author, uniprot]
+            default: author
+          description: >
+            Set the residue numeration used by the NGL selection: author (default) or UniProt.<br>
+            The author numeration may have been renumbered for coherence.
+            Residues with no UniProt numeration (e.g. not proteins) keep the author numeration.<br>
+            Numeration names are case insensitive.<br>
+            In POST requests this argument may also be sent in the request body.
+        - name: atomindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of atom indices for the returned coordinates.<br>
+            Atom indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            Atom, residue and chain indices may be combined with each other and with the NGL selection,
+            and the result is the sum of all of them. Atoms are always returned sorted by their index.<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            atomRange:
+              summary: First 100 atoms and atom 500
+              value: 0-99,500
+        - name: resindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of residue indices for the returned coordinates. All atoms in these residues are returned.<br>
+            Residue indices are 0-based and may be written as ranges (e.g. 0-9,12).<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            residueRange:
+              summary: First 10 residues
+              value: 0-9
+        - name: chaindices
+          in: query
+          schema:
+            type: string
+          description: >
+            Specify a list of chain indices for the returned coordinates. All atoms in these chains are returned.<br>
+            Chain indices are 0-based and may be written as ranges (e.g. 0-1).<br>
+            In POST requests this argument may also be sent in the request body, either as a string or as a list of integers.
+          examples:
+            firstChain:
+              summary: First chain
+              value: 0
+      tags:
+        - trajectory
+      responses:
+        200:
+          description: the trajectory coordinates
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/definitions/bin format'
+        206:
+          description: partial trajectory coordinates
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/definitions/bin format'
+
   /projects/{projectAccessionOrID}/trajectory/box:
     get:
       summary: Get the simulation box along the trajectory.

@@ -201,23 +201,212 @@ const streamBody = (response, { stream, error }, request) => {
   request.on('close', () => stream.destroy());
 };
 
+// Get the trajectory in the requested format, with the requested atoms and frames
+// This is used by both the trajectory and the coordinates endpoints
+const getTrajectory = async (request, transformFormat) => {
+  // Stablish database connection and retrieve our custom handler
+  const database = await getDatabase(request);
+  // Set the bucket, which allows downloading big files from the database
+  const bucket = database.bucket;
+  // Find the requested project data
+  const project = await database.getProject();
+  // If there was any problem then return the errors
+  if (project.error) return project;
+  // Download the main trajectory file descriptor
+  const trajectoryDescriptor = await project.getTrajectorFileDescriptor();
+  // If the object ID is not found in the data base, return here
+  if (trajectoryDescriptor.error) return trajectoryDescriptor;
+
+  // The user may request directly a list of atom indices
+  // The legacy name for this field is 'atoms', and this is handled by the 'handleRanges' function
+  // Then I added 'atomindices' to make it coherent with the structure endpoint which is handled here
+  let atomIndices = request.body.atomindices || request.query.atomindices || [];
+  if (typeof atomIndices === 'string') atomIndices = rangedSelectionParser(atomIndices);
+  // The user may request directly a list of residue indices
+  let residueIndices = request.body.resindices || request.query.resindices || [];
+  if (typeof residueIndices === 'string') residueIndices = rangedSelectionParser(residueIndices);
+  // The user may request a list of chain indices
+  let chainIndices = request.body.chaindices || request.query.chaindices || [];
+  if (typeof chainIndices === 'string') chainIndices = rangedSelectionParser(chainIndices);
+  // Make sure all indices are positive integers
+  const wrongIndices = [...atomIndices, ...residueIndices, ...chainIndices].map(Number)
+    .filter(index => !Number.isInteger(index) || index < 0);
+  if (wrongIndices.length > 0) return {
+    headerError: BAD_REQUEST,
+    error: 'Atom, residue and chain indices must be positive integers (0-based) or ranges of them (e.g. 0-9,12)'
+  };
+  // In case we have a selection we must parse it to atoms
+  // We check both the body (in case it is a POST) and the query (in case it is a GET)
+  const selectionRequest = request.body.selection || request.query.selection;
+  // Get the residue numeration used by the selection, which is the author numeration by default
+  const requestedNumbering = request.body.numbering || request.query.numbering;
+  const numbering = parseNumbering(requestedNumbering);
+  if (!numbering) return {
+    headerError: BAD_REQUEST,
+    error: `Not supported numbering "${requestedNumbering}". Supported numberings are ${NUMBERINGS.join(', ')}`
+  };
+  // The legacy 'atoms' param cannot be combined with the new selection params
+  const atomsRequest = request.body.atoms || request.query.atoms;
+  const anyNewSelection = atomIndices.length || residueIndices.length || chainIndices.length || selectionRequest;
+  if (atomsRequest && anyNewSelection) return {
+    headerError: BAD_REQUEST,
+    error: 'Cannot use "atoms" together with "atomindices", "resindices", "chaindices", or "selection"'
+  };
+  // In case chain or residue indices are passed we must resolve them to atom indices
+  if (chainIndices.length || residueIndices.length || selectionRequest) {
+    const topologyData = await project.getTopologyData();
+    // In case chain indices are passed we must convert them to residue indices
+    if (chainIndices.length) {
+      chainIndices = new Set(chainIndices);
+      topologyData.residue_chain_indices.forEach((chainIndex, residueIndex) => {
+        if (chainIndices.has(chainIndex)) residueIndices.push(residueIndex);
+      });
+    }
+    // In case residue indices are passed we must convert them to atom indices
+    if (residueIndices.length) {
+      residueIndices = new Set(residueIndices);
+      topologyData.atom_residue_indices.forEach((residueIndex, atomIndex) => {
+        if (residueIndices.has(residueIndex)) atomIndices.push(atomIndex);
+      });
+    }
+    // In case we have a selection, generate a mmCIF file with the whole system to feed NGL and parse the selection
+    // Note that the structure endpoint does the same, so the same selection returns the same atoms in both
+    if (selectionRequest) {
+      // Get reference frame coordinates
+      const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame);
+      if (frameCoordinates.error) return frameCoordinates;
+      // Produce a mmCIF file using both the topology data and reference frame coordinates
+      // Note that NGL reads the residue numbers from the author fields, where the requested numeration is written
+      const mmcifContent = produceMmcif(applyNumbering(topologyData, numbering), frameCoordinates);
+      if (mmcifContent.error) return mmcifContent;
+      // Convert the mmCIF content to a buffer
+      const bufferMmcif = Buffer.from(mmcifContent, 'utf-8');
+      // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
+      const nglIndices = await getAtomIndices(bufferMmcif, selectionRequest);
+      if (!nglIndices || nglIndices.length === 0) return {
+        headerError: BAD_REQUEST,
+        error: 'Atoms selection is empty or wrong'
+      };
+      atomIndices.push(...nglIndices);
+    }
+  }
+  // If any selection was requested but no atoms were matched, return an error
+  if (anyNewSelection && atomIndices.length === 0) return {
+    headerError: BAD_REQUEST,
+    error: 'Your custom selection is matching no atoms'
+  };
+  // Set the ranged, unique and sorted atoms
+  let rangedAtoms;
+  // If atom indices were resolved from index params, convert to ranged format
+  if (atomIndices.length) {
+    const uniqueSorted = [...new Set(atomIndices)].sort((a, b) => a - b);
+    rangedAtoms = rangeIndices(uniqueSorted);
+  }
+  // When there is a selection or frame query (e.g. .../files/trajectory?selection=x)
+  const parsedRanges = rangedAtoms ? { y: rangedAtoms } : {}
+  const range = handleRanges(request, parsedRanges, trajectoryDescriptor);
+  // If something is wrong with ranges then return the error
+  if (range.error) return range;
+  // Get the number of atoms and frames
+  const atomCount = range.y.nvalues;
+  const frameCount = range.z.nvalues;
+  // Some formats include the simulation box, when the project has it
+  // Other formats (e.g. nc, dcd) store only box lengths and angles, which would be misleading for a rotated box
+  // The box is not available in most projects, so its absence is not an error
+  let boxRange;
+  let boxDescriptor;
+  if (transformFormat.includesBox) {
+    boxDescriptor = await project.getBoxFileDescriptor();
+    if (!boxDescriptor.error) {
+      // Box and trajectory frames must match, otherwise the box would be wrongly assigned
+      const boxFrameCount = boxDescriptor.metadata.z.length;
+      const trajectoryFrameCount = trajectoryDescriptor.metadata.z.length;
+      if (boxFrameCount !== trajectoryFrameCount) return {
+        headerError: INTERNAL_SERVER_ERROR,
+        error: `The box has ${boxFrameCount} frames but the trajectory has ${trajectoryFrameCount}`
+      };
+      // Select the same frames than in the trajectory
+      // Note that the request is not passed, since other ranges (e.g. y, bytes) would mean something else here
+      boxRange = handleRanges(null, { z: [...range.z] }, boxDescriptor);
+      if (boxRange.error) return boxRange;
+    }
+  }
+  // Set the final stream to be returned
+  let stream;
+  // Return a simple stream when asking for the whole file (i.e. range is not iterable)
+  // Return an internally managed stream when asking for specific ranges
+  const rangedStream = getRangedStream(bucket, trajectoryDescriptor._id, range);
+  // Get the output format name
+  const transformFormatName = transformFormat.name;
+  // When user requests "crd" or "mdcrd" files
+  if (transformFormatName === 'mdcrd') {
+    // Set a title for the mdcrd file (i.e. the first line)
+    const config = getConfig(request);
+    let title = config.name + ' - ' + request.params.project;
+    title += '\n';
+    // Add an extra chunk with the title
+    // WARNING: This is important for the correct parsing of this format
+    // e.g. VMD skips the first line when reading this format
+    const titleStream = Readable.from([title]);
+    // Start a process to convert the original .bin file to .mdcrd format
+    // Atom count is required to add the breakline between frames at the mdcrd format
+    const transformStream = BinToMdcrdStream(atomCount);
+    const lengthConverter = BinToMdcrdStream.CONVERTER;
+    // Calculate the bytes length in the new format
+    // WARNING: The size of the title must be included in the range (and then content-length)
+    range.byteSize = lengthConverter(range.byteSize, atomCount) + Buffer.byteLength(title);
+    // Set a new stream which is ready to be destroyed
+    // It is destroyed when the .bin to .mdcrd process or the client request are over
+    rangedStream.pipe(transformStream);
+    transformStream.on('close', () => rangedStream.destroy());
+    request.on('close', () => rangedStream.destroy());
+    // Combine both the title and the main data streams
+    let combined = new PassThrough();
+    combined = titleStream.pipe(combined, { end: false });
+    combined = transformStream.pipe(combined, { end: false });
+    // WARNING: Do not use outputStream.emit('end') here!!
+    // This could trigger the 'end' event before all data has been consumed by the next stream
+    transformStream.once('end', () => combined.end());
+    // Return the .bin to .mdcrd process stream
+    stream = combined;
+  } else if (
+    transformFormatName === 'xtc' ||
+    transformFormatName === 'trr' ||
+    transformFormatName === 'nc' ||
+    transformFormatName === 'dcd'
+  ) {
+    // Get the box stream, if any
+    const boxStream = boxRange && getRangedStream(bucket, boxDescriptor._id, boxRange);
+    // Use chemfiles to convert the trajectory from .bin to the requested format
+    stream = chemfilesConverter(
+      rangedStream,
+      atomCount,
+      frameCount,
+      transformFormat.chemfilesName,
+      boxStream,
+    );
+    // We can not predict the size of the resulting file (yet?)
+    range.byteSize = null;
+  } else if (transformFormatName === 'bin') {
+    stream = rangedStream;
+  } else throw new Error('Missing instructions to export format');
+  // Set the output filename according to some standards
+  const filename = setOutputFilename(project.data, trajectoryDescriptor, transformFormatName);
+  return {
+    stream,
+    filename,
+    trajectoryDescriptor,
+    range,
+    transformFormat,
+    acceptRanges: ['bytes', 'atoms', 'frames'],
+  };
+};
+
 // When trajectory is requested (i.e. .../trajectory)
 // Note that trajectory may be requested both trough GET and POST methods
 // POST method was implemented to allow long atom/frame selections
 const trajectoryHandler = handler({
   async retriever(request) {
-    // Stablish database connection and retrieve our custom handler
-    const database = await getDatabase(request);
-    // Set the bucket, which allows downloading big files from the database
-    const bucket = database.bucket;
-    // Find the requested project data
-    const project = await database.getProject();
-    // If there was any problem then return the errors
-    if (project.error) return project;
-    // Download the main trajectory file descriptor
-    const trajectoryDescriptor = await project.getTrajectorFileDescriptor();
-    // If the object ID is not found in the data base, return here
-    if (trajectoryDescriptor.error) return trajectoryDescriptor;
     // Set the format in which data will be sent
     // Format is requested through the query
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
@@ -228,191 +417,17 @@ const trajectoryHandler = handler({
       error: 'ERROR: Not supported format. Choose one of these: ' +
         Object.keys(trajectoryFormats).join(', ')
     };
-
-    // The user may request directly a list of atom indices
-    // The legacy name for this field is 'atoms', and this is handled by the 'handleRanges' function
-    // Then I added 'atomindices' to make it coherent with the structure endpoint which is handled here
-    let atomIndices = request.body.atomindices || request.query.atomindices || [];
-    if (typeof atomIndices === 'string') atomIndices = rangedSelectionParser(atomIndices);
-    // The user may request directly a list of residue indices
-    let residueIndices = request.body.resindices || request.query.resindices || [];
-    if (typeof residueIndices === 'string') residueIndices = rangedSelectionParser(residueIndices);
-    // The user may request a list of chain indices
-    let chainIndices = request.body.chaindices || request.query.chaindices || [];
-    if (typeof chainIndices === 'string') chainIndices = rangedSelectionParser(chainIndices);
-    // Make sure all indices are positive integers
-    const wrongIndices = [...atomIndices, ...residueIndices, ...chainIndices].map(Number)
-      .filter(index => !Number.isInteger(index) || index < 0);
-    if (wrongIndices.length > 0) return {
-      headerError: BAD_REQUEST,
-      error: 'Atom, residue and chain indices must be positive integers (0-based) or ranges of them (e.g. 0-9,12)'
-    };
-    // In case we have a selection we must parse it to atoms
-    // We check both the body (in case it is a POST) and the query (in case it is a GET)
-    const selectionRequest = request.body.selection || request.query.selection;
-    // Get the residue numeration used by the selection, which is the author numeration by default
-    const requestedNumbering = request.body.numbering || request.query.numbering;
-    const numbering = parseNumbering(requestedNumbering);
-    if (!numbering) return {
-      headerError: BAD_REQUEST,
-      error: `Not supported numbering "${requestedNumbering}". Supported numberings are ${NUMBERINGS.join(', ')}`
-    };
-    // The legacy 'atoms' param cannot be combined with the new selection params
-    const atomsRequest = request.body.atoms || request.query.atoms;
-    const anyNewSelection = atomIndices.length || residueIndices.length || chainIndices.length || selectionRequest;
-    if (atomsRequest && anyNewSelection) return {
-      headerError: BAD_REQUEST,
-      error: 'Cannot use "atoms" together with "atomindices", "resindices", "chaindices", or "selection"'
-    };
-    // In case chain or residue indices are passed we must resolve them to atom indices
-    if (chainIndices.length || residueIndices.length || selectionRequest) {
-      const topologyData = await project.getTopologyData();
-      // In case chain indices are passed we must convert them to residue indices
-      if (chainIndices.length) {
-        chainIndices = new Set(chainIndices);
-        topologyData.residue_chain_indices.forEach((chainIndex, residueIndex) => {
-          if (chainIndices.has(chainIndex)) residueIndices.push(residueIndex);
-        });
-      }
-      // In case residue indices are passed we must convert them to atom indices
-      if (residueIndices.length) {
-        residueIndices = new Set(residueIndices);
-        topologyData.atom_residue_indices.forEach((residueIndex, atomIndex) => {
-          if (residueIndices.has(residueIndex)) atomIndices.push(atomIndex);
-        });
-      }
-      // In case we have a selection, generate a mmCIF file with the whole system to feed NGL and parse the selection
-      // Note that the structure endpoint does the same, so the same selection returns the same atoms in both
-      if (selectionRequest) {
-        // Get reference frame coordinates
-        const frameCoordinates = await project.getFrameCoordinates(project.referenceFrame);
-        if (frameCoordinates.error) return frameCoordinates;
-        // Produce a mmCIF file using both the topology data and reference frame coordinates
-        // Note that NGL reads the residue numbers from the author fields, where the requested numeration is written
-        const mmcifContent = produceMmcif(applyNumbering(topologyData, numbering), frameCoordinates);
-        if (mmcifContent.error) return mmcifContent;
-        // Convert the mmCIF content to a buffer
-        const bufferMmcif = Buffer.from(mmcifContent, 'utf-8');
-        // Get selected atom indices in a specific format (a1-a1,a2-a2,a3-a3...)
-        const nglIndices = await getAtomIndices(bufferMmcif, selectionRequest);
-        if (!nglIndices || nglIndices.length === 0) return {
-          headerError: BAD_REQUEST,
-          error: 'Atoms selection is empty or wrong'
-        };
-        atomIndices.push(...nglIndices);
-      }
-    }
-    // If any selection was requested but no atoms were matched, return an error
-    if (anyNewSelection && atomIndices.length === 0) return {
-      headerError: BAD_REQUEST,
-      error: 'Your custom selection is matching no atoms'
-    };
-    // Set the ranged, unique and sorted atoms
-    let rangedAtoms;
-    // If atom indices were resolved from index params, convert to ranged format
-    if (atomIndices.length) {
-      const uniqueSorted = [...new Set(atomIndices)].sort((a, b) => a - b);
-      rangedAtoms = rangeIndices(uniqueSorted);
-    }
-    // When there is a selection or frame query (e.g. .../files/trajectory?selection=x)
-    const parsedRanges = rangedAtoms ? { y: rangedAtoms } : {}
-    const range = handleRanges(request, parsedRanges, trajectoryDescriptor);
-    // If something is wrong with ranges then return the error
-    if (range.error) return range;
-    // Get the number of atoms and frames
-    const atomCount = range.y.nvalues;
-    const frameCount = range.z.nvalues;
-    // Some formats include the simulation box, when the project has it
-    // Other formats (e.g. nc, dcd) store only box lengths and angles, which would be misleading for a rotated box
-    // The box is not available in most projects, so its absence is not an error
-    let boxRange;
-    let boxDescriptor;
-    if (transformFormat.includesBox) {
-      boxDescriptor = await project.getBoxFileDescriptor();
-      if (!boxDescriptor.error) {
-        // Box and trajectory frames must match, otherwise the box would be wrongly assigned
-        const boxFrameCount = boxDescriptor.metadata.z.length;
-        const trajectoryFrameCount = trajectoryDescriptor.metadata.z.length;
-        if (boxFrameCount !== trajectoryFrameCount) return {
-          headerError: INTERNAL_SERVER_ERROR,
-          error: `The box has ${boxFrameCount} frames but the trajectory has ${trajectoryFrameCount}`
-        };
-        // Select the same frames than in the trajectory
-        // Note that the request is not passed, since other ranges (e.g. y, bytes) would mean something else here
-        boxRange = handleRanges(null, { z: [...range.z] }, boxDescriptor);
-        if (boxRange.error) return boxRange;
-      }
-    }
-    // Set the final stream to be returned
-    let stream;
-    // Return a simple stream when asking for the whole file (i.e. range is not iterable)
-    // Return an internally managed stream when asking for specific ranges
-    const rangedStream = getRangedStream(bucket, trajectoryDescriptor._id, range);
-    // Get the output format name
-    const transformFormatName = transformFormat.name;
-    // When user requests "crd" or "mdcrd" files
-    if (transformFormatName === 'mdcrd') {
-      // Set a title for the mdcrd file (i.e. the first line)
-      const config = getConfig(request);
-      let title = config.name + ' - ' + request.params.project;
-      title += '\n';
-      // Add an extra chunk with the title
-      // WARNING: This is important for the correct parsing of this format
-      // e.g. VMD skips the first line when reading this format
-      const titleStream = Readable.from([title]);
-      // Start a process to convert the original .bin file to .mdcrd format
-      // Atom count is required to add the breakline between frames at the mdcrd format
-      const transformStream = BinToMdcrdStream(atomCount);
-      const lengthConverter = BinToMdcrdStream.CONVERTER;
-      // Calculate the bytes length in the new format
-      // WARNING: The size of the title must be included in the range (and then content-length)
-      range.byteSize = lengthConverter(range.byteSize, atomCount) + Buffer.byteLength(title);
-      // Set a new stream which is ready to be destroyed
-      // It is destroyed when the .bin to .mdcrd process or the client request are over
-      rangedStream.pipe(transformStream);
-      transformStream.on('close', () => rangedStream.destroy());
-      request.on('close', () => rangedStream.destroy());
-      // Combine both the title and the main data streams
-      let combined = new PassThrough();
-      combined = titleStream.pipe(combined, { end: false });
-      combined = transformStream.pipe(combined, { end: false });
-      // WARNING: Do not use outputStream.emit('end') here!!
-      // This could trigger the 'end' event before all data has been consumed by the next stream
-      transformStream.once('end', () => combined.end());
-      // Return the .bin to .mdcrd process stream
-      stream = combined;
-    } else if (
-      transformFormatName === 'xtc' ||
-      transformFormatName === 'trr' ||
-      transformFormatName === 'nc' ||
-      transformFormatName === 'dcd'
-    ) {
-      // Get the box stream, if any
-      const boxStream = boxRange && getRangedStream(bucket, boxDescriptor._id, boxRange);
-      // Use chemfiles to convert the trajectory from .bin to the requested format
-      stream = chemfilesConverter(
-        rangedStream,
-        atomCount,
-        frameCount,
-        transformFormat.chemfilesName,
-        boxStream,
-      );
-      // We can not predict the size of the resulting file (yet?)
-      range.byteSize = null;
-    } else if (transformFormatName === 'bin') {
-      stream = rangedStream;
-    } else throw new Error('Missing instructions to export format');
-    // Set the output filename according to some standards
-    const filename = setOutputFilename(project.data, trajectoryDescriptor, transformFormatName);
-    return {
-      stream,
-      filename,
-      trajectoryDescriptor,
-      range,
-      transformFormat,
-      acceptRanges: ['bytes', 'atoms', 'frames'],
-    };
+    return getTrajectory(request, transformFormat);
   },
+  headers: streamHeaders,
+  body: streamBody,
+});
+
+// When the trajectory coordinates are requested (i.e. .../trajectory/coordinates)
+// Coordinates are always returned in .bin format, so there is no format argument
+// Atom and frame selections are the same than in the trajectory endpoint
+const coordinatesHandler = handler({
+  retriever: request => getTrajectory(request, trajectoryFormats.bin),
   headers: streamHeaders,
   body: streamBody,
 });
@@ -458,6 +473,8 @@ const boxHandler = handler({
 // Support both the http GET and POST methods
 router.route('/').get(trajectoryHandler);
 router.route('/').post(trajectoryHandler);
+router.route('/coordinates').get(coordinatesHandler);
+router.route('/coordinates').post(coordinatesHandler);
 router.route('/box').get(boxHandler);
 router.route('/box').post(boxHandler);
 
