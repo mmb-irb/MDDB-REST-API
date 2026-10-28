@@ -50,16 +50,19 @@ const trajectoryFormats = {
     contentType: 'application/trr',
     chemfilesName: 'TRR',
   },
-  // DANI: Este formato no funciona en streaming
-  // DANI: No hay ninguna ley que impida que funcione
-  // DANI: Es solo que el método de escritura con el que está implementado en chemfiles no es compatible con el streaming
-  // DANI: Alguien con experiencia en c++ (o con tiempo) podría arreglarlo
-  // DANI: Mas detalles del problema en los mails con Guillaume
-  // nc: {
-  //   name: 'nc',
-  //   contentType: 'application/nc',
-  //   chemfilesName: 'Amber NetCDF'
-  // },
+  // Streaming NetCDF requires the chemfiles fork to know the number of frames in advance
+  // The chemfiles converter sets it from the frame count passed as argument
+  nc: {
+    name: 'nc',
+    contentType: 'application/nc',
+    chemfilesName: 'Amber NetCDF',
+  },
+  // DCD also stores the number of frames in the header, so it is streamed the same way
+  dcd: {
+    name: 'dcd',
+    contentType: 'application/dcd',
+    chemfilesName: 'DCD',
+  },
 };
 
 // Check if the requested files meet the accepted formats, which are provided by the request header
@@ -83,6 +86,9 @@ const acceptTransformFormat = requestedFormat => {
   }
   if (_requestedFormat === 'nc') {
     return trajectoryFormats.nc;
+  }
+  if (_requestedFormat === 'dcd') {
+    return trajectoryFormats.dcd;
   }
   // If format is not recognized the an error will be sent
   return null;
@@ -354,7 +360,8 @@ const trajectoryHandler = handler({
     } else if (
       transformFormatName === 'xtc' ||
       transformFormatName === 'trr' ||
-      transformFormatName === 'nc'
+      transformFormatName === 'nc' ||
+      transformFormatName === 'dcd'
     ) {
       // Use chemfiles to convert the trajectory from .bin to the requested format
       stream = chemfilesConverter(

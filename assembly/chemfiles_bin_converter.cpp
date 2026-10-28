@@ -42,9 +42,9 @@ int main(int argc, char** argv) {
     // Write the trajectory to the output format
     auto output_trajectory = chemfiles::Trajectory("<stdout>", 'w', output_format);
     // Prevent the number of frames to be streamed
-    // This is necessary for some formats (e.g. nc)
+    // This is necessary for formats storing it in the header (e.g. nc, dcd)
     // This is unnecessary for some formats (e.g. xtc, trr)
-    if (output_format == "Amber NetCDF") {
+    if (output_format == "Amber NetCDF" || output_format == "DCD") {
         output_trajectory.set_nsteps(n_steps);
     }
 

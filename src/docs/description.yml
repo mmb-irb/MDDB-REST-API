@@ -594,13 +594,15 @@ paths:
         - text/mdcrd
         - application/xtc
         - application/trr
+        - application/nc
+        - application/dcd
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: format
           in: query
           schema:
             type: string
-            enum: ['bin', 'mdcrd', 'xtc', 'trr']
+            enum: ['bin', 'mdcrd', 'xtc', 'trr', 'nc', 'dcd']
           description: >
             Specify a request format for the trajectory file. When no format is specified,
             the default format is an internal binary format (bin) used by the web client.
@@ -708,6 +710,12 @@ paths:
             application/trr:
               schema:
                 $ref: '#/definitions/trr format'
+            application/nc:
+              schema:
+                $ref: '#/definitions/nc format'
+            application/dcd:
+              schema:
+                $ref: '#/definitions/dcd format'
             text/mdcrd:
               schema:
                 $ref: '#/definitions/mdcrd format'
@@ -723,6 +731,12 @@ paths:
             application/trr:
               schema:
                 $ref: '#/definitions/trr format'
+            application/nc:
+              schema:
+                $ref: '#/definitions/nc format'
+            application/dcd:
+              schema:
+                $ref: '#/definitions/dcd format'
             text/mdcrd:
               schema:
                 $ref: '#/definitions/mdcrd format'
@@ -736,13 +750,15 @@ paths:
         - text/mdcrd
         - application/xtc
         - application/trr
+        - application/nc
+        - application/dcd
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: format
           in: query
           schema:
             type: string
-            enum: ['bin', 'mdcrd', 'xtc', 'trr']
+            enum: ['bin', 'mdcrd', 'xtc', 'trr', 'nc', 'dcd']
           description: >
             Specify a request format for the trajectory file. When no format is specified,
             the default format is an internal binary format (bin) used by the web client.
@@ -850,6 +866,12 @@ paths:
             application/trr:
               schema:
                 $ref: '#/definitions/trr format'
+            application/nc:
+              schema:
+                $ref: '#/definitions/nc format'
+            application/dcd:
+              schema:
+                $ref: '#/definitions/dcd format'
             text/mdcrd:
               schema:
                 $ref: '#/definitions/mdcrd format'
@@ -865,6 +887,12 @@ paths:
             application/trr:
               schema:
                 $ref: '#/definitions/trr format'
+            application/nc:
+              schema:
+                $ref: '#/definitions/nc format'
+            application/dcd:
+              schema:
+                $ref: '#/definitions/dcd format'
             text/mdcrd:
               schema:
                 $ref: '#/definitions/mdcrd format'
@@ -3902,4 +3930,14 @@ definitions:
     type: string
     format: binary
     description: Gromacs format. Specification at https://manual.gromacs.org/archive/5.0.4/online/trr.html
+    example: <binary>
+  nc format:
+    type: string
+    format: binary
+    description: Amber NetCDF trajectory format. Specification at https://ambermd.org/netcdf/nctraj.xhtml
+    example: <binary>
+  dcd format:
+    type: string
+    format: binary
+    description: CHARMM/NAMD DCD trajectory format. Specification at https://docs.mdanalysis.org/stable/documentation_pages/coordinates/DCD.html
     example: <binary>
