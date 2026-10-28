@@ -14,6 +14,8 @@ const chemfilesConverter = function(
   atomCount,
   frameCount,
   outputFormat,
+  // Optional stream with the simulation box in .bin format (9 float32 per frame)
+  boxStream,
 ) {
   // "spawn" runs the provided program in an additional process (child process)
   // The expected command here is the call to the chemfiles converter executable
@@ -33,9 +35,13 @@ const chemfilesConverter = function(
     // Third argument is the output format
     outputFormat,
   ];
+  // If there is a box then the fourth argument tells the executable to read it from the file descriptor 3
+  if (boxStream) args.push('box');
 
   // Run the conversor process
-  const spawnedProcess = spawn(executablePath, args);
+  // An additional pipe is opened as file descriptor 3 to pass the box
+  const stdio = boxStream ? ['pipe', 'pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe'];
+  const spawnedProcess = spawn(executablePath, args, { stdio });
 
   // Pipe the child errors to the current process errors so we can see if there is any problem
   spawnedProcess.stderr.pipe(process.stderr);
@@ -50,6 +56,14 @@ const chemfilesConverter = function(
   inputStream.pipe(spawnedProcess.stdin).on('error', () => {
     inputStream.destroy();
   });
+  // Pipe the box stream to the process, if any
+  if (boxStream) {
+    boxStream.pipe(spawnedProcess.stdio[3]).on('error', () => {
+      boxStream.destroy();
+    });
+    // Also destroy the box stream when the process is over (e.g. user cancels the download)
+    spawnedProcess.on('close', () => boxStream.destroy());
+  }
 
   return spawnedProcess.stdout;
 };

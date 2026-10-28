@@ -44,11 +44,14 @@ const trajectoryFormats = {
     name: 'xtc',
     contentType: 'application/xtc',
     chemfilesName: 'XTC',
+    // The whole box matrix is stored, so a rotated box (e.g. after a fit) is kept as is
+    includesBox: true,
   },
   trr: {
     name: 'trr',
     contentType: 'application/trr',
     chemfilesName: 'TRR',
+    includesBox: true,
   },
   // Streaming NetCDF requires the chemfiles fork to know the number of frames in advance
   // The chemfiles converter sets it from the frame count passed as argument
@@ -319,6 +322,27 @@ const trajectoryHandler = handler({
     // Get the number of atoms and frames
     const atomCount = range.y.nvalues;
     const frameCount = range.z.nvalues;
+    // Some formats include the simulation box, when the project has it
+    // Other formats (e.g. nc, dcd) store only box lengths and angles, which would be misleading for a rotated box
+    // The box is not available in most projects, so its absence is not an error
+    let boxRange;
+    let boxDescriptor;
+    if (transformFormat.includesBox) {
+      boxDescriptor = await project.getBoxFileDescriptor();
+      if (!boxDescriptor.error) {
+        // Box and trajectory frames must match, otherwise the box would be wrongly assigned
+        const boxFrameCount = boxDescriptor.metadata.z.length;
+        const trajectoryFrameCount = trajectoryDescriptor.metadata.z.length;
+        if (boxFrameCount !== trajectoryFrameCount) return {
+          headerError: INTERNAL_SERVER_ERROR,
+          error: `The box has ${boxFrameCount} frames but the trajectory has ${trajectoryFrameCount}`
+        };
+        // Select the same frames than in the trajectory
+        // Note that the request is not passed, since other ranges (e.g. y, bytes) would mean something else here
+        boxRange = handleRanges(null, { z: [...range.z] }, boxDescriptor);
+        if (boxRange.error) return boxRange;
+      }
+    }
     // Set the final stream to be returned
     let stream;
     // Return a simple stream when asking for the whole file (i.e. range is not iterable)
@@ -363,12 +387,15 @@ const trajectoryHandler = handler({
       transformFormatName === 'nc' ||
       transformFormatName === 'dcd'
     ) {
+      // Get the box stream, if any
+      const boxStream = boxRange && getRangedStream(bucket, boxDescriptor._id, boxRange);
       // Use chemfiles to convert the trajectory from .bin to the requested format
       stream = chemfilesConverter(
         rangedStream,
         atomCount,
         frameCount,
         transformFormat.chemfilesName,
+        boxStream,
       );
       // We can not predict the size of the resulting file (yet?)
       range.byteSize = null;
