@@ -68,6 +68,18 @@ const trajectoryFormats = {
   },
 };
 
+// Range arguments of the trajectory and the box, which are handled by 'handleRanges'
+// Every dimension may be selected by its letter or by its name, as set in the file descriptor
+// Note that 'atoms' is the legacy name for the atom selection (1-based ranges)
+const TRAJECTORY_RANGE_ARGUMENTS = ['bytes', 'x', 'coords', 'y', 'atoms', 'z', 'frames'];
+const BOX_RANGE_ARGUMENTS = ['bytes', 'x', 'coords', 'y', 'vectors', 'z', 'frames'];
+// Supported arguments in every endpoint
+const COORDINATES_ARGUMENTS = [
+  ...TRAJECTORY_RANGE_ARGUMENTS, 'selection', 'numbering', 'atomindices', 'resindices', 'chaindices'
+];
+const TRAJECTORY_ARGUMENTS = ['format', ...COORDINATES_ARGUMENTS];
+const BOX_ARGUMENTS = BOX_RANGE_ARGUMENTS;
+
 // Check if the requested files meet the accepted formats, which are provided by the request header
 // If so, send the format name. Else, send null
 const acceptTransformFormat = requestedFormat => {
@@ -406,6 +418,7 @@ const getTrajectory = async (request, transformFormat) => {
 // Note that trajectory may be requested both trough GET and POST methods
 // POST method was implemented to allow long atom/frame selections
 const trajectoryHandler = handler({
+  supportedArguments: TRAJECTORY_ARGUMENTS,
   async retriever(request) {
     // Set the format in which data will be sent
     // Format is requested through the query
@@ -427,6 +440,7 @@ const trajectoryHandler = handler({
 // Coordinates are always returned in .bin format, so there is no format argument
 // Atom and frame selections are the same than in the trajectory endpoint
 const coordinatesHandler = handler({
+  supportedArguments: COORDINATES_ARGUMENTS,
   retriever: request => getTrajectory(request, trajectoryFormats.bin),
   headers: streamHeaders,
   body: streamBody,
@@ -435,6 +449,7 @@ const coordinatesHandler = handler({
 // When the box is requested (i.e. .../trajectory/box)
 // The box is returned in .bin format: 3 vectors of 3 float32 coordinates per frame
 const boxHandler = handler({
+  supportedArguments: BOX_ARGUMENTS,
   async retriever(request) {
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);

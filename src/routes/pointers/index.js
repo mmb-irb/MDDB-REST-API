@@ -355,6 +355,7 @@ const retrievePointers = async (request, database) => {
 };
 
 const pointersEndpoint = handler({
+    supportedArguments: ['format', 'projection'],
     async retriever(request) {
         const database = await getDatabase(request);
         const projectCount = await database.projects.countDocuments(database.getBaseFilter());

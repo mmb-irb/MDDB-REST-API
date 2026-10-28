@@ -16,6 +16,7 @@ const FORBIDDEN_REFERENCES = new Set([ undefined, 'noref', 'notfound' ]);
 // Set the response when a specific reference is requested
 // Return a list with all available reference ids
 const uniprotEndpoint = handler({
+    supportedArguments: [],
     async retriever(request) {
         // Stablish database connection and retrieve our custom handler
         const database = await getDatabase(request);

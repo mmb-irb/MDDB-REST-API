@@ -12,6 +12,7 @@ const router = Router({ mergeParams: true });
 
 router.route('/').get(
     handler({
+        supportedArguments: ['query'],
         async retriever(request) {
             // Find out if the request host is configured as global
             const config = getConfig(request);

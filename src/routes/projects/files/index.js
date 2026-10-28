@@ -11,6 +11,9 @@ const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../../utils/status-co
 
 // Handle query ranges
 const handleRanges = require('../../../utils/handle-ranges');
+const { getRangeArguments } = handleRanges;
+// Make sure the request has only supported arguments
+const checkArguments = require('../../../utils/check-arguments');
 const getRangedStream = require('../../../utils/get-ranged-stream');
 
 // Converts a binary file (.bin) into actual values
@@ -23,6 +26,7 @@ const router = Router({ mergeParams: true });
 // Root
 router.route('/').get(
   handler({
+    supportedArguments: [],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
@@ -43,6 +47,8 @@ router.use('/trajectory', require('../trajectory'));
 // e.g. .../files/structure.pdb
 router.route('/:file').get(
   handler({
+    // Supported range arguments depend on the file, so arguments are checked in the retriever
+    supportedArguments: null,
     async retriever(request) {
       // If the query is an object id itself we refuse it
       // This was before supported but never used
@@ -68,6 +74,10 @@ router.route('/:file').get(
       let byteSize = descriptor.length;
       // Check if the file is a binary file (.bin)
       const isBinary = descriptor.filename.substring(descriptor.filename.length - 4) === '.bin';
+      // Make sure there are not unsupported arguments
+      // Supported range arguments depend on the file dimensions
+      const argumentsError = checkArguments(request, ['parse', ...getRangeArguments(descriptor)]);
+      if (argumentsError) return argumentsError;
       // Find range parameters in the request and parse them
       const range = handleRanges(request, {}, descriptor);
       // If something is wrong with ranges then return the error

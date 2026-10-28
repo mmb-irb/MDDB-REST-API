@@ -328,4 +328,14 @@ const handleRanges = (request, parsedRanges, descriptor) => {
   return range;
 };
 
+// Get the names of the range arguments supported for a given file
+// These are the bytes and both the letter and the name of every dimension (e.g. 'z' and 'frames')
+const getRangeArguments = descriptor => {
+  const fileMetadata = descriptor.metadata;
+  const dimensions = SUPPORTED_DIMENSIONS.filter(dimension => fileMetadata[dimension]);
+  if (dimensions.length === 0) return [];
+  return ['bytes', ...dimensions.flatMap(dimension => [dimension, fileMetadata[dimension].name])];
+};
+
 module.exports = handleRanges;
+module.exports.getRangeArguments = getRangeArguments;

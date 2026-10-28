@@ -68,6 +68,13 @@ app.use(express.json({limit: '4mb'}));
 // The extended has to be declared explicitly to avoid a warning
 app.use(express.urlencoded({limit: '4mb', extended: false}));
 
+// Save the query arguments sent by the user, before any middleware adds more (e.g. pagination)
+// This way endpoints may reject unsupported arguments (see src/utils/check-arguments)
+app.use((request, response, next) => {
+  request.queryArguments = Object.keys(request.query);
+  next();
+});
+
 // Pagination
 app.use(paginate.middleware(DEFAULT_LIMIT, MAX_LIMIT));
 

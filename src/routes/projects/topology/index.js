@@ -41,6 +41,7 @@ const parseIndices = indices => {
 // Note that topology may be requested both through GET and POST methods
 // POST method was implemented to allow long atom selections
 const topologyHandler = handler({
+  supportedArguments: ['raw', 'dupbonds', 'include', 'exclude', 'atomindices', 'resindices', 'chaindices'],
   async retriever(request) {
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);

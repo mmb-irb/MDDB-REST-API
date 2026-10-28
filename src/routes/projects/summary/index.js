@@ -59,6 +59,7 @@ const buildSummaryPipeline = finder => {
 // Endpoint to get project growth timeline data
 router.route('/growth').get(
   handler({
+    supportedArguments: [],
     async retriever(request) {
       // Establish database connection and retrieve our custom handler
       const database = await getDatabase(request);
@@ -126,6 +127,7 @@ router.route('/growth').get(
 // Endpoint to get only the fields required by the FrameStep plot
 router.route('/framestep').get(
   handler({
+    supportedArguments: ['query'],
     async retriever(request) {
       // Establish database connection and retrieve our custom handler
       const database = await getDatabase(request);
@@ -167,6 +169,7 @@ router.route('/framestep').get(
 // This endpoint returns some summary of data contained in the projects collection
 router.route('/').get(
   handler({
+    supportedArguments: ['query'],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);

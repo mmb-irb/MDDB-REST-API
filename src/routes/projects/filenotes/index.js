@@ -21,6 +21,7 @@ const router = Router({ mergeParams: true });
 // Root
 router.route('/').get(
   handler({
+    supportedArguments: ['allmds', 'filenames'],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
@@ -50,6 +51,7 @@ router.route('/').get(
 // e.g. .../filenotes/structure.pdb
 router.route('/:file').get(
   handler({
+    supportedArguments: [],
     async retriever(request) {
       // If the query is an object id itself we refuse it
       // This was before supported but never used

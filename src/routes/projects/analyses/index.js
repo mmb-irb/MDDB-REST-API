@@ -9,6 +9,7 @@ const router = Router({ mergeParams: true });
 // Root
 router.route('/').get(
   handler({
+    supportedArguments: [],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
@@ -25,6 +26,7 @@ router.route('/').get(
 // When a specific analysis is requested (e.g. .../analyses/rmsds)
 router.route('/:analysis').get(
   handler({
+    supportedArguments: [],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);

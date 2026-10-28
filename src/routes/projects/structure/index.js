@@ -30,6 +30,7 @@ const router = Router({ mergeParams: true });
 // Note that structure may be requested both through GET and POST methods
 // POST method was implemented to allow long atom selections
 const structureHandler = handler({
+  supportedArguments: ['format', 'numbering', 'selection', 'atomindices', 'resindices', 'chaindices'],
   async retriever(request) {
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);

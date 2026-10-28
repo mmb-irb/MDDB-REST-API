@@ -19,7 +19,7 @@ const router = Router({ mergeParams: true });
 // https://github.com/PDBe-KB/funpdbe-schema/blob/master/funpdbe_example.json
 
 // PDBe knowledge Lipid Interactions endpoint
-router.route('/').get( handler({ async retriever(request) {
+router.route('/').get( handler({ supportedArguments: [], async retriever(request) {
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);
     // Get the requested project data

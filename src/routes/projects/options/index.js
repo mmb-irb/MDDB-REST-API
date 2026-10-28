@@ -18,6 +18,7 @@ const router = Router({ mergeParams: true });
 // Root
 router.route('/').get(
   handler({
+    supportedArguments: ['search', 'query', 'projection', 'countMds'],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);

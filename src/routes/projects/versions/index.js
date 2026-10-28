@@ -10,6 +10,7 @@ const router = Router({ mergeParams: true });
 // This includes the project metadata, the topology, every MD metadata and every analysis
 router.route('/').get(
   handler({
+    supportedArguments: [],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);

@@ -15,6 +15,7 @@ const projectRouter = Router();
 // Root
 projectRouter.route('/').get(
   handler({
+    supportedArguments: ['search', 'filter', 'query', 'projection', 'sort', 'raw', 'countMds', 'page', 'limit'],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
@@ -223,6 +224,7 @@ projectRouter.use('/summary', require('./summary'));
 // It is expected to be a project ID (e.g. .../projects/MCNS00001)
 projectRouter.route('/:project').get(
   handler({
+    supportedArguments: ['raw'],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
@@ -266,6 +268,8 @@ localRouter.use('/:project/versions', require('./versions'));
 // If we are using the global API then any further query is mapped to the corresponding database
 // Set a handler to be used for both GET and POST methods
 const redirectHandler = handler({
+  // Arguments are checked by the API the request is redirected to
+  supportedArguments: null,
   async retriever(request) {
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);

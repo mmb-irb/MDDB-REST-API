@@ -41,7 +41,7 @@ const EXPOSED_RESIDUE_REFERENCE_VALUES = { M: 319.2, K: 332.6, L: 306.8, N: 279.
 // https://github.com/PDBe-KB/funpdbe-schema/blob/master/funpdbe_example.json
 
 // PDBe knowledge SASA
-router.route('/').get( handler({ async retriever(request) {
+router.route('/').get( handler({ supportedArguments: [], async retriever(request) {
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);
     // Get the PDB id in the request

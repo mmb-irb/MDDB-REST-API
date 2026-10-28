@@ -57,6 +57,29 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: filter
+          in: query
+          description: >
+            Filter projects by the value of a field, written as the field name, an operator and the value.
+            Operators are '+*' (and), '++' (or), '-*' (and not) and '--' (or not).
+            Several filters may be passed.<br>
+            Note that the 'query' parameter is more flexible.
+          schema:
+            type: string
+          example: 'metadata.TYPE+*ensemble'
+        - name: sort
+          in: query
+          description: >
+            A sort stringified JSON object for the MongoDB [sort](https://www.mongodb.com/docs/manual/reference/method/cursor.sort/) command.
+            Projects are sorted by accession by default.
+          schema:
+            type: string
+          example: '{"updateDate":-1}'
+        - name: countMds
+          in: query
+          description: get also the total number of MDs in all matched projects
+          schema:
+            type: boolean
         - name: limit
           in: query
           description: pagination, maximum number of projects per query
@@ -97,6 +120,11 @@ paths:
       tags:
         - projects
       parameters:
+        - name: search
+          in: query
+          description: Text search inside project names, descriptions, authors and group names.
+          schema:
+            type: string
         - name: query
           in: query
           description: >
@@ -312,6 +340,59 @@ paths:
         Other arguments are the same as in the GET method.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
+        - name: include
+          in: query
+          description: >
+            Set which topology fields are to be included in the response.
+            All fields are included by defautl.
+          schema:
+            type: array
+            items:
+              type: string
+              examples:
+                Atom names:
+                  summary: Atom names
+                  value: atom_names
+                Atom elements:
+                  summary: Atom elements
+                  value: atom_elements
+                Atom charges:
+                  summary: Atomic charges
+                  value: atom_charges
+        - name: exclude
+          in: query
+          description: >
+            Set which topology fields are to be excluded from the response.
+            All fields are included by defautl.
+          schema:
+            type: array
+            items:
+              type: string
+              examples:
+                Atom names:
+                  summary: Atom names
+                  value: atom_names
+                Atom elements:
+                  summary: Atom elements
+                  value: atom_elements
+                Atom charges:
+                  summary: Atomic charges
+                  value: atom_charges
+        - name: dupbonds
+          in: query
+          description: >
+            Set if every bond is to be returned in both bonded atoms.<br>
+            By default every bond is returned only once, in one of the two bonded atoms.
+          schema:
+            type: boolean
+            default: false
+        - name: raw
+          in: query
+          description: >
+            Set if the response is not to be formatted, but sent as it is stored in the database.
+          schema:
+            type: boolean
+            default: false
       requestBody:
         content:
           application/json:
@@ -1242,6 +1323,8 @@ paths:
           schema:
             type: integer
             default: 1
+        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceJustIds'
       responses:
         200:
           description: List of protein references
@@ -1297,6 +1380,8 @@ paths:
           schema:
             type: integer
             default: 1
+        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceJustIds'
       responses:
         200:
           description: List of PDB IDs
@@ -1352,6 +1437,8 @@ paths:
           schema:
             type: integer
             default: 1
+        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceJustIds'
       responses:
         200:
           description: Object with a count and an array of InChIKey references
@@ -1408,6 +1495,8 @@ paths:
           schema:
             type: integer
             default: 1
+        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceJustIds'
       responses:
         200:
           description: Object with a count and an array of chain sequence references
@@ -1464,6 +1553,8 @@ paths:
           schema:
             type: integer
             default: 1
+        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceJustIds'
       responses:
         200:
           description: Object with a count and an array of collection references
@@ -2152,7 +2243,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/KnowledgeResponse'
 
-  /knowledge/{pdbid}/{project}/membrane:
+  /knowledge/{pdbid}/{project}/lipid-inter:
     get:
       summary: Get the PDBe knowledge membrane annotation for a project.
       description: >
@@ -3918,10 +4009,10 @@ components:
       description: list of supported knowledge analyses for a project
       items:
         type: string
-        enum: [ sasa, membrane ]
+        enum: [ sasa, lipid-inter ]
       example:
         - sasa
-        - membrane
+        - lipid-inter
 
     KnowledgeSite:
       type: object
@@ -4000,6 +4091,23 @@ definitions:
     IDPattern: '^[a-fA-F\d]{24}$'
     AccessionPattern: 'Free'
   arguments:
+    referenceProjection:
+      name: projection
+      in: query
+      description: >
+        A projection stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
+        It is useful to reduce the amount of data in the response.
+        Several projections may be passed.
+      schema:
+        type: string
+    referenceJustIds:
+      name: justids
+      in: query
+      description: >
+        Return only a list with all the reference ids, with no pagination.
+      schema:
+        type: boolean
+        default: false
     projectAccessionOrID:
       name: projectAccessionOrID
       in: path

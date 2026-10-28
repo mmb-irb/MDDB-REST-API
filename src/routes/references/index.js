@@ -18,6 +18,7 @@ const { BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../utils/s
 // Set the response when a specific reference is requested
 // Return a list with all available reference ids
 const wholeReferenceResponse = handler({
+    supportedArguments: ['query', 'justids', 'projection', 'page', 'limit'],
     async retriever(request) {
         // Stablish database connection and retrieve our custom handler
         const database = await getDatabase(request);
@@ -109,6 +110,7 @@ const wholeReferenceResponse = handler({
 // Set the response when a specific reference id is requested
 // Return an the requested reference object
 const specificReferenceResponse = handler({
+    supportedArguments: [],
     async retriever(request) {
         // Stablish database connection and retrieve our custom handler
         const database = await getDatabase(request);
@@ -123,6 +125,7 @@ const specificReferenceResponse = handler({
 
 // Set the response when a list of files from a specific reference id is requested
 const specificReferenceFilesResponse = handler({
+    supportedArguments: [],
     async retriever(request) {
         // Stablish database connection and retrieve our custom handler
         const database = await getDatabase(request);
@@ -147,6 +150,7 @@ const specificReferenceFilesResponse = handler({
 
 // Set the response when a specific file from a specific reference id is requested
 const specificReferenceSpecificFileResponse = handler({
+    supportedArguments: [],
     async retriever(request) {
         // If the query is an object id itself we refuse it
         // This was before supported but never used
@@ -248,6 +252,8 @@ referencesLocalRouter.route('/:reference/:id/files/:filename').get(specificRefer
 // If we are using the global API then any further query is mapped to the corresponding database
 // Set a handler to be used for both GET and POST methods
 const redirectHandler = handler({
+    // Arguments are checked by the API the request is redirected to
+    supportedArguments: null,
     async retriever(request) {
         // Stablish database connection and retrieve our custom handler
         const database = await getDatabase(request);

@@ -18,6 +18,7 @@ const SUPPORTED_ANALYSES = new Set(['sasa', 'lipid-inter']);
 // Root -> display available PDBs
 router.route('/').get(
   handler({
+    supportedArguments: [],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
@@ -30,6 +31,7 @@ router.route('/').get(
 // A PDB is passed -> display available projects for this PDB id
 router.route('/:pdbid').get(
   handler({
+    supportedArguments: [],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
@@ -55,6 +57,7 @@ router.route('/:pdbid').get(
 // A Project is passed -> display supported analyses available in this project
 router.route('/:pdbid/:project').get(
   handler({
+    supportedArguments: [],
     async retriever(request) {
       // Set the requested PDB id
       const pdbId = request.params.pdbid;
@@ -115,7 +118,8 @@ router.use('/:pdbid/:project/:analysis', (request, response, next) => {
   // Otherwise, route forward to the local analysis
   const analysisName = request.params.analysis;
   // Make sure the requested analysis exists
-  if (!SUPPORTED_ANALYSES.has(analysisName)) return handler({ retriever: () => ({
+  // Arguments are not checked since this request always fails
+  if (!SUPPORTED_ANALYSES.has(analysisName)) return handler({ supportedArguments: null, retriever: () => ({
     headerError: NOT_FOUND,
     error: `Analysis "${analysisName}" is not supported. Supported analyses: ${[...SUPPORTED_ANALYSES].join(', ')}`
   })})(request, response, next);
@@ -127,6 +131,8 @@ router.use('/:pdbid/:project/:analysis', (request, response, next) => {
 // If we are using the global API then any further query is mapped to the corresponding database
 // Set a handler to be used for both GET and POST methods
 const redirectHandler = handler({
+  // Arguments are checked by the API the request is redirected to
+  supportedArguments: null,
   async retriever(request) {
     // Stablish database connection and retrieve our custom handler
     const database = await getDatabase(request);

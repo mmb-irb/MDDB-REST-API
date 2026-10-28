@@ -29,6 +29,7 @@ const router = Router({ mergeParams: true });
 // Root
 router.route('/').get(
   handler({
+    supportedArguments: ['format'],
     async retriever(request) {
       // Set the format to export inputs
       let format = defaultFormat;

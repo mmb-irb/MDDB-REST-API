@@ -27,6 +27,7 @@ const getNodesInfo = async request => {
 // DANI: Esto lo monté así porque originalmente tenía pensado 2 endpoints: nodes/info y nodes/status
 // DANI: Ambos endpoints habrían usado la función getNodesInfo, pero al final decidí no hacer el status
 router.route('/').get(handler({
+    supportedArguments: [],
     async retriever(request) {
         return await getNodesInfo(request);
     }
