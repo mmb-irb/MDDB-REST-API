@@ -2,6 +2,8 @@
 const yaml = require('yamljs');
 // Import the swagger logic
 const swaggerUI = require('swagger-ui-express');
+// Get the fields projects can be queried by
+const { QUERY_FIELDS } = require('mddb-database/utils/constants');
 const swaggerInit = swaggerUI.serve[0];
 // Get the configuration parameters for the different requesting hosts
 const hostConfig = yaml.load(`${__dirname}/../../config.yml`).hosts;
@@ -40,6 +42,17 @@ const replaceAnywhere = (targetObject, targetString, replaceString) => {
   }
 };
 
+// Set a markdown table of the fields projects can be queried by, from the same definitions the API queries with
+// Global-only fields (e.g. node) are left out for the rest of hosts
+const getQueryFieldsTable = isGlobal => [
+  '',
+  '',
+  '| Field | Type | Description | Example |',
+  '|---|---|---|---|',
+  ...QUERY_FIELDS.filter(field => isGlobal || !field.global).map(field =>
+    `| ${field.path} | ${field.type} | ${field.description || field.name} | ${field.example} |`),
+].join('\n');
+
 // Elaborate the different possible swagger responsed depending on the request URL
 const swaggerResponses = {};
 Object.entries(hostConfig).forEach(([host, config]) => {
@@ -77,6 +90,7 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   replaceAnywhere(swaggerDocs, '$DATABASE', config.name);
   const accessionExample = config.accession || '< No example available >';
   replaceAnywhere(swaggerDocs, '$ACCESSION', accessionExample);
+  replaceAnywhere(swaggerDocs, '$QUERY_FIELDS', getQueryFieldsTable(config.global));
   // If optimade is not to be shown then remove this part from the docs
   if (config.optimade == false) {
     const optimadeRegExp = new RegExp("<br />.*OPTIMADE API</a>.");
