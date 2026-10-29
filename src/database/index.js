@@ -303,7 +303,14 @@ class Database4Api extends Database {
                     // DANI: Otherwise every service using this endpoint should learn to handle the error
                     // Update the original query by removing the original field and adding the parsed one
                     delete queryObject[field];
-                    queryObject[reference.projectIdsField] = { $in: results };
+                    const parsedField = { [reference.projectIdsField]: { $in: results } };
+                    // If the parsed field is already queried (e.g. by another proteins field) then add it through $and
+                    // Otherwise it would replace the previous condition instead of adding to it
+                    if (reference.projectIdsField in queryObject) {
+                        if (!queryObject.$and) queryObject.$and = [];
+                        queryObject.$and.push(parsedField);
+                    }
+                    else Object.assign(queryObject, parsedField);
                 }
             };
             // Start the parsing function

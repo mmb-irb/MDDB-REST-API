@@ -47,6 +47,20 @@ describe('processProjectsQuery', () => {
     });
   });
 
+  // The fake finds the same protein for every proteins field, but each condition must be kept
+  test('keeps every condition on the same project field', async () => {
+    expect(await processQuery({ 'references.proteins.gene': 'ACE2', 'references.proteins.name': 'Spike glycoprotein' }))
+      .toEqual({ ...PROTEIN, $and: [PROTEIN] });
+    expect(await processQuery({
+      $and: [{ 'metadata.TYPE': 'trajectory' }],
+      'metadata.REFERENCES': 'P0DTC2',
+      'references.proteins.gene': 'ACE2',
+    })).toEqual({
+      $and: [{ 'metadata.TYPE': 'trajectory' }, PROTEIN],
+      'metadata.REFERENCES': 'P0DTC2',
+    });
+  });
+
   test('parses dates after other fields, inside $and and after $and', async () => {
     expect(await processQuery({ 'metadata.TYPE': 'trajectory', updateDate: { $gt: '2024-01-01' } }))
       .toEqual({ 'metadata.TYPE': 'trajectory', updateDate: { $gt: new Date('2024-01-01') } });
