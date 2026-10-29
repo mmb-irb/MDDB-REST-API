@@ -61,6 +61,13 @@ const beyondLimitError = (end, limit, dimensionName) => ({
   error: `End of requested ${dimensionName} (${end}) is beyond the limit (${limit})`
 });
 
+// Set an error to be returned when numbers are too large to be handled
+// e.g. numbers with 309 digits or more are read as Infinity, which would break the limit checks
+const tooLargeError = (selection, dimensionName) => ({
+  headerError: BAD_REQUEST,
+  error: `Numbers in the selection of ${dimensionName} (${selection}) are too large`
+});
+
 // Parse a query string with ranged meaning to a list of objects with start and end fields
 // Accepted input string formats are start:end:step and e.g. 1,2,3-7
 // If values beyond the limit are requested then an error is returned
@@ -78,12 +85,13 @@ const parseQueryRange = (string, limit, dimensionName) => {
     const start = +stepFormatParsed.groups.start;
     if (start === 0) return zeroError;
     let end = +stepFormatParsed.groups.end;
+    // If no "step" group is found then step is 1
+    const step = +(stepFormatParsed.groups.step || 1);
+    if (![start, end, step].every(Number.isSafeInteger)) return tooLargeError(string, dimensionName);
     // If the end is negative then "flip" the meaning and start counting from the end
     if (end < 0) end = limit + 1 + end;
     // If the end is less than the start then just use the start
     if (end < start) end = start;
-    // If no "step" group is found then step is 1
-    const step = +(stepFormatParsed.groups.step || 1);
     if (step === 0) return {
       headerError: BAD_REQUEST,
       error: `Step in the selection of ${dimensionName} (${string}) must be greater than 0`
@@ -111,9 +119,10 @@ const parseQueryRange = (string, limit, dimensionName) => {
         error: `Selection of ${dimensionName} (${part}) not suported. Use either start:end:step or 1,2,3-7 formats.`
       };
       // The regexp format RE has 3 defined groups: simple, start, and end
-      // Save the "simple" group value and push it to the "intervals" array if it is an integer
-      const simple = +extracted.groups.simple;
-      if (Number.isInteger(simple)) {
+      // Save the "simple" group value and push it to the "intervals" array if it was found
+      if (extracted.groups.simple !== undefined) {
+        const simple = +extracted.groups.simple;
+        if (!Number.isSafeInteger(simple)) return tooLargeError(part, dimensionName);
         intervals.push([simple, simple]);
         continue;
       }
@@ -121,6 +130,7 @@ const parseQueryRange = (string, limit, dimensionName) => {
       const start = +extracted.groups.start;
       // If the end is less than the start then just use the start
       const end = Math.max(+extracted.groups.end, start);
+      if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end)) return tooLargeError(part, dimensionName);
       intervals.push([start, end]);
     }
   }

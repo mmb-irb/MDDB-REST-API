@@ -46,8 +46,20 @@ describe('parseQueryRange', () => {
       expect(parse('1:15:20')).toEqual([{ start: 0, end: 0 }]);
     });
 
+    test('step with the last value at the limit', () => {
+      expect(parse('1:10:3')).toEqual([{ start: 0, end: 0 }, { start: 3, end: 3 }, { start: 6, end: 6 }, { start: 9, end: 9 }]);
+      expect(parse('1:13:3').headerError).toBe(BAD_REQUEST);
+    });
+
     test('step 0', () => {
       expect(parse('1:10:0').headerError).toBe(BAD_REQUEST);
+    });
+
+    test('numbers too large, which are read as Infinity', () => {
+      // A number with 309 digits
+      const huge = '9'.repeat(309);
+      for (const string of [huge, `1,${huge}`, `1-${huge}`, `${huge}-${huge}`, `${huge}:1:2`, `1:${huge}:2`, `1:5:${huge}`])
+        expect(parse(string).headerError).toBe(BAD_REQUEST);
     });
   });
 

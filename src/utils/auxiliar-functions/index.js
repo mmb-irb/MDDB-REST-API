@@ -214,13 +214,13 @@ const getSearchQuery = searchText => {
 // WARNING: Otherwise a single request (e.g. 0-99999999999) runs the API out of memory
 const rangedSyntax = /^([0-9]+)-([0-9]+)$/;
 const numberSyntax = /^[0-9]+$/;
-// Support when numbers are separated with any combination of spaces and coma
-// e.g. 1, 2 ; 1,2 ; 1 , 2
-const separator = /\s*,\s*/;
 const rangedSelectionParser = (selection, limit, name) => {
   if (!Number.isInteger(limit)) throw new Error('Missing limit to check the ranged selection');
   // Get every selected unit as a start-end interval
-  const units = selection.split(separator);
+  // Support when numbers are separated with any combination of spaces and coma (e.g. 1, 2 ; 1,2 ; 1 , 2)
+  // WARNING: Do not split with a regular expression such as /\s*,\s*/
+  // WARNING: Its time grows with the square of the spaces, so a long run of spaces blocks the API
+  const units = selection.split(',').map(unit => unit.trim());
   const intervals = [];
   const parsedSelection = [];
   for (const u of units) {

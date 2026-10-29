@@ -8,7 +8,15 @@ describe('rangedSelectionParser', () => {
   test('single indices and ranges', () => {
     expect(parse('1, 3, 5-8')).toEqual([1, 3, 5, 6, 7, 8]);
     expect(parse('1,2 , 3')).toEqual([1, 2, 3]);
+    expect(parse(' 1 ,2 ')).toEqual([1, 2]);
     expect(parse('0-9')).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  });
+
+  test('long runs of spaces are handled quickly', () => {
+    // Splitting with a regular expression such as /\s*,\s*/ took seconds here
+    const spaces = ' '.repeat(1000000);
+    expect(parse(`1${spaces}a`)).toContainEqual(NaN);
+    expect(parse(`1${spaces},${spaces}2`)).toEqual([1, 2]);
   });
 
   test('indices are sorted and unique', () => {

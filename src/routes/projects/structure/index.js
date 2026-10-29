@@ -89,12 +89,22 @@ const structureHandler = handler({
     if (typeof chainIndices === 'string')
       chainIndices = rangedSelectionParser(chainIndices, topologyData.chain_names.length, 'chain');
     if (chainIndices.error) return chainIndices;
-    // Make sure all indices are positive integers
-    const wrongIndices = [...atomIndices, ...residueIndices, ...chainIndices].map(Number)
-      .filter(index => !Number.isInteger(index) || index < 0);
+    // Indices in lists may come as strings (e.g. ?atomindices=1&atomindices=2) so convert them to numbers
+    atomIndices = atomIndices.map(Number);
+    residueIndices = residueIndices.map(Number);
+    chainIndices = chainIndices.map(Number);
+    // Make sure all indices are positive integers which exist in the system
+    // Note that ranged selections were already checked, but lists were not
+    const isWrong = count => index => !Number.isInteger(index) || index < 0 || index >= count;
+    const wrongIndices = [
+      ...atomIndices.filter(isWrong(topologyData.atom_residue_indices.length)),
+      ...residueIndices.filter(isWrong(topologyData.residue_chain_indices.length)),
+      ...chainIndices.filter(isWrong(topologyData.chain_names.length)),
+    ];
     if (wrongIndices.length > 0) return {
       headerError: BAD_REQUEST,
-      error: 'Atom, residue and chain indices must be positive integers (0-based) or ranges of them (e.g. 0-9,12)'
+      error: `Wrong indices: ${wrongIndices.slice(0, 10).join(', ')}. Atom, residue and chain indices must be` +
+        ' positive integers (0-based) lower than the number of atoms, residues and chains, or ranges of them (e.g. 0-9,12)'
     };
     // Check if there was any atom selection argument
     const anySelection = Boolean(atomIndices.length || residueIndices.length || chainIndices.length || selection);
