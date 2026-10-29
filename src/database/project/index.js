@@ -1,7 +1,7 @@
 // Standard HTTP response status codes
 const { NOT_FOUND } = require('../../utils/status-codes');
 // Get auxiliar functions
-const { getValueGetter } = require('../../utils/auxiliar-functions');
+const { getValueGetter, rangedSelectionParser } = require('../../utils/auxiliar-functions');
 // Import version handler
 const Version = require('../../utils/version');
 // Function to consume a stream entirely
@@ -54,10 +54,11 @@ class Project {
     // Get topology data
     // You may request specific fields only
     // You may also request a selection of atom, residue and/or chain indices
+    // Indices may come as lists or in ranged notation (e.g. 0-9,12)
     // In this case the topology is reduced to the selected atoms and all indices are renumbered
     // Bonds are given only in one of the two bonded atoms unless duplicated bonds are requested
     getTopologyData = async (fields, selection = {}, duplicatedBonds = false) => {
-        const { atomIndices = [], residueIndices = [], chainIndices = [] } = selection;
+        let { atomIndices = [], residueIndices = [], chainIndices = [] } = selection;
         // Query the database and retrieve the requested topology
         const topologyData = await this.database.topologies.findOne(
             // Set the query
@@ -88,7 +89,8 @@ class Project {
         let residueRanges;
         let allAtomResidueIndices;
         let allResidueChainIndices;
-        if (atomIndices.length > 0 || residueIndices.length > 0 || chainIndices.length > 0) {
+        const isSelected = indices => typeof indices === 'string' || indices.length > 0;
+        if (isSelected(atomIndices) || isSelected(residueIndices) || isSelected(chainIndices)) {
             // Residue indices of all atoms and chain indices of all residues are needed to resolve the selection
             allAtomResidueIndices = topology['atom_residue_indices'] === BIN_FLAG
                 ? await this.loadTopologyField('atom_residue_indices')
@@ -96,6 +98,16 @@ class Project {
             allResidueChainIndices = topology['residue_chain_indices'] === BIN_FLAG
                 ? await this.loadTopologyField('residue_chain_indices')
                 : topology['residue_chain_indices'];
+            // Parse ranged selections now that we know the number of atoms, residues and chains
+            // Thus ranges beyond the system are rejected before they are expanded
+            const parseIndices = (indices, count, name) =>
+                typeof indices === 'string' ? rangedSelectionParser(indices, count, name) : indices;
+            atomIndices = parseIndices(atomIndices, allAtomResidueIndices.length, 'atom');
+            if (atomIndices.error) return atomIndices;
+            residueIndices = parseIndices(residueIndices, allResidueChainIndices.length, 'residue');
+            if (residueIndices.error) return residueIndices;
+            chainIndices = parseIndices(chainIndices, topology['chain_names'].length, 'chain');
+            if (chainIndices.error) return chainIndices;
             // Make sure all requested indices exist
             const counts = {
                 atom: [ atomIndices, allAtomResidueIndices.length ],

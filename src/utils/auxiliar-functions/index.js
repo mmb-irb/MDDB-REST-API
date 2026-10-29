@@ -2,6 +2,8 @@
 const yaml = require('yamljs');
 // Get the configuration parameters for the different requesting hosts
 const hostConfig = yaml.load(`${__dirname}/../../../config.yml`).hosts;
+// Standard HTTP response status codes
+const { BAD_REQUEST } = require('../status-codes');
 
 // Functions to be used widely along the code
 
@@ -203,32 +205,46 @@ const getSearchQuery = searchText => {
   };
 }
 
-// Set an equivalent to python's range function but with step = 1
-function* range (start, stop) {
-  for (let i = start; i < stop; i++) yield i;
-}
-// This function transforms a range selection string into a numeric array
+// This function transforms a range selection string into a sorted numeric array with no duplicates
 // It handles abbreviated selection syntax to literal selection syntax
 // e.g. "1, 3, 5-8" => [1, 3, 5, 6, 7, 8]
+// If any index reaches the limit (i.e. the number of atoms, residues or chains) then an error is returned
+// The name of what is selected (e.g. 'atom') is used in the error message
+// WARNING: Never expand ranges before checking the limit
+// WARNING: Otherwise a single request (e.g. 0-99999999999) runs the API out of memory
 const rangedSyntax = /^([0-9]+)-([0-9]+)$/;
 const numberSyntax = /^[0-9]+$/;
 // Support when numbers are separated with any combination of spaces and coma
 // e.g. 1, 2 ; 1,2 ; 1 , 2
 const separator = /\s*,\s*/;
-const rangedSelectionParser = selection => {
-  // Filter data
+const rangedSelectionParser = (selection, limit, name) => {
+  if (!Number.isInteger(limit)) throw new Error('Missing limit to check the ranged selection');
+  // Get every selected unit as a start-end interval
   const units = selection.split(separator);
+  const intervals = [];
   const parsedSelection = [];
   for (const u of units) {
-    // If the ranged syntax is found, get all numbers in between
-    if (u.match(rangedSyntax)) {
-      const matches = rangedSyntax.exec(u);
-      const rangedUnits = range(+matches[1], +matches[2] + 1);
-      parsedSelection.push(...rangedUnits);
-    }
+    const matches = rangedSyntax.exec(u);
+    if (matches) intervals.push([+matches[1], +matches[2]]);
+    else if (numberSyntax.test(u)) intervals.push([+u, +u]);
     // Anything which is not a positive integer (e.g. -1, 1.5, 'a' or nothing) is added as NaN
     // Thus it fails further when indices are validated
-    else parsedSelection.push(u.match(numberSyntax) ? +u : NaN);
+    else parsedSelection.push(NaN);
+  }
+  // Return error if any index is beyond the limit
+  // Note that reversed ranges (e.g. 5-2) select nothing
+  const end = intervals.reduce((max, [start, end]) => start <= end ? Math.max(max, end) : max, -1);
+  if (end >= limit) return {
+    headerError: BAD_REQUEST,
+    error: `Wrong ${name} indices: ${end}. There are ${limit} ${name}s (indices are 0-based).`
+  };
+  // Add the indices of every interval, skipping those already added by previous intervals
+  // Thus repeating a range many times (e.g. 0-9,0-9,0-9...) does not repeat its indices
+  intervals.sort((a, b) => a[0] - b[0]);
+  let lastEnd = -1;
+  for (const [start, end] of intervals) {
+    for (let i = Math.max(start, lastEnd + 1); i <= end; i++) parsedSelection.push(i);
+    lastEnd = Math.max(lastEnd, end);
   }
   return parsedSelection;
 };

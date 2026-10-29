@@ -36,6 +36,19 @@ describe('parseQueryRange', () => {
       expect(parse('1:11').headerError).toBe(BAD_REQUEST);
       expect(parse('1:11:2').headerError).toBe(BAD_REQUEST);
     });
+
+    test('far beyond the limit, so it would run out of memory if expanded', () => {
+      for (const string of ['99999999999', '1-99999999999', '1:99999999999', '1:99999999999:2', '1,5-99999999999'])
+        expect(parse(string).headerError).toBe(BAD_REQUEST);
+    });
+
+    test('step beyond the limit, but no value beyond the limit', () => {
+      expect(parse('1:15:20')).toEqual([{ start: 0, end: 0 }]);
+    });
+
+    test('step 0', () => {
+      expect(parse('1:10:0').headerError).toBe(BAD_REQUEST);
+    });
   });
 
   describe('parse step format', () => {
@@ -85,6 +98,18 @@ describe('parseQueryRange', () => {
 
     test('combined', () => {
       expect(parse('1,5-6')).toEqual([{ start: 0, end: 0 }, { start: 4, end: 5 }]);
+    });
+
+    test('overlapping and consecutive ranges are merged', () => {
+      expect(parse('1-3,4-5')).toEqual([{ start: 0, end: 4 }]);
+      expect(parse('5-8,2-6,1')).toEqual([{ start: 0, end: 7 }]);
+      expect(parse('2-4,3,9')).toEqual([{ start: 1, end: 3 }, { start: 8, end: 8 }]);
+    });
+
+    test('huge and repeated ranges are not expanded', () => {
+      const limit = 99999999999;
+      const repeated = Array(10000).fill(`1-${limit}`).join(',');
+      expect(parseQueryRange(repeated, limit, 'frames')).toEqual([{ start: 0, end: limit - 1 }]);
     });
   });
 });

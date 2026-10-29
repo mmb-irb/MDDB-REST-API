@@ -233,13 +233,28 @@ const getTrajectory = async (request, transformFormat) => {
   // The legacy name for this field is 'atoms', and this is handled by the 'handleRanges' function
   // Then I added 'atomindices' to make it coherent with the structure endpoint which is handled here
   let atomIndices = request.body.atomindices || request.query.atomindices || [];
-  if (typeof atomIndices === 'string') atomIndices = rangedSelectionParser(atomIndices);
   // The user may request directly a list of residue indices
   let residueIndices = request.body.resindices || request.query.resindices || [];
-  if (typeof residueIndices === 'string') residueIndices = rangedSelectionParser(residueIndices);
   // The user may request a list of chain indices
   let chainIndices = request.body.chaindices || request.query.chaindices || [];
-  if (typeof chainIndices === 'string') chainIndices = rangedSelectionParser(chainIndices);
+  // In case we have a selection we must parse it to atoms
+  // We check both the body (in case it is a POST) and the query (in case it is a GET)
+  const selectionRequest = request.body.selection || request.query.selection;
+  // The topology is needed to resolve residue, chain and NGL selections to atoms
+  const topologyData = residueIndices.length || chainIndices.length || selectionRequest
+    ? await project.getTopologyData()
+    : null;
+  if (topologyData && topologyData.error) return topologyData;
+  // Ranged selections (e.g. 0-9,12) must not exceed the number of atoms, residues and chains
+  if (typeof atomIndices === 'string')
+    atomIndices = rangedSelectionParser(atomIndices, trajectoryDescriptor.metadata.y.length, 'atom');
+  if (atomIndices.error) return atomIndices;
+  if (typeof residueIndices === 'string')
+    residueIndices = rangedSelectionParser(residueIndices, topologyData.residue_chain_indices.length, 'residue');
+  if (residueIndices.error) return residueIndices;
+  if (typeof chainIndices === 'string')
+    chainIndices = rangedSelectionParser(chainIndices, topologyData.chain_names.length, 'chain');
+  if (chainIndices.error) return chainIndices;
   // Make sure all indices are positive integers
   const wrongIndices = [...atomIndices, ...residueIndices, ...chainIndices].map(Number)
     .filter(index => !Number.isInteger(index) || index < 0);
@@ -247,9 +262,6 @@ const getTrajectory = async (request, transformFormat) => {
     headerError: BAD_REQUEST,
     error: 'Atom, residue and chain indices must be positive integers (0-based) or ranges of them (e.g. 0-9,12)'
   };
-  // In case we have a selection we must parse it to atoms
-  // We check both the body (in case it is a POST) and the query (in case it is a GET)
-  const selectionRequest = request.body.selection || request.query.selection;
   // Get the residue numeration used by the selection, which is the author numeration by default
   const requestedNumbering = request.body.numbering || request.query.numbering;
   const numbering = parseNumbering(requestedNumbering);
@@ -266,7 +278,6 @@ const getTrajectory = async (request, transformFormat) => {
   };
   // In case chain or residue indices are passed we must resolve them to atom indices
   if (chainIndices.length || residueIndices.length || selectionRequest) {
-    const topologyData = await project.getTopologyData();
     // In case chain indices are passed we must convert them to residue indices
     if (chainIndices.length) {
       chainIndices = new Set(chainIndices);

@@ -5,8 +5,6 @@ const handler = require('../../../utils/generic-handler');
 const { BAD_REQUEST, NOT_FOUND } = require('../../../utils/status-codes');
 // Get the database handler
 const getDatabase = require('../../../database');
-// Get a function to parse ranged selections (e.g. 1-3,5)
-const { rangedSelectionParser } = require('../../../utils/auxiliar-functions');
 
 const router = Router({ mergeParams: true });
 
@@ -31,9 +29,10 @@ const TOPOLOGY_FIELDS = new Set([
 ]);
 
 // Parse a list of indices which may come in ranged notation (e.g. 1-3,5) or as a list
+// Ranged notation is parsed along with the topology, where ranges are checked against the number of atoms, residues and chains
 const parseIndices = indices => {
   if (indices === undefined) return [];
-  if (typeof indices === 'string') return rangedSelectionParser(indices);
+  if (typeof indices === 'string') return indices;
   return indices.map(Number);
 };
 
@@ -62,7 +61,7 @@ const topologyHandler = handler({
       residueIndices: parseIndices(request.body.resindices || request.query.resindices),
       chainIndices: parseIndices(request.body.chaindices || request.query.chaindices),
     };
-    const anySelection = Object.values(selection).some(indices => indices.length > 0);
+    const anySelection = Object.values(selection).some(indices => typeof indices === 'string' || indices.length > 0);
     if (anySelection && isRaw) return {
       headerError: BAD_REQUEST,
       error: 'Atom, residue and chain selections are not supported when requesting raw data.'

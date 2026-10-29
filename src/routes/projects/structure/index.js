@@ -73,15 +73,22 @@ const structureHandler = handler({
     // Get any kind of requested selection
     // If multiple values are passed then the sum of them will be returned
     // We check both the body (in case it is a POST) and the query (in case it is a GET)
+    // Ranged selections (e.g. 0-9,12) must not exceed the number of atoms, residues and chains
     // The user may request directly a list of atom indices
     let atomIndices = request.body.atomindices || request.query.atomindices || [];
-    if (typeof atomIndices === 'string') atomIndices = rangedSelectionParser(atomIndices);
+    if (typeof atomIndices === 'string')
+      atomIndices = rangedSelectionParser(atomIndices, topologyData.atom_residue_indices.length, 'atom');
+    if (atomIndices.error) return atomIndices;
     // The user may request directly a list of residue indices
     let residueIndices = request.body.resindices || request.query.resindices || [];
-    if (typeof residueIndices === 'string') residueIndices = rangedSelectionParser(residueIndices);
+    if (typeof residueIndices === 'string')
+      residueIndices = rangedSelectionParser(residueIndices, topologyData.residue_chain_indices.length, 'residue');
+    if (residueIndices.error) return residueIndices;
     // The user may request directly a list of residue indices
     let chainIndices = request.body.chaindices || request.query.chaindices || [];
-    if (typeof chainIndices === 'string') chainIndices = rangedSelectionParser(chainIndices);
+    if (typeof chainIndices === 'string')
+      chainIndices = rangedSelectionParser(chainIndices, topologyData.chain_names.length, 'chain');
+    if (chainIndices.error) return chainIndices;
     // Make sure all indices are positive integers
     const wrongIndices = [...atomIndices, ...residueIndices, ...chainIndices].map(Number)
       .filter(index => !Number.isInteger(index) || index < 0);

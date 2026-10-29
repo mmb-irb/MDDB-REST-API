@@ -55,15 +55,23 @@ const rangeNotation = indices => {
   return rangedNotation.slice(0,-1);
 }
 
+// Set an error to be returned when ranges exceed the limit
+const beyondLimitError = (end, limit, dimensionName) => ({
+  headerError: BAD_REQUEST,
+  error: `End of requested ${dimensionName} (${end}) is beyond the limit (${limit})`
+});
+
 // Parse a query string with ranged meaning to a list of objects with start and end fields
 // Accepted input string formats are start:end:step and e.g. 1,2,3-7
-// If a limit is passed then values beyond this limit are filtered
+// If values beyond the limit are requested then an error is returned
 // Note that range numbers are converted from 1-based to 0-based by substracting 1
+// WARNING: Never expand ranges before checking the limit
+// WARNING: Otherwise a single request (e.g. 1-99999999999) runs the API out of memory
 const parseQueryRange = (string, limit, dimensionName) => {
   // Search in the function's parameter value "string" by using a specified regexp format: STEP_FORMAT
   const stepFormatParsed = STEP_FORMAT.exec(string);
-  // Define the variable where indices will be saved
-  const accumulated = [];
+  // Define the variable where requested values will be saved as start-end intervals (both included)
+  const intervals = [];
   // The regexp format STEP_FORMAT has 3 defined groups: start, end and step
   // If the regexp search returns a result, use the value from the 3 groups to define and save the desired indices
   if (stepFormatParsed) {
@@ -76,19 +84,21 @@ const parseQueryRange = (string, limit, dimensionName) => {
     if (end < start) end = start;
     // If no "step" group is found then step is 1
     const step = +(stepFormatParsed.groups.step || 1);
+    if (step === 0) return {
+      headerError: BAD_REQUEST,
+      error: `Step in the selection of ${dimensionName} (${string}) must be greater than 0`
+    };
     // If the step is 1 then simply use the range
-    // Return error if the range end exceeds the limit, as we do with the rest of formats below
-    if (step === 1) {
-      if (end > limit) return {
-        headerError: BAD_REQUEST,
-        error: `End of requested ${dimensionName} (${end}) is beyond the limit (${limit})`
-      };
-      return [{ start: start - 1, end: end - 1 }];
+    if (step === 1) intervals.push([start, end]);
+    else {
+      // Return error if the last value exceeds the limit before adding every value
+      const last = start + Math.floor((end - start) / step) * step;
+      if (last > limit) return beyondLimitError(last, limit, dimensionName);
+      for (let index = start; index <= end; index += step) {
+        intervals.push([index, index]);
+      }
     }
-    for (let index = start; index <= end; index += step) {
-      accumulated.push(index);
-    }
-  }  
+  }
   // If the initial regexp search returns no results, there is an alternative regexp format
   else {
     // First, split the string by comas
@@ -101,40 +111,36 @@ const parseQueryRange = (string, limit, dimensionName) => {
         error: `Selection of ${dimensionName} (${part}) not suported. Use either start:end:step or 1,2,3-7 formats.`
       };
       // The regexp format RE has 3 defined groups: simple, start, and end
-      // Save the "simple" group value and push it to the "accumulated" array if it is an integer
+      // Save the "simple" group value and push it to the "intervals" array if it is an integer
       const simple = +extracted.groups.simple;
       if (Number.isInteger(simple)) {
-        accumulated.push(simple);
+        intervals.push([simple, simple]);
         continue;
       }
       // Use the start and end groups to define and save the desired indices
       const start = +extracted.groups.start;
       // If the end is less than the start then just use the start
       const end = Math.max(+extracted.groups.end, start);
-      // Return error if the range end exceeds the limit
-      for (let index = start; index <= end; index++) {
-        accumulated.push(index);
-      }
+      intervals.push([start, end]);
     }
   }
-  // Remove duplicates while checking no 0 was requested
-  const set = new Set(accumulated);
-  if (set.has(0)) return zeroError;
-  const unique = Array.from(set);
-  // Sort values
-  const sorted = unique.sort((a, b) => a - b);
+  // Check no 0 was requested
+  if (intervals.some(([start]) => start === 0)) return zeroError;
   // Return error if the range end exceeds the limit
   // DANI: Antes se filtraban los valores mayores que el límite y arreglado
   // DANI: Sin embargo esto podía dar lugar a trayectorias más cortas de lo esperado silenciosamente
-  const end = sorted[sorted.length - 1];
-  if (end > limit) return {
-    headerError: BAD_REQUEST,
-    error: `End of requested ${dimensionName} (${end}) is beyond the limit (${limit})`
-  };
+  const end = intervals.reduce((max, [, end]) => Math.max(max, end), 0);
+  if (end > limit) return beyondLimitError(end, limit, dimensionName);
+  // Sort intervals and merge those which overlap or are consecutive, without expanding them
   // Substract 1 from every value to convert them from 1-based to 0-based
-  const zeroBased = sorted.map(i => i - 1);
-  // Return ranged indices
-  return rangeIndices(zeroBased);
+  intervals.sort((a, b) => a[0] - b[0]);
+  const ranges = [];
+  for (const [start, end] of intervals) {
+    const lastRange = ranges[ranges.length - 1];
+    if (lastRange && start - 1 <= lastRange.end + 1) lastRange.end = Math.max(lastRange.end, end - 1);
+    else ranges.push({ start: start - 1, end: end - 1 });
+  }
+  return ranges;
 };
 
 module.exports = {
