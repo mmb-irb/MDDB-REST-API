@@ -1,7 +1,9 @@
+const { REFERENCES } = require('mddb-database/utils/constants');
 const { MAX_CHARS } = require('./api');
 const { isEmpty } = require('./projects');
 
-const REFERENCE_TYPES = ['proteins', 'pdbs', 'inchikeys', 'chains', 'collections'];
+// The reference types the references and pointers endpoints look up
+const REFERENCE_TYPES = Object.keys(REFERENCES);
 
 // Per-residue PDBe data, 2D structures, fingerprints and descriptors, which make up most of a reference and the
 // model rarely needs

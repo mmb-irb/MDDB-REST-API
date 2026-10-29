@@ -1,9 +1,12 @@
+const { STRUCTURE_FORMATS, TRAJECTORY_FORMATS } = require('../utils/constants');
+
 const DATA = ['structure', 'trajectory', 'coordinates', 'box', 'file'];
-const FORMATS = ['pdb', 'mmcif', 'xtc', 'trr', 'nc', 'dcd', 'mdcrd', 'bin'];
+// The formats the structure and trajectory endpoints produce
+const FORMATS = [...Object.keys(STRUCTURE_FORMATS), ...Object.keys(TRAJECTORY_FORMATS)];
 
 const PATHS = { structure: 'structure', trajectory: 'trajectory', coordinates: 'trajectory/coordinates', box: 'trajectory/box' };
-// The API names mmCIF files .cif, and every other format after itself
-const extension = format => format === 'mmcif' ? 'cif' : format;
+// The API names structure files after their format's extension, and trajectory files after their format
+const extension = format => STRUCTURE_FORMATS[format]?.extension ?? format;
 
 // Older API versions ignore arguments they don't support, so check what they serve instead of trusting the link
 const getDownloadUrl = async (probe, args) => {

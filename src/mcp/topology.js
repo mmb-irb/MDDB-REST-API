@@ -105,4 +105,4 @@ const getTopology = async (api, { accession, residues, atoms }) => {
   };
 };
 
-module.exports = { getTopology };
+module.exports = { RESIDUE_FIELDS, ATOM_FIELDS, getTopology };

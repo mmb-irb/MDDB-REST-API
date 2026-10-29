@@ -6,6 +6,7 @@ const { DATA, FORMATS, getDownloadUrl } = require('./downloads');
 const { FIELD_CATALOG, getProject, projectOptions, searchProjects } = require('./projects');
 const { findSimulations, getReferences, REFERENCE_TYPES } = require('./references');
 const { getTopology } = require('./topology');
+const { NUMBERINGS } = require('../utils/topology-tools');
 
 const INSTRUCTIONS = `MDDB is a federated database of atomistic molecular dynamics (MD) simulations. \
 Each project is one simulated system with one or more MD replicas, stored on one node (IRB Barcelona, Oxford, Inria...). \
@@ -197,7 +198,7 @@ matched every atom, which is also what an unparseable selection gives.`,
       format: z.enum(FORMATS).optional(),
       frames: z.string().optional().describe('1-based, e.g. "1-100" or "1:1000:10"'),
       selection: z.string().optional().describe('NGL selection, e.g. "protein and .CA"'),
-      numbering: z.enum(['author', 'uniprot']).optional(),
+      numbering: z.enum(NUMBERINGS).optional(),
       atoms: z.string().optional().describe('0-based atom indices or ranges, e.g. "0-9,12"'),
       residues: z.string().optional().describe('0-based residue indices or ranges'),
       chains: z.string().optional().describe('0-based chain indices or ranges'),

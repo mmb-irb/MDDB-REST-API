@@ -5,28 +5,10 @@ const handler = require('../../../utils/generic-handler');
 const { BAD_REQUEST, NOT_FOUND } = require('../../../utils/status-codes');
 // Get the database handler
 const getDatabase = require('../../../database');
+// List the expected topology fields
+const { TOPOLOGY_FIELDS } = require('../../../utils/constants');
 
 const router = Router({ mergeParams: true });
-
-// List the expected topology fields
-const TOPOLOGY_FIELDS = new Set([
-  'atom_names',
-  'atom_elements',
-  'atom_charges',
-  'atom_residue_indices',
-  'atom_bonds',
-  'residue_names',
-  'residue_numbers',
-  'residue_icodes',
-  'residue_chain_indices',
-  'chain_names',
-  'references',
-  'reference_types',
-  'residue_reference_indices',
-  'residue_reference_numbers',
-  'selections',
-  'version',
-]);
 
 // Parse a list of indices which may come in ranged notation (e.g. 1-3,5) or as a list
 // Ranged notation is parsed along with the topology, where ranges are checked against the number of atoms, residues and chains

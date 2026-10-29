@@ -1,4 +1,5 @@
-const { getTopology } = require('./topology');
+const { TOPOLOGY_FIELDS } = require('../utils/constants');
+const { ATOM_FIELDS, RESIDUE_FIELDS, getTopology } = require('./topology');
 
 // A protein chain with a numbering gap and an ion, then a lipid chain, as newer workflows store them
 const topology = {
@@ -84,5 +85,10 @@ describe('getTopology', () => {
       { index: 5, name: 'HA', element: 'H', residue: { chain: 'A', name: 'TRP', number: 1 } },
       { index: 5, name: 'HA', element: 'H', residue: { chain: 'A', name: 'TRP', number: 1 } },
     ]);
+  });
+
+  // The topology endpoint checks the included fields after reading the database, so the arguments test can't
+  it('includes only fields the topology endpoint has', () => {
+    expect([...RESIDUE_FIELDS, ...ATOM_FIELDS].filter(field => !TOPOLOGY_FIELDS.has(field))).toEqual([]);
   });
 });

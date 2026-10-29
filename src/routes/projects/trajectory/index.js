@@ -16,6 +16,8 @@ const getRangedStream = require('../../../utils/get-ranged-stream');
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
 // Translates the frames query string format into a explicit frame selection in string format
 const chemfilesConverter = require('../../../utils/bin-to-chemfiles');
+// Trajectory exporting supported formats
+const { TRAJECTORY_FORMATS: trajectoryFormats } = require('../../../utils/constants');
 
 // Get a function to issue a standard output filename
 const { setOutputFilename, getConfig, rangedSelectionParser } = require('../../../utils/auxiliar-functions');
@@ -29,44 +31,6 @@ const {
   BAD_REQUEST,
   INTERNAL_SERVER_ERROR,
 } = require('../../../utils/status-codes');
-
-// Trajectory exporting supported formats
-const trajectoryFormats = {
-  bin: {
-    name: 'bin',
-    contentType: 'application/octet-stream',
-  },
-  mdcrd: {
-    name: 'mdcrd',
-    contentType: 'text/mdcrd',
-  },
-  xtc: {
-    name: 'xtc',
-    contentType: 'application/xtc',
-    chemfilesName: 'XTC',
-    // The whole box matrix is stored, so a rotated box (e.g. after a fit) is kept as is
-    includesBox: true,
-  },
-  trr: {
-    name: 'trr',
-    contentType: 'application/trr',
-    chemfilesName: 'TRR',
-    includesBox: true,
-  },
-  // Streaming NetCDF requires the chemfiles fork to know the number of frames in advance
-  // The chemfiles converter sets it from the frame count passed as argument
-  nc: {
-    name: 'nc',
-    contentType: 'application/nc',
-    chemfilesName: 'Amber NetCDF',
-  },
-  // DCD also stores the number of frames in the header, so it is streamed the same way
-  dcd: {
-    name: 'dcd',
-    contentType: 'application/dcd',
-    chemfilesName: 'DCD',
-  },
-};
 
 // Range arguments of the trajectory and the box, which are handled by 'handleRanges'
 // Every dimension may be selected by its letter or by its name, as set in the file descriptor
