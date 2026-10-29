@@ -54,11 +54,6 @@ const structureHandler = handler({
       headerError: BAD_REQUEST,
       error: `Not supported numbering "${requestedNumbering}". Supported numberings are ${NUMBERINGS.join(', ')}`
     };
-    // Download the main structure file descriptor
-    const structureDescriptor = await project.getFileDescriptor(database.STANDARD_STRUCTURE_FILENAME);
-    // If the object ID is not found in the data base the we have a mess
-    // This is our fault, since a file id coming from a project must exist
-    if (structureDescriptor.error) return structureDescriptor;
     // Get the NGL atom selection, if any
     const selection = request.body.selection || request.query.selection;
     // Get the topology data, only the fields needed to build the structure
@@ -164,12 +159,12 @@ const structureHandler = handler({
     // Convert the structure content to a buffer adn then to a stream
     const bufferStructure = Buffer.from(structureContent, 'utf-8');
     const stream = Readable.from([bufferStructure]);
-    // Modify the original descriptor length and content type
-    structureDescriptor.length = bufferStructure.length;
-    structureDescriptor.contentType = structureFormat.contentType;
     // Set the output filename according to some standards
-    const filename = setOutputFilename(project.data, structureDescriptor, structureFormat.extension);
-    return { filename, structureDescriptor, stream };
+    // Note that the structure is generated, so there is no file descriptor
+    // Mimic the one of the standard structure file, which belongs to the current MD
+    const outputDescriptor = { filename: database.STANDARD_STRUCTURE_FILENAME, metadata: { md: project.mdIndex } };
+    const filename = setOutputFilename(project.data, outputDescriptor, structureFormat.extension);
+    return { filename, length: bufferStructure.length, contentType: structureFormat.contentType, stream };
   },
   // Handle the response header
   headers(response, retrieved) {
@@ -179,11 +174,8 @@ const structureHandler = handler({
     // Note that we do not end the response here since the body may contain additional error details
     if (retrieved.headerError) return response.status(retrieved.headerError);
     // If there is an active stream, send range and length content
-    response.set('content-length', retrieved.structureDescriptor.length);
-    // Send content type also if known
-    if (retrieved.structureDescriptor.contentType) {
-      response.set('content-type', retrieved.structureDescriptor.contentType);
-    }
+    response.set('content-length', retrieved.length);
+    response.set('content-type', retrieved.contentType);
     // Set the output filename
     response.setHeader(
       'Content-disposition',
