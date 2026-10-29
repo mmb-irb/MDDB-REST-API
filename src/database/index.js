@@ -270,16 +270,20 @@ class Database4Api extends Database {
                             queryError = await parseReferencesQuery(subquery);
                             if (queryError) return queryError;
                         } 
-                        return;
+                        continue;
                     }
                     // If the field does not start with the references header then skip it
-                    if (!field.startsWith(REFERENCE_HEADER)) return;
+                    if (!field.startsWith(REFERENCE_HEADER)) continue;
                     // Get the name of the field and the reference collection
                     const fieldSplits = field.split('.');
                     const referenceName = fieldSplits[1];
                     const referenceField = fieldSplits[2];
                     // Get the reference configuration
                     const reference = this.REFERENCES[referenceName];
+                    if (!reference) return {
+                        headerError: BAD_REQUEST,
+                        error: `Unknown reference "${referenceName}". Available references: ${this.AVAILABLE_REFERENCES}`
+                    };
                     // Set the references query
                     const referencesQuery = {};
                     referencesQuery[referenceField] = value;
@@ -312,14 +316,14 @@ class Database4Api extends Database {
                     // If the field is actually a list of fields then run the parsing function recursively
                     if (field === '$and' || field === '$or') {
                         for (const subquery of value) {
-                            queryError = await parseReferencesQuery(subquery);
+                            queryError = await parseDateQuery(subquery);
                             if (queryError) return queryError;
                         } 
-                        return;
+                        continue;
                     }
                     // If the field is not among date fields then skip it
                     const fieldConfig = this.PATH_QUERY_FIELDS[field];
-                    if (!fieldConfig || fieldConfig.type !== 'date') return;
+                    if (!fieldConfig || fieldConfig.type !== 'date') continue;
                     // Parse the date string into a date
                     // Mongo will handle it as an ISODate
                     if (typeof value === 'string') {
