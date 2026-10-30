@@ -23,6 +23,8 @@ const { setOutputFilename, getConfig, rangedSelectionParser } = require('../../.
 const produceMmcif = require('../structure/produce-mmcif');
 // Functions to handle the residue numeration
 const { NUMBERINGS, parseNumbering, applyNumbering } = require('../../../utils/topology-tools');
+// Get the API version requested by the user
+const { getApiVersion } = require('../../../utils/api-version');
 
 // Standard HTTP response status codes
 const {
@@ -83,8 +85,8 @@ const BOX_ARGUMENTS = BOX_RANGE_ARGUMENTS;
 // Check if the requested files meet the accepted formats, which are provided by the request header
 // If so, send the format name. Else, send null
 const acceptTransformFormat = requestedFormat => {
-  // If no format is specified then the source format is returned
-  if (!requestedFormat) return trajectoryFormats.bin;
+  // If no format is specified then the source format is returned in v1 and xtc since v2
+  if (!requestedFormat) return getApiVersion() >= 2 ? trajectoryFormats.xtc : trajectoryFormats.bin;
   const _requestedFormat = requestedFormat.toLowerCase();
   // _requested is a string sent by the header which includes the names of all accepted formats
   if (_requestedFormat === 'bin') {

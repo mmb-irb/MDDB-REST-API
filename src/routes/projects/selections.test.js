@@ -7,6 +7,7 @@ const http = require('http');
 const { Readable } = require('stream');
 const express = require('express');
 const { BAD_REQUEST } = require('../../utils/status-codes');
+const { API_VERSION_NAMES, apiVersionMiddleware } = require('../../utils/api-version');
 
 // Chain A: residue 0 (atoms 0, 1), residue 1 (atoms 2, 3)
 // Chain B: residue 2 (atoms 4, 5)
@@ -49,6 +50,8 @@ const mockDatabase = {
   bucket: mockBucket,
   STANDARD_STRUCTURE_FILENAME: 'structure.pdb',
   STANDARD_TRAJECTORY_FILENAME: 'trajectory.bin',
+  // There is no box file, which is the usual case
+  STANDARD_BOX_FILENAME: 'box.bin',
 };
 jest.mock('../../database', () => async () => ({
   ...mockDatabase,
@@ -62,8 +65,10 @@ app.use((request, response, next) => {
   request.queryArguments = Object.keys(request.query);
   next();
 });
-app.use('/:project/structure', require('./structure'));
-app.use('/:project/trajectory', require('./trajectory'));
+for (const versionName of API_VERSION_NAMES) {
+  app.use(`/${versionName}/:project/structure`, apiVersionMiddleware(versionName), require('./structure'));
+  app.use(`/${versionName}/:project/trajectory`, apiVersionMiddleware(versionName), require('./trajectory'));
+}
 let server;
 beforeAll(done => { server = app.listen(0, done) });
 afterAll(done => { server.close(done) });
@@ -76,7 +81,7 @@ const send = (path, body) => new Promise((resolve, reject) => {
   const request = http.request({ port: server.address().port, path, method: data ? 'POST' : 'GET', headers }, response => {
     const chunks = [];
     response.on('data', chunk => chunks.push(chunk));
-    response.on('end', () => resolve({ status: response.statusCode, body: Buffer.concat(chunks) }));
+    response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body: Buffer.concat(chunks) }));
   });
   request.on('error', reject);
   request.end(data);
@@ -100,10 +105,10 @@ describe('trajectory selections', () => {
 
   test('ranged selections and lists select the same atoms', async () => {
     for (const [path, body] of [
-      ['/A0001/trajectory?atomindices=3-4'],
-      ['/A0001/trajectory?atomindices=3&atomindices=4'],
-      ['/A0001/trajectory', { atomindices: [3, 4] }],
-      ['/A0001/trajectory', { atomindices: ['3', '4'] }],
+      ['/v1/A0001/trajectory?atomindices=3-4'],
+      ['/v1/A0001/trajectory?atomindices=3&atomindices=4'],
+      ['/v1/A0001/trajectory', { atomindices: [3, 4] }],
+      ['/v1/A0001/trajectory', { atomindices: ['3', '4'] }],
     ]) {
       const response = await send(path, body);
       expect(response.status).toBe(200);
@@ -112,20 +117,20 @@ describe('trajectory selections', () => {
   });
 
   test('residue and chain lists given as strings select their atoms', async () => {
-    const response = await send('/A0001/trajectory', { chaindices: ['1'] });
+    const response = await send('/v1/A0001/trajectory', { chaindices: ['1'] });
     expect(getTrajectoryAtoms(response.body)).toEqual(['frame 0 atom 4', 'frame 0 atom 5', 'frame 1 atom 4', 'frame 1 atom 5']);
   });
 
   test('rejects indices beyond the system, in ranged selections and lists', async () => {
     for (const [path, body] of [
-      ['/A0001/trajectory?atomindices=0-99999999999'],
-      ['/A0001/trajectory?atomindices=6'],
-      ['/A0001/trajectory', { atomindices: [6] }],
-      ['/A0001/trajectory', { atomindices: [0, 99999999999] }],
-      ['/A0001/trajectory', { resindices: [3] }],
-      ['/A0001/trajectory', { chaindices: ['2'] }],
-      ['/A0001/trajectory', { atomindices: [-1] }],
-      ['/A0001/trajectory', { atomindices: ['a'] }],
+      ['/v1/A0001/trajectory?atomindices=0-99999999999'],
+      ['/v1/A0001/trajectory?atomindices=6'],
+      ['/v1/A0001/trajectory', { atomindices: [6] }],
+      ['/v1/A0001/trajectory', { atomindices: [0, 99999999999] }],
+      ['/v1/A0001/trajectory', { resindices: [3] }],
+      ['/v1/A0001/trajectory', { chaindices: ['2'] }],
+      ['/v1/A0001/trajectory', { atomindices: [-1] }],
+      ['/v1/A0001/trajectory', { atomindices: ['a'] }],
     ]) expect((await send(path, body)).status).toBe(BAD_REQUEST);
   });
 });
@@ -133,9 +138,9 @@ describe('trajectory selections', () => {
 describe('structure selections', () => {
   test('ranged selections and lists select the same atoms', async () => {
     for (const [path, body] of [
-      ['/A0001/structure?atomindices=1-2'],
-      ['/A0001/structure?atomindices=1&atomindices=2'],
-      ['/A0001/structure', { atomindices: ['1', '2'] }],
+      ['/v1/A0001/structure?atomindices=1-2'],
+      ['/v1/A0001/structure?atomindices=1&atomindices=2'],
+      ['/v1/A0001/structure', { atomindices: ['1', '2'] }],
     ]) {
       const response = await send(path, body);
       expect(response.status).toBe(200);
@@ -145,10 +150,39 @@ describe('structure selections', () => {
 
   test('rejects indices beyond the system, in ranged selections and lists', async () => {
     for (const [path, body] of [
-      ['/A0001/structure?atomindices=0-99999999999'],
-      ['/A0001/structure', { atomindices: [6] }],
-      ['/A0001/structure', { resindices: [3] }],
-      ['/A0001/structure', { chaindices: [2] }],
+      ['/v1/A0001/structure?atomindices=0-99999999999'],
+      ['/v1/A0001/structure', { atomindices: [6] }],
+      ['/v1/A0001/structure', { resindices: [3] }],
+      ['/v1/A0001/structure', { chaindices: [2] }],
     ]) expect((await send(path, body)).status).toBe(BAD_REQUEST);
+  });
+});
+
+describe('default formats', () => {
+  test('structure is PDB in v1 and mmCIF since v2', async () => {
+    for (const [path, contentType] of [
+      ['/v1/A0001/structure', 'chemical/x-pdb'],
+      ['/v2/A0001/structure', 'chemical/x-mmcif'],
+      ['/current/A0001/structure', 'chemical/x-mmcif'],
+      ['/v2/A0001/structure?format=pdb', 'chemical/x-pdb'],
+    ]) {
+      const response = await send(path);
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toBe(contentType);
+    }
+  });
+
+  // The content type is only set when the stored file has one, so check the output filename instead
+  test('trajectory is bin in v1 and xtc since v2', async () => {
+    for (const [path, extension] of [
+      ['/v1/A0001/trajectory', 'bin'],
+      ['/v2/A0001/trajectory', 'xtc'],
+      ['/current/A0001/trajectory', 'xtc'],
+      ['/v2/A0001/trajectory?format=bin', 'bin'],
+    ]) {
+      const response = await send(path);
+      expect(response.status).toBe(200);
+      expect(response.headers['content-disposition']).toMatch(new RegExp(`\\.${extension}$`));
+    }
   });
 });

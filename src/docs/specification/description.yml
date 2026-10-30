@@ -115,9 +115,9 @@ paths:
 
   /projects/{projectAccessionOrID}/structure:
     get:
-      summary: Get the main structure of the project in pdb format.
+      summary: Get the main structure of the project in mmCIF (v2) or PDB (v1) format.
       description: >
-        Get the main structure of the project in pdb format.
+        Get the main structure of the project. The default format is mmCIF since v2 and PDB in v1.
         Structure may be filtered by specific atoms.
         The POST method is also allowed to support long atom selections.
         This endpoint is MANDATORY for the federated system.
@@ -161,9 +161,9 @@ paths:
                 type: string
                 format: binary
     post:
-      summary: Get the main structure of the project in pdb format (long atom selections allowed).
+      summary: Get the main structure of the project in mmCIF (v2) or PDB (v1) format (long atom selections allowed).
       description: >
-        Get the main structure of the project in pdb format.
+        Get the main structure of the project. The default format is mmCIF since v2 and PDB in v1.
         Structure may be filtered by specific atoms.
         The POST method is also allowed to support long atom selections.
         This endpoint is MANDATORY for the federated system.
@@ -233,7 +233,7 @@ paths:
             enum: ['bin', 'mdcrd', 'xtc', 'trr']
           description: >
             Specify a request format for the trajectory file. When no format is specified,
-            the default format is an internal binary format (bin) used by the web client.<br>
+            the default format is xtc since v2 and an internal binary format (bin) used by the web client in v1.<br>
             Note that this is the only mandatory format to be supported by a federated API.
         - name: frames
           in: query
@@ -333,7 +333,7 @@ paths:
             enum: ['bin', 'mdcrd', 'xtc', 'trr']
           description: >
             Specify a request format for the trajectory file. When no format is specified,
-            the default format is an internal binary format (bin) used by the web client.<br>
+            the default format is xtc since v2 and an internal binary format (bin) used by the web client in v1.<br>
             Note that this is the only mandatory format to be supported by a federated API.
         - name: frames
           in: query

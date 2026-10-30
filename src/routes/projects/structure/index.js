@@ -11,6 +11,8 @@ const { setOutputFilename, rangedSelectionParser } = require('../../../utils/aux
 // Functions to handle the residue numeration
 const { NUMBERINGS, parseNumbering, applyNumbering } = require('../../../utils/topology-tools');
 const getAtomIndices = require('../../../utils/get-atom-indices-through-ngl');
+// Get the API version requested by the user
+const { getApiVersion } = require('../../../utils/api-version');
 // Function to produce a PDB from topology and coordinates
 const producePdb = require('./produce-pdb');
 // Function to produce a mmCIF from topology and coordinates
@@ -38,8 +40,9 @@ const structureHandler = handler({
     const project = await database.getProject();
     // If there was any problem then return the errors
     if (project.error) return project;
-    // Get the requested output format, which is PDB by default
-    const requestedFormat = request.body.format || request.query.format || 'pdb';
+    // Get the requested output format, which is PDB by default in v1 and mmCIF since v2
+    const defaultFormat = getApiVersion() >= 2 ? 'cif' : 'pdb';
+    const requestedFormat = request.body.format || request.query.format || defaultFormat;
     const structureFormat = structureFormats[String(requestedFormat).toLowerCase()];
     if (!structureFormat) return {
       headerError: BAD_REQUEST,
