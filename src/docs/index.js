@@ -3,6 +3,8 @@ const yaml = require('yamljs');
 // Import the swagger logic
 const swaggerUI = require('swagger-ui-express');
 const swaggerInit = swaggerUI.serve[0];
+// Supported REST API versions
+const { API_VERSION_NAMES, CURRENT_API_VERSION } = require('../utils/api-version');
 // Get the configuration parameters for the different requesting hosts
 const hostConfig = yaml.load(`${__dirname}/../../config.yml`).hosts;
 // Set the configuration for a hipotetical missing host
@@ -67,7 +69,7 @@ Object.entries(hostConfig).forEach(([host, config]) => {
       description: config.description,
       variables: {
         protocol: { enum: ['https', 'http'], default: 'https' },
-        version: { enum: ['current', 'v1'], default: 'v1' },
+        version: { enum: API_VERSION_NAMES, default: `v${CURRENT_API_VERSION}` },
       },
     },
   ];

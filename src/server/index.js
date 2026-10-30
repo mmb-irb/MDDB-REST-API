@@ -23,6 +23,12 @@ const codemeta = {
 
 // Auxiliar functions
 const { getHost } = require('../utils/auxiliar-functions');
+const {
+  API_VERSION_NAMES,
+  CURRENT_API_VERSION,
+  apiVersionMiddleware,
+} = require('../utils/api-version');
+const { NOT_FOUND } = require('../utils/status-codes');
 
 const PORT = process.env.LISTEN_PORT;
 if (!PORT) throw new Error('Missing listen port in env');
@@ -90,8 +96,8 @@ if (PUBLIC_DIR)
 app.get('/', (_, res) => res.json({ 'api types': ['rest', 'optimade'] }));
 app.get('/rest', (_, res) =>
   res.json({
-    'api versions': ['v1', 'current'],
-    'current version': 'v1',
+    'api versions': API_VERSION_NAMES,
+    'current version': `v${CURRENT_API_VERSION}`,
     documentation: 'docs',
     'federated specification': 'spec',
     'software version': version,
@@ -105,8 +111,9 @@ app.get('/rest/codemeta', (_, res) => {
 });
 
 // Routes with more logic
-app.use('/rest/v1', routes);
-app.use('/rest/current', routes);
+// All versions share the same routes and the requested version is available through getApiVersion
+for (const versionName of API_VERSION_NAMES)
+  app.use(`/rest/${versionName}`, apiVersionMiddleware(versionName), routes);
 
 
 // NEVER FORGET: El sistema recomendado para editar el swagger on the fly no me funcionaba bien y no me permitía pasar opciones
@@ -153,6 +160,24 @@ app.use('/rest/docs', (request, response, next) => {
 
 // Federated specification
 app.use('/rest/spec', swaggerUI.serve, swaggerSpec);
+
+// Let the user know when the requested API version does not exist
+// Only paths which look like a version (e.g. 'v9') are answered here
+// Missing endpoints in existing versions or anything else fall through to the default 404
+app.use('/rest/:version', (request, response, next) => {
+  const versionName = request.params.version;
+  if (!/^v\d+$/.test(versionName) || API_VERSION_NAMES.includes(versionName))
+    return next();
+  response
+    .status(NOT_FOUND)
+    .type('text/plain')
+    .send(
+      `API version '${versionName}' does not exist. ` +
+        `Available versions: ${API_VERSION_NAMES.map(name =>
+          name === 'current' ? `current (= v${CURRENT_API_VERSION})` : name,
+        ).join(', ')}`,
+    );
+});
 
 // OPTIMADE API — https://www.optimade.org/
 // Specification: https://github.com/Materials-Consortia/OPTIMADE/blob/develop/optimade.rst
