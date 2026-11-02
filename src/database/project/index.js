@@ -15,7 +15,7 @@ const getRangedStream = require('../../utils/get-ranged-stream');
 // Standard HTTP response status codes
 const { INTERNAL_SERVER_ERROR, BAD_REQUEST } = require('../../utils/status-codes');
 // Tools to handle topology data
-const { MISSING_BONDS, ATOM_FIELDS, RESIDUE_FIELDS, sortedUnique, duplicateBonds, subsetTopology } = require('../../utils/topology-tools');
+const { MISSING_BONDS, ATOM_FIELDS, RESIDUE_FIELDS, sortedUnique, duplicateBonds, getMdSelections, subsetTopology } = require('../../utils/topology-tools');
 
 // Set the flag used in the topology to state that a field is in GridFS
 const BIN_FLAG = 'gridfs';
@@ -73,6 +73,8 @@ class Project {
         };
         // Make a copy of the original data so we do not mutate the original
         let topology = { ...topologyData };
+        // Get the selections of the current MD
+        if (topology['selections']) topology['selections'] = getMdSelections(topology['selections'], this.mdIndex);
         // Set which fields we need, including the ones needed to build the requested fields
         const isRequested = field => !fields || fields.has(field);
         const isNeeded = field => {

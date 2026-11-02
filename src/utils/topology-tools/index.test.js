@@ -1,4 +1,4 @@
-const { MISSING_BONDS, duplicateBonds, subsetTopology, parseNumbering, applyNumbering } = require('.');
+const { MISSING_BONDS, duplicateBonds, expandIndexRanges, groupIndexRanges, getMdSelections, subsetTopology, parseNumbering, applyNumbering } = require('.');
 
 describe('duplicateBonds()', () => {
   test('adds every bond to the other atom', () => {
@@ -7,6 +7,36 @@ describe('duplicateBonds()', () => {
   test('keeps atoms with missing bonds as missing', () => {
     expect(duplicateBonds([[1, 2], MISSING_BONDS, [], [2]]))
       .toEqual([[1, 2], MISSING_BONDS, [0, 3], [2]]);
+  });
+});
+
+describe('expandIndexRanges()', () => {
+  test('expands ranges and keeps single indices', () => {
+    expect(expandIndexRanges([[1, 3], 7, [9, 10]])).toEqual([1, 2, 3, 7, 9, 10]);
+    expect(expandIndexRanges([4, 6])).toEqual([4, 6]);
+    expect(expandIndexRanges([])).toEqual([]);
+  });
+});
+
+describe('groupIndexRanges()', () => {
+  test('groups consecutive indices and keeps single indices', () => {
+    expect(groupIndexRanges([1, 2, 3, 7, 9, 10])).toEqual([[1, 3], 7, [9, 10]]);
+    expect(groupIndexRanges([4, 6])).toEqual([4, 6]);
+    expect(groupIndexRanges([])).toEqual([]);
+  });
+});
+
+describe('getMdSelections()', () => {
+  test('keeps only the selection of the requested MD', () => {
+    const selections = {
+      pbc: { mdmap: [0, 1, 2, 0], values: [{ n: 2, re: [[1, 2]] }, 'all', null] },
+      protein: { n: 10, ch: [0], re: [[3, 5], 8] },
+    };
+    const protein = { n: 10, ch: [0], re: [[3, 5], 8] };
+    expect(getMdSelections(selections, 0)).toEqual({ pbc: { n: 2, re: [[1, 2]] }, protein });
+    expect(getMdSelections(selections, 1)).toEqual({ pbc: 'all', protein });
+    expect(getMdSelections(selections, 2)).toEqual({ protein });
+    expect(getMdSelections(selections, 3)).toEqual({ pbc: { n: 2, re: [[1, 2]] }, protein });
   });
 });
 
@@ -26,7 +56,7 @@ describe('subsetTopology()', () => {
     reference_types: ['uniprot', 'inchikey'],
     residue_reference_indices: [0, 0, 1],
     residue_reference_numbers: [1, 2, null],
-    selections: { protein: { n: 4, ch: [0] }, ligand: { n: 2, re: [2] }, odd: { n: 2, at: [1, 3] }, everything: 'all' },
+    selections: { protein: { n: 4, ch: [0] }, ligand: { n: 2, re: [2] }, odd: { n: 3, at: [[1, 3]] }, mid: { n: 2, at: [[1, 2]] }, everything: 'all' },
   };
   // Reduce per-atom and per-residue fields before, as the API does
   const subset = atomIndices => {
@@ -73,15 +103,18 @@ describe('subsetTopology()', () => {
   test('reformats selections in the new indices', () => {
     expect(subset([1, 2, 3]).selections).toEqual({
       protein: 'all',
-      odd: { n: 2, re: [0], at: [2] },
+      odd: 'all',
+      mid: { n: 2, re: [0], at: [1] },
       everything: 'all',
     });
     expect(subset([0, 1, 3, 4, 5]).selections).toEqual({
       protein: { n: 3, ch: [0] },
       ligand: { n: 2, ch: [1] },
       odd: { n: 2, re: [1], at: [1] },
+      mid: { n: 1, at: [1] },
       everything: 'all',
     });
+    expect(subset([0, 1, 2, 3]).selections.mid).toEqual({ n: 2, at: [[1, 2]] });
   });
 });
 

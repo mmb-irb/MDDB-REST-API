@@ -42,3 +42,41 @@ describe('getTopologyData() with ranged selections', () => {
       expect((await getAtomNames({ atomIndices })).headerError).toBe(BAD_REQUEST);
   });
 });
+
+describe('getTopologyData() selections', () => {
+  // Every MD may have a different PBC selection and indices may be grouped in ranges
+  const topologyWithSelections = {
+    ...topology,
+    selections: {
+      pbc: { mdmap: [0, 1], values: [{ n: 2, ch: [1] }, null] },
+      protein: { n: 4, re: [[0, 1]] },
+      odd: { n: 3, at: [[1, 2], 5] },
+    },
+  };
+  const getSelections = async (mdIndex, selection) => {
+    const mdProject = new Project({ accession: 'A0001', internalId: 'id', mdIndex }, {
+      topologies: { findOne: async () => topologyWithSelections },
+    });
+    return (await mdProject.getTopologyData(new Set(['selections']), selection)).selections;
+  };
+
+  test('returns the selections of the requested MD', async () => {
+    expect(await getSelections(0)).toEqual({
+      pbc: { n: 2, ch: [1] },
+      protein: { n: 4, re: [[0, 1]] },
+      odd: { n: 3, at: [[1, 2], 5] },
+    });
+    expect(await getSelections(1)).toEqual({
+      protein: { n: 4, re: [[0, 1]] },
+      odd: { n: 3, at: [[1, 2], 5] },
+    });
+  });
+
+  test('renumbers the selections when there is a custom selection', async () => {
+    expect(await getSelections(0, { atomIndices: '2-5' })).toEqual({
+      pbc: { n: 2, ch: [1] },
+      protein: { n: 2, ch: [0] },
+      odd: { n: 2, at: [0, 3] },
+    });
+  });
+});

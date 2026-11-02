@@ -36,13 +36,48 @@ const duplicateBonds = atomBonds => {
   return duplicated;
 };
 
+// Expand a list of indices where consecutive indices may be grouped in ranges
+// Ranges are [first, last] pairs where both values are included
+// e.g. [[1, 3], 7, [9, 10]] -> [1, 2, 3, 7, 9, 10]
+const expandIndexRanges = indices => indices.flatMap(index => {
+  if (!Array.isArray(index)) return [index];
+  const [first, last] = index;
+  return Array.from({ length: last - first + 1 }, (_, offset) => first + offset);
+});
+
+// Group sorted indices in ranges of consecutive values, as the workflow does
+// Ranges are [first, last] pairs where both values are included
+// Indices with no consecutive neighbours are kept as they are
+// e.g. [1, 2, 3, 7, 9, 10] -> [[1, 3], 7, [9, 10]]
+const groupIndexRanges = sortedIndices => {
+  const ranges = [];
+  sortedIndices.forEach(index => {
+    const lastRange = ranges[ranges.length - 1];
+    if (lastRange && lastRange[1] === index - 1) lastRange[1] = index;
+    else ranges.push([index, index]);
+  });
+  return ranges.map(([first, last]) => first === last ? first : [first, last]);
+};
+
+// Some selections (e.g. pbc) may be different in every MD and then they come as { mdmap, values }
+// In this case keep only the selection of the requested MD, which may have no selection at all
+const getMdSelections = (selections, mdIndex) => {
+  const mdSelections = {};
+  Object.entries(selections).forEach(([name, selection]) => {
+    if (selection.mdmap) selection = selection.values[selection.mdmap[mdIndex]];
+    if (selection) mdSelections[name] = selection;
+  });
+  return mdSelections;
+};
+
 // Get the atom indices of a topology selection
 // Selections are formatted as chain (ch), residue (re) and atom (at) indices, or the string 'all'
+// Indices may be grouped in ranges
 const getSelectionAtomIndices = (selection, atomResidueIndices, residueChainIndices) => {
   if (selection === 'all') return atomResidueIndices.map((_, atomIndex) => atomIndex);
-  const chainIndices = new Set(selection.ch || []);
-  const residueIndices = new Set(selection.re || []);
-  const atomIndices = new Set(selection.at || []);
+  const chainIndices = new Set(expandIndexRanges(selection.ch || []));
+  const residueIndices = new Set(expandIndexRanges(selection.re || []));
+  const atomIndices = new Set(expandIndexRanges(selection.at || []));
   return atomResidueIndices.reduce((selected, residueIndex, atomIndex) => {
     if (atomIndices.has(atomIndex) || residueIndices.has(residueIndex) ||
       chainIndices.has(residueChainIndices[residueIndex])) selected.push(atomIndex);
@@ -50,8 +85,8 @@ const getSelectionAtomIndices = (selection, atomResidueIndices, residueChainIndi
   }, []);
 };
 
-// Format a list of atom indices as a topology selection, using whole chains and residues when possible
-// This is the same format the workflow uses
+// Format a list of sorted atom indices as a topology selection, using whole chains and residues when possible
+// This is the same format the workflow uses, with indices grouped in ranges
 const formatSelection = (atomIndices, atomResidueIndices, residueChainIndices) => {
   if (atomIndices.length === atomResidueIndices.length) return 'all';
   // Count atoms in every residue and chain, both in the whole topology and in the selection
@@ -81,9 +116,9 @@ const formatSelection = (atomIndices, atomResidueIndices, residueChainIndices) =
     return !isWholeChain(residueChainIndices[residueIndex]) && !isWholeResidue(residueIndex);
   });
   const formatted = { n: atomIndices.length };
-  if (chains.length > 0) formatted.ch = chains;
-  if (residues.length > 0) formatted.re = residues;
-  if (atoms.length > 0) formatted.at = atoms;
+  if (chains.length > 0) formatted.ch = groupIndexRanges(chains);
+  if (residues.length > 0) formatted.re = groupIndexRanges(residues);
+  if (atoms.length > 0) formatted.at = groupIndexRanges(atoms);
   return formatted;
 };
 
@@ -181,6 +216,9 @@ module.exports = {
   RESIDUE_FIELDS,
   sortedUnique,
   duplicateBonds,
+  expandIndexRanges,
+  groupIndexRanges,
+  getMdSelections,
   subsetTopology,
   NUMBERINGS,
   parseNumbering,
