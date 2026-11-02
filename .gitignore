@@ -3,3 +3,5 @@ coverage
 .env
 build
 .claude
+# Claude Code project instructions
+CLAUDE.md
