@@ -5,6 +5,8 @@ const referencesRouter = require('express').Router();
 const referencesLocalRouter = require('express').Router();
 // API generic handler
 const handler = require('../../utils/generic-handler');
+// Parse pagination arguments
+const getPagination = require('../../utils/get-pagination');
 // Get the database handler
 const getDatabase = require('../../database');
 // Get auxiliar functions
@@ -92,14 +94,10 @@ const wholeReferenceResponse = handler({
         }
         // Do the pagination manually
         // Get the skip (page) and limit of references to be returned
-        // If the query has no limit then use a defualt value
-        // If the query limit is grater than the limit then set it as the limit
-        // If the limit is negative (which makes not sense) it is set to 0
-        // This is defined in the src/server/index.js script
-        const skip = request.skip;
-        const limit = request.query.limit; // The limit will never be greater than 100
+        const pagination = getPagination(request);
+        if (pagination.error) return pagination;
+        const { skip, limit } = pagination;
         const paginatedReferenceIds = sortedReferenceIds.splice(skip, limit);
-        //console.log(paginatedReferenceIds);
         const paginatedReferencesQuery = { [reference.idField]: { $in: paginatedReferenceIds } };
         // Finally, perform the final mongo query
         const cursor = await referenceCollection.find(paginatedReferencesQuery).project(projector);
@@ -127,23 +125,15 @@ const referenceVersionsResponse = handler({
             headerError: NOT_FOUND,
             error: `Unknown reference "${referenceName}". Available references: ${database.AVAILABLE_REFERENCES}`
         };
-        // Get the requested limit
-        // Note that we can not use the limit set by the pagination middleware since it is capped to 100
-        const rawLimit = request.rawQuery.limit;
-        let limit = MAX_VERSIONS_LIMIT;
-        if (rawLimit !== undefined) {
-            if (!/^\d+$/.test(rawLimit)) return {
-                headerError: BAD_REQUEST,
-                error: `Limit "${rawLimit}" is not a non-negative integer`
-            };
-            limit = Math.min(Number(rawLimit), MAX_VERSIONS_LIMIT);
-        }
+        // Get the skip (page) and limit of references to be returned
+        const pagination = getPagination(request,
+            { defaultLimit: MAX_VERSIONS_LIMIT, maxLimit: MAX_VERSIONS_LIMIT });
+        if (pagination.error) return pagination;
+        const { skip, limit } = pagination;
         // Get the sorted available reference ids and paginate them
-        // Note that the page is already parsed by the pagination middleware
         const sortedReferenceIds = await getAvailableReferenceIds(database, reference, {});
         // Get the number of references to be matched after all
         const referencesCount = sortedReferenceIds.length;
-        const skip = (request.query.page - 1) * limit;
         const paginatedReferenceIds = sortedReferenceIds.slice(skip, skip + limit);
         // Get the version of every paginated reference
         const cursor = await database[reference.collectionName]

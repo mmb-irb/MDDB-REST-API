@@ -1,5 +1,4 @@
 const express = require('express');
-const paginate = require('express-paginate');
 const cors = require('cors');
 const swaggerUI = require('swagger-ui-express');
 const serveStatic = swaggerUI.serve[1];
@@ -32,8 +31,6 @@ const { NOT_FOUND } = require('../utils/status-codes');
 
 const PORT = process.env.LISTEN_PORT;
 if (!PORT) throw new Error('Missing listen port in env');
-const DEFAULT_LIMIT = 10;
-const MAX_LIMIT = 100;
 
 const app = express();
 
@@ -78,13 +75,8 @@ app.use(express.urlencoded({limit: '4mb', extended: false}));
 // This way endpoints may reject unsupported arguments (see src/utils/check-arguments)
 app.use((request, response, next) => {
   request.queryArguments = Object.keys(request.query);
-  // Save also their raw values, since some endpoints need a different pagination limit
-  request.rawQuery = { ...request.query };
   next();
 });
-
-// Pagination
-app.use(paginate.middleware(DEFAULT_LIMIT, MAX_LIMIT));
 
 // Parse POST request bodies
 app.use(express.json());

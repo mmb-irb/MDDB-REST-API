@@ -5,7 +5,7 @@ const { BAD_REQUEST } = require('../status-codes');
 // Arguments may be passed in both the query (e.g. GET) and the body (e.g. POST)
 // If there is any unsupported argument then return an error
 // Note that the query arguments are read from the original query (see src/server/index.js)
-// This is because some middlewares (e.g. pagination) add arguments to the query
+// This is because some endpoints add arguments to the query (e.g. default ranges)
 const checkArguments = (request, supportedArguments) => {
   const supported = new Set(supportedArguments);
   const requestArguments = [...request.queryArguments, ...Object.keys(request.body)];

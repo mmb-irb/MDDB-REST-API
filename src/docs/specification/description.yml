@@ -27,7 +27,9 @@ paths:
       parameters:
         - name: limit
           in: query
-          description: pagination, maximum number of projects per query
+          description: >
+            pagination, maximum number of projects per query.
+            Limits greater than the maximum are rejected with a 400 error.
           schema:
             type: integer
             default: 10

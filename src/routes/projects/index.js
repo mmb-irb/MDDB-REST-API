@@ -1,6 +1,8 @@
 const Router = require('express').Router;
 // A standard request and response handler used widely in most endpoints
 const handler = require('../../utils/generic-handler');
+// Parse pagination arguments
+const getPagination = require('../../utils/get-pagination');
 // Get the database handler
 const getDatabase = require('../../database');
 // Get the project formatter
@@ -17,6 +19,10 @@ projectRouter.route('/').get(
   handler({
     supportedArguments: ['search', 'filter', 'query', 'projection', 'sort', 'raw', 'countMds', 'page', 'limit'],
     async retriever(request) {
+      // Get the skip (page) and limit of projects to be returned
+      const pagination = getPagination(request);
+      if (pagination.error) return pagination;
+      const { skip, limit } = pagination;
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
       // Set an object with all the parameters to performe the mongo query
@@ -157,13 +163,6 @@ projectRouter.route('/').get(
       // If we still having no results then return here
       if (filteredCount === 0) return { filteredCount: 0, totalMdsCount: 0, projects: [] };
 
-      // Get the limit of projects to be returned according to the query
-      // If the query has no limit it is set to 10 by default
-      // If the query limit is grater than 100 it is set to 100
-      // If the limit is negative (which makes not sense) it is set to 0
-      // This is defined in the src/server/index.js script
-      let limit = request.query.limit;
-
       // Check if the raw flag has been passed
       // Besides, we use the raw project data if a projection is passed
       const raw = request.query.raw;
@@ -200,7 +199,7 @@ projectRouter.route('/').get(
         // Allow mongo to create temporally local files to handle the sort operation when reaching its 100Mb memory limit
         .allowDiskUse()
         // Avoid the first results when a page is provided in the request (URL)
-        .skip(request.skip)
+        .skip(skip)
         // Avoid the last results when a limit is provided in the request query (URL)
         .limit(limit)
         // Each project is cleaned (some attributes are renamed or removed)

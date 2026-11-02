@@ -82,7 +82,9 @@ paths:
             type: boolean
         - name: limit
           in: query
-          description: pagination, maximum number of projects per query
+          description: >
+            pagination, maximum number of projects per query.
+            Limits greater than the maximum are rejected with a 400 error.
           schema:
             type: integer
             default: 10
@@ -1312,7 +1314,9 @@ paths:
         - $ref: '#/definitions/arguments/proteinReferenceQuery'
         - name: limit
           in: query
-          description: pagination, maximum number of projects per query
+          description: >
+            pagination, maximum number of references per query.
+            Limits greater than the maximum are rejected with a 400 error.
           schema:
             type: integer
             default: 10
@@ -1369,7 +1373,9 @@ paths:
         - $ref: '#/definitions/arguments/pdbReferenceQuery'
         - name: limit
           in: query
-          description: pagination, maximum number of projects per query
+          description: >
+            pagination, maximum number of references per query.
+            Limits greater than the maximum are rejected with a 400 error.
           schema:
             type: integer
             default: 10
@@ -1426,7 +1432,9 @@ paths:
         - $ref: '#/definitions/arguments/inchikeyReferenceQuery'
         - name: limit
           in: query
-          description: pagination, maximum number of projects per query
+          description: >
+            pagination, maximum number of references per query.
+            Limits greater than the maximum are rejected with a 400 error.
           schema:
             type: integer
             default: 10
@@ -1484,7 +1492,9 @@ paths:
         - $ref: '#/definitions/arguments/chainReferenceQuery'
         - name: limit
           in: query
-          description: pagination, maximum number of projects per query
+          description: >
+            pagination, maximum number of references per query.
+            Limits greater than the maximum are rejected with a 400 error.
           schema:
             type: integer
             default: 10
@@ -1542,7 +1552,9 @@ paths:
         - $ref: '#/definitions/arguments/collectionReferenceQuery'
         - name: limit
           in: query
-          description: pagination, maximum number of projects per query
+          description: >
+            pagination, maximum number of references per query.
+            Limits greater than the maximum are rejected with a 400 error.
           schema:
             type: integer
             default: 10
@@ -1607,7 +1619,9 @@ paths:
           example: proteins
         - name: limit
           in: query
-          description: pagination, maximum number of references per query
+          description: >
+            pagination, maximum number of references per query.
+            Limits greater than the maximum are rejected with a 400 error.
           schema:
             type: integer
             default: 100000
