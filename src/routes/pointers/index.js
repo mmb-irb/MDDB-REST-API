@@ -14,6 +14,8 @@ const { getValueGetter, getBaseURL, getHost, round2tenths } = require('../../uti
 const { rangeNotation } = require('../../utils/parse-query-range');
 // Get the reference id query formatter
 const { referenceIdQueryFormatter } = require('../../utils/reference-id-query-formatters');
+// Get the return parser
+const { parseReturn, checkNoReferenceFields } = require('../../utils/query-fields');
 // Set which references support "presence"
 // These are references to be residue-assigned in the topology
 // Thus PDB references do not support presence
@@ -89,20 +91,22 @@ const retrievePointers = async (request, database) => {
         // Set which data is to be return from the query
         // We only need the reference id and the project accession
         const projectsProjector = { _id: true, accession: true, [idsField]: true };
-        // Get the requested projection
-        let projection = request.query.projection || [];
-        if (typeof projection === 'string') projection = [projection];
+        // Get the requested fields to be returned for every project
+        const returnedFields = parseReturn(request.query.return);
+        if (returnedFields.error) return returnedFields;
+        const referencesError = checkNoReferenceFields(returnedFields);
+        if (referencesError) return referencesError;
         // Add the requested field to the project projector
-        projection.forEach(field => projectsProjector[field] = true);
+        returnedFields.forEach(field => projectsProjector[field] = true);
         // Set the projects cursor
         const projectsCursor = await database.projects.find(projectsFinder).project(projectsProjector);
         // Consume the projects cursor
         const projectsData = await projectsCursor.toArray();
         // If no projects were found then it means some reference id was searched and not found
         // However there may be external pointers with the requested reference id so we must keep going
-        // Set projected field value getters for later
-        const projectionValueGetters = Object.fromEntries(
-            projection.map(field => [ field, getValueGetter(field) ])
+        // Set returned field value getters for later
+        const returnedValueGetters = Object.fromEntries(
+            returnedFields.map(field => [ field, getValueGetter(field) ])
         ) 
         // Check if we have topology collection
         // DANI: Esto es un arreglo para una cagada
@@ -201,9 +205,9 @@ const retrievePointers = async (request, database) => {
                 // Add the full URL to access current project data
                 currentPointer.api = projectsURL + accession;
                 currentPointer.web = webURL + accession;
-                // Add additional projected fields
-                projection.forEach(field => {
-                    currentPointer[field] = projectionValueGetters[field](projectData);
+                // Add additional returned fields
+                returnedFields.forEach(field => {
+                    currentPointer[field] = returnedValueGetters[field](projectData);
                 });
                 // If presence and overage are not supported then we are done
                 if (!supportedPresence && !supportedCoverage) return;
@@ -279,8 +283,8 @@ const retrievePointers = async (request, database) => {
                     api: externalPointerData.api,
                     web: externalPointerData.web,
                 };
-                // Add projection fields if they are present in the external pointer data
-                projection.forEach(field => {
+                // Add returned fields if they are present in the external pointer data
+                returnedFields.forEach(field => {
                     if (field in externalPointerData)
                         externalPointer[field] = externalPointerData[field];
                 })
@@ -332,8 +336,8 @@ const retrievePointers = async (request, database) => {
         // Start with the CSV header
         let csvData = hasTarget ? '' : `${reference.idField}${SEP}`;
         csvData += `project accession${SEP}api url${SEP}web client url`;
-        // Add a label in the header for every projected field
-        projection.forEach(field => { csvData += `${SEP}${field}` });
+        // Add a label in the header for every returned field
+        returnedFields.forEach(field => { csvData += `${SEP}${field}` });
         // If presence or coverage are supported then add their labels in the header
         if (supportedPresence) csvData += `${SEP}present residues${SEP}presence`;
         if (supportedCoverage) csvData += `${SEP}covered residues${SEP}coverage`;
@@ -343,7 +347,7 @@ const retrievePointers = async (request, database) => {
             pointers.forEach(pointer => {
                 csvData += hasTarget ? '' : `${referenceId}${SEP}`;
                 csvData += `${pointer.id}${SEP}${pointer.api}${SEP}${pointer.web}`;
-                projection.forEach(field => { csvData += `${SEP}${escape(pointer[field])}` });
+                returnedFields.forEach(field => { csvData += `${SEP}${escape(pointer[field])}` });
                 if (supportedPresence)
                     csvData += `${SEP}${pointer.present_residues}${SEP}${pointer.presence}`;                    
                 if (supportedCoverage)
@@ -355,7 +359,7 @@ const retrievePointers = async (request, database) => {
 };
 
 const pointersEndpoint = handler({
-    supportedArguments: ['format', 'projection'],
+    supportedArguments: ['format', 'return'],
     async retriever(request) {
         const database = await getDatabase(request);
         const projectCount = await database.projects.countDocuments(database.getBaseFilter());

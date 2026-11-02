@@ -168,17 +168,6 @@ const min = array => array.reduce((cv, nv) => Math.min(cv, nv), Infinity);
 const round2tenths = number => Math.round(number * 10) / 10;
 const round2cents = number => Math.round(number * 100) / 100;
 
-// Convert a string input into int, float or boolean type if possible
-const parseType = input => {
-  // Booleans
-  if (input === 'false') return false;
-  if (input === 'true') return true;
-  // Numbers
-  if (+input) return +input;
-  // Other strings
-  return input;
-};
-
 // Escape all regex sensible characters
 const escapeRegExp = input => {
   return input.replace(/[-[/\]{}()*+?.,\\^$|#\s]/g, '\\$&');
@@ -288,7 +277,6 @@ module.exports = {
     min,
     round2tenths,
     round2cents,
-    parseType,
     escapeRegExp,
     getSearchQuery,
     rangedSelectionParser,

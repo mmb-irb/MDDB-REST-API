@@ -15,66 +15,59 @@ jest.mock('mddb-database/utils/fake-mongo', () => {
 const getDatabase = require('.');
 const { BAD_REQUEST } = require('../utils/status-codes');
 
-// Process a single query and return the processed query, or the error
-const processQuery = async query => {
+// Process the filter argument and return the processed queries, or the error
+const processFilter = async filter => {
   const database = await getDatabase({ get: () => 'localhost' });
-  const processed = await database.processProjectsQuery(JSON.stringify(query));
-  return processed.error ? processed : processed[0];
+  return database.processProjectsFilter(filter);
 };
 
-// The project fields which reference fields are translated to
-const PROTEIN = { 'metadata.REFERENCES': { $in: ['Q9BYF1'] } };
-const PDB = { 'metadata.PDBIDS': { $in: ['6M0J'] } };
-
-describe('processProjectsQuery', () => {
-  test('translates reference fields after other fields', async () => {
-    const expected = { 'metadata.TYPE': 'trajectory', ...PROTEIN };
-    expect(await processQuery({ 'references.proteins.gene': 'ACE2', 'metadata.TYPE': 'trajectory' }))
-      .toEqual(expected);
-    expect(await processQuery({ 'metadata.TYPE': 'trajectory', 'references.proteins.gene': 'ACE2' }))
-      .toEqual(expected);
+describe('processProjectsFilter', () => {
+  test('returns no queries when there is no filter', async () => {
+    expect(await processFilter(undefined)).toEqual([]);
   });
 
-  test('translates reference fields inside and after $and and $or', async () => {
-    expect(await processQuery({
-      $and: [{ 'metadata.TYPE': 'trajectory' }, { 'references.proteins.gene': 'ACE2' }],
-      $or: [{ 'metadata.TYPE': 'trajectory', 'references.pdbs.title': 'SPIKE' }],
-      'references.pdbs.title': 'SPIKE',
-    })).toEqual({
-      $and: [{ 'metadata.TYPE': 'trajectory' }, PROTEIN],
-      $or: [{ 'metadata.TYPE': 'trajectory', ...PDB }],
-      ...PDB,
-    });
+  test('accepts both aliases and full paths', async () => {
+    expect(await processFilter('type==ensemble')).toEqual([{ 'metadata.TYPE': 'ensemble' }]);
+    expect(await processFilter('metadata.TYPE==ensemble')).toEqual([{ 'metadata.TYPE': 'ensemble' }]);
   });
 
-  // The fake finds the same protein for every proteins field, but each condition must be kept
-  test('keeps every condition on the same project field', async () => {
-    expect(await processQuery({ 'references.proteins.gene': 'ACE2', 'references.proteins.name': 'Spike glycoprotein' }))
-      .toEqual({ ...PROTEIN, $and: [PROTEIN] });
-    expect(await processQuery({
-      $and: [{ 'metadata.TYPE': 'trajectory' }],
-      'metadata.REFERENCES': 'P0DTC2',
-      'references.proteins.gene': 'ACE2',
-    })).toEqual({
-      $and: [{ 'metadata.TYPE': 'trajectory' }, PROTEIN],
-      'metadata.REFERENCES': 'P0DTC2',
-    });
+  test('parses values according to the field type', async () => {
+    expect(await processFilter(['temperature>=300', 'systemAtoms<1000', 'published==true', 'created>2024-01-01']))
+      .toEqual([
+        { 'metadata.TEMP': { $gte: 300 } },
+        { 'metadata.SYSTATS': { $lt: 1000 } },
+        { published: true },
+        { creationDate: { $gt: new Date('2024-01-01') } },
+      ]);
   });
 
-  test('parses dates after other fields, inside $and and after $and', async () => {
-    expect(await processQuery({ 'metadata.TYPE': 'trajectory', updateDate: { $gt: '2024-01-01' } }))
-      .toEqual({ 'metadata.TYPE': 'trajectory', updateDate: { $gt: new Date('2024-01-01') } });
-    expect(await processQuery({
-      $and: [{ 'metadata.TYPE': 'trajectory', updateDate: '2024-01-01' }],
-      updateDate: { $lt: '2025-01-01' },
-    })).toEqual({
-      $and: [{ 'metadata.TYPE': 'trajectory', updateDate: new Date('2024-01-01') }],
-      updateDate: { $lt: new Date('2025-01-01') },
-    });
+  test('supports several values, text search and negations', async () => {
+    expect(await processFilter(['author==A|B', 'name~=spike', 'program!=Amber', 'group!~=orozco|irb']))
+      .toEqual([
+        { 'metadata.AUTHORS': { $in: ['A', 'B'] } },
+        { 'metadata.NAME': { $regex: 'spike', $options: 'i' } },
+        { $nor: [{ 'metadata.PROGRAM': 'Amber' }] },
+        { $nor: [{ 'metadata.GROUPS': { $regex: 'orozco|irb', $options: 'i' } }] },
+      ]);
+  });
+
+  test('translates reference fields into project fields', async () => {
+    expect(await processFilter(['uniprotOrganism==Homo sapiens', 'references.pdbs.title~=spike', 'uniprotGene!=ACE2']))
+      .toEqual([
+        { 'metadata.REFERENCES': { $in: ['Q9BYF1'] } },
+        { 'metadata.PDBIDS': { $in: ['6M0J'] } },
+        { 'metadata.REFERENCES': { $nin: ['Q9BYF1'] } },
+      ]);
   });
 
   test('rejects unknown references', async () => {
-    expect((await processQuery({ 'references.foo.bar': 'x' })).headerError).toBe(BAD_REQUEST);
-    expect((await processQuery({ $or: [{ 'references.foo.bar': 'x' }] })).headerError).toBe(BAD_REQUEST);
+    expect((await processFilter('references.foo.bar==x')).headerError).toBe(BAD_REQUEST);
+  });
+
+  test('rejects mongo operators and objects', async () => {
+    expect((await processFilter('$where==1')).headerError).toBe(BAD_REQUEST);
+    expect((await processFilter('metadata.$where==1')).headerError).toBe(BAD_REQUEST);
+    expect((await processFilter({ $ne: 'x' })).headerError).toBe(BAD_REQUEST);
+    expect((await processFilter('{"metadata.TYPE":"ensemble"}')).headerError).toBe(BAD_REQUEST);
   });
 });

@@ -5,7 +5,9 @@ const { REFERENCE_HEADER } = require('../utils/constants');
 // Get a function to clean raw project data to a standard format
 const projectFormatter = require('../utils/project-formatter');
 // Get auxiliar functions
-const { getConfig, parseJSON, isObjectId } = require('../utils/auxiliar-functions');
+const { getConfig, isObjectId } = require('../utils/auxiliar-functions');
+// Get the filter parsers
+const { parseFilters, getFilterQuery } = require('../utils/query-fields');
 // Get reference id query formatters
 const {
     pdbIdQueryFormatter,
@@ -228,142 +230,46 @@ class Database4Api extends Database {
         return referenceData;
     }
 
-    // Process a projects query which may include reference fields
+    // Translate the 'filter' argument into a list of mongo queries for the projects collection
+    // Filters on reference fields (e.g. 'references.proteins.organism') query the references collection first
+    // Then they are replaced by a query on the corresponding project field (e.g. 'metadata.REFERENCES')
     // Returns an error response if something is wrong
-    processProjectsQuery = async query => {
-        // If there is no query then return an empty object, which applies no filter at all
-        if (!query) return [];
-        // Set a new list of the queries to prevent mutating the original
-        // In case there is a single query it would be a string, not an array, so adapt it
-        const queries = typeof query === 'string' ? [query] : [...query];
-        // Parse queries first, so we can stop as soon as one of them is wrong
-        const parsedQueries = [];
-        for await (const query of queries) {
-            // Parse the string into an object
-            const parsedQuery = parseJSON(query);
-            if (!parsedQuery) return {
-                headerError: BAD_REQUEST,
-                error: 'Wrong query syntax: ' + query
-            };
-            parsedQueries.push(parsedQuery);
-        }
-        // Iterate every separated query parameter
-        // Note that we do not classify queries first since some of them include $and and/or $or operands
-        for await (const parsedQuery of parsedQueries) {
-            // Save query errors here
-            let queryError;
-            // At this point the query object should correspond to a mongo query itself
-            // Find fields which start with 'references'
-            // These fields are actually intended to query references collections
-            // If we found references fields then we must query the references collection
-            // Then each references field will be replaced by its corresponding project field in a new query
-            // e.g. references.proteins -> metadata.REFERENCES
-            // e.g. references.inchikeys -> metadata.INCHIKEYS
-            // NEVER FORGET: we can not gather reference ids and query them all together at the end
-            // Some queries may have multiple subqueries, belonging to different reference types
-            const parseReferencesQuery = async queryObject => {
-                // Iterate over the original query fields
-                for (const [field, value] of Object.entries(queryObject)) {
-                    // If the field is actually a list of fields then run the parsing function recursively
-                    if (field === '$and' || field === '$or') {
-                        for (const subquery of value) {
-                            queryError = await parseReferencesQuery(subquery);
-                            if (queryError) return queryError;
-                        } 
-                        continue;
-                    }
-                    // If the field does not start with the references header then skip it
-                    if (!field.startsWith(REFERENCE_HEADER)) continue;
-                    // Get the name of the field and the reference collection
-                    const fieldSplits = field.split('.');
-                    const referenceName = fieldSplits[1];
-                    const referenceField = fieldSplits[2];
-                    // Get the reference configuration
-                    const reference = this.REFERENCES[referenceName];
-                    if (!reference) return {
-                        headerError: BAD_REQUEST,
-                        error: `Unknown reference "${referenceName}". Available references: ${this.AVAILABLE_REFERENCES}`
-                    };
-                    // Set the references query
-                    const referencesQuery = {};
-                    referencesQuery[referenceField] = value;
-                    // Set the reference projector
-                    const referencesProjector = { _id: false };
-                    referencesProjector[reference.idField] = true;
-                    // Query the references collection
-                    // WARNING: If the query is wrong it will not make the code fail until the cursor in consumed
-                    const referencesCursor = await this[reference.collectionName]
-                        .find(referencesQuery)
-                        .project(referencesProjector);
-                    const results = await referencesCursor
-                        .map(ref => ref[reference.idField])
-                        .toArray();
-                    // DANI: Although we could return a not found error here if results is empty we don't
-                    // DANI: Thus the final response is an empty list and we are coherent
-                    // DANI: Otherwise every service using this endpoint should learn to handle the error
-                    // Update the original query by removing the original field and adding the parsed one
-                    delete queryObject[field];
-                    const parsedField = { [reference.projectIdsField]: { $in: results } };
-                    // If the parsed field is already queried (e.g. by another proteins field) then add it through $and
-                    // Otherwise it would replace the previous condition instead of adding to it
-                    if (reference.projectIdsField in queryObject) {
-                        if (!queryObject.$and) queryObject.$and = [];
-                        queryObject.$and.push(parsedField);
-                    }
-                    else Object.assign(queryObject, parsedField);
-                }
-            };
-            // Start the parsing function
-            queryError = await parseReferencesQuery(parsedQuery);
-            if (queryError) return queryError;
-            // Parse those field which aim for dates by parsing the date string into actual dates
-            const parseDateQuery = async queryObject => {
-                // Iterate over the original query fields
-                for (const [field, value] of Object.entries(queryObject)) {
-                    // If the field is actually a list of fields then run the parsing function recursively
-                    if (field === '$and' || field === '$or') {
-                        for (const subquery of value) {
-                            queryError = await parseDateQuery(subquery);
-                            if (queryError) return queryError;
-                        } 
-                        continue;
-                    }
-                    // If the field is not among date fields then skip it
-                    const fieldConfig = this.PATH_QUERY_FIELDS[field];
-                    if (!fieldConfig || fieldConfig.type !== 'date') continue;
-                    // Parse the date string into a date
-                    // Mongo will handle it as an ISODate
-                    if (typeof value === 'string') {
-                        queryObject[field] = new Date(value);
-                        continue;
-                    }
-                    // If it is an object with mongo operators then convert every value inside
-                    // This is useful for operators like $lt (lower than), $gt (greater than), etc.
-                    // However this must not be run for operator like $exists
-                    for (const [k, v] of Object.entries(value)) {
-                        // If the value is a boolean then do nothing (e.g. k is $exists)
-                        if (v === true || v === false) continue;
-                        value[k] = new Date(v);
-                    }
-                }
-            };
-            // Start the parsing function
-            queryError = await parseDateQuery(parsedQuery);
-            if (queryError) return queryError;
-        }
-        // Run every parsed query in a moment to check if it works or if there is any problem
-        try {
-            for await (const parsedQuery of parsedQueries)
-                await this.projects.countDocuments(parsedQuery);
-        }
-        catch (error) {
-            return {
-                headerError: BAD_REQUEST,
-                error: error.toString()
+    processProjectsFilter = async filter => {
+        const parsedFilters = parseFilters(filter);
+        if (parsedFilters.error) return parsedFilters;
+        const queries = [];
+        for (const parsedFilter of parsedFilters) {
+            const { path, condition, negated } = parsedFilter;
+            // If the field does not start with the references header then use it as is
+            if (!path.startsWith(REFERENCE_HEADER)) {
+                queries.push(getFilterQuery(parsedFilter));
+                continue;
             }
+            // Get the name of the reference collection and the field inside the reference
+            // Note that the reference field may be nested (e.g. 'references.inchikeys.ligand.name')
+            const fieldSplits = path.split('.');
+            const referenceName = fieldSplits[1];
+            const referenceField = fieldSplits.slice(2).join('.');
+            // Get the reference configuration
+            const reference = this.REFERENCES[referenceName];
+            if (!reference || !referenceField) return {
+                headerError: BAD_REQUEST,
+                error: `Unknown reference field "${path}". Available references: ${this.AVAILABLE_REFERENCES}`
+            };
+            // Find the ids of references matching the condition
+            // Negated filters find the references matching the positive condition and then exclude their projects
+            // Thus projects without any reference matching the condition are returned, as with any other field
+            const referenceIds = await this[reference.collectionName]
+                .find({ [referenceField]: condition })
+                .project({ _id: false, [reference.idField]: true })
+                .map(ref => ref[reference.idField])
+                .toArray();
+            // DANI: Although we could return a not found error here if results is empty we don't
+            // DANI: Thus the final response is an empty list and we are coherent
+            // DANI: Otherwise every service using this endpoint should learn to handle the error
+            queries.push({ [reference.projectIdsField]: { [negated ? '$nin' : '$in']: referenceIds } });
         }
-        // Return the modified queries
-        return parsedQueries
+        return queries;
     }
 
     // Close the connection to mongo and delete this handler

@@ -12,14 +12,14 @@ const router = Router({ mergeParams: true });
 
 router.route('/').get(
     handler({
-        supportedArguments: ['query'],
+        supportedArguments: ['filter'],
         async retriever(request) {
             // Find out if the request host is configured as global
             const config = getConfig(request);
             const isGlobal = config && config.global;
             // Global stats may not be asked to the global API
-            const query = request.query.query;
-            if (isGlobal && !query) return {
+            const filter = request.query.filter;
+            if (isGlobal && !filter) return {
                 headerError: BAD_REQUEST,
                 error: 'This is the global database and its stats may be missleading.'
                     + ' In order to get the global stats all federated nodes must be asked.'
@@ -29,10 +29,10 @@ router.route('/').get(
             // Get database statistics
             const dbStats = await database.db.command({ dbStats: 1, scale: 1e6}); // Results in KB
             // Compute the real stored size of GridFS files for the queried projects
-            // Without a query filter this would require aggregating all files in the DB,
+            // Without a filter this would require aggregating all files in the DB,
             // so we skip it and fall back to the dbStats figure instead
             let storageStats;
-            if (!query) {
+            if (!filter) {
                 // Use the dbStats figures directly, which are already pre-calculated by MongoDB
                 storageStats = {
                     totalSize: dbStats.dataSize * 1e6, // Convert back to bytes
@@ -51,10 +51,9 @@ router.route('/').get(
                 // Use the pre-calculated totalSize stored in project documents
                 // This avoids the expensive full-collection aggregation query
                 const projectsFinder = database.getBaseFilter();
-                const processedQuery = await database.processProjectsQuery(query);
-                if (processedQuery.error) return processedQuery;
-                if (!projectsFinder.$and) projectsFinder.$and = processedQuery;
-                else projectsFinder.$and = projectsFinder.$and.concat(processedQuery);
+                const filterQueries = await database.processProjectsFilter(filter);
+                if (filterQueries.error) return filterQueries;
+                if (filterQueries.length > 0) projectsFinder.$and = (projectsFinder.$and || []).concat(filterQueries);
                 
                 // Sum the totalSize field from all matching projects
                 const sizeAgg = await database.projects.aggregate([

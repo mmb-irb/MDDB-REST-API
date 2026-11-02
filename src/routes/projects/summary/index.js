@@ -127,21 +127,16 @@ router.route('/growth').get(
 // Endpoint to get only the fields required by the FrameStep plot
 router.route('/framestep').get(
   handler({
-    supportedArguments: ['query'],
+    supportedArguments: ['filter'],
     async retriever(request) {
       // Establish database connection and retrieve our custom handler
       const database = await getDatabase(request);
       // Start filtering by published projects only if we are in production environment
       const finder = database.getBaseFilter();
-      // Handle optional query filter
-      const query = request.query.query;
-      if (query) {
-        // Process the mongo query to convert references and topology queries
-        const processedQuery = await database.processProjectsQuery(query);
-        if (processedQuery.error) return processedQuery;
-        if (!finder.$and) finder.$and = processedQuery;
-        else finder.$and = finder.$and.concat(processedQuery);
-      }
+      // Handle optional filters
+      const filterQueries = await database.processProjectsFilter(request.query.filter);
+      if (filterQueries.error) return filterQueries;
+      if (filterQueries.length > 0) finder.$and = (finder.$and || []).concat(filterQueries);
 
       // Keep only projects that can contribute to the FrameStep scatter plot
       if (!finder.$and) finder.$and = [];
@@ -169,22 +164,17 @@ router.route('/framestep').get(
 // This endpoint returns some summary of data contained in the projects collection
 router.route('/').get(
   handler({
-    supportedArguments: ['query'],
+    supportedArguments: ['filter'],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
       // Set an object with all the parameters to performe the mongo query
       // Start filtering by published projects only if we are in production environment
       const finder = database.getBaseFilter();
-      // Handle when there is a mongo query
-      let query = request.query.query;
-      if (query) {
-        // Process the mongo query to convert references and topology queries
-        const processedQuery = await database.processProjectsQuery(query);
-        if (processedQuery.error) return processedQuery;
-        if (!finder.$and) finder.$and = processedQuery;
-        else finder.$and = finder.$and.concat(processedQuery);
-      }
+      // Handle optional filters
+      const filterQueries = await database.processProjectsFilter(request.query.filter);
+      if (filterQueries.error) return filterQueries;
+      if (filterQueries.length > 0) finder.$and = (finder.$and || []).concat(filterQueries);
       const cacheKey = getSummaryCacheKey(request, finder);
       const buildSummary = async () => {
         // Aggregate in MongoDB instead of transferring every matching project.

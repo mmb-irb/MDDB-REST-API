@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Breaking changes
+
+- **The `query` and `projection` arguments are removed** from every endpoint and API version, since they passed mongo code directly to the database.
+  - Use **`filter`** instead of `query` in `/projects`, `/projects/options`, `/projects/summary`, `/projects/summary/framestep`, `/stats` and `/references/{reference}`.
+  - Use **`return`** instead of `projection` in `/projects`, `/projects/options`, `/references/{reference}` and `/pointers`.
+- **New `filter` syntax**: a field, an operator and a value (e.g. `uniprotOrganism==Homo sapiens`). Operators are `==`, `!=`, `~=`, `~` or `≃` (contains, case insensitive), `!~=`, `!~` or `≄`, `>`, `>=`, `<` and `<=`. Several values may be separated by `|`. An empty value with `==` or `!=` stands for fields with no value (e.g. `pdbId==`). Several filters are combined with AND. The old `++`, `+*`, `--` and `-*` operators are no longer supported.
+- `return` takes field names separated by commas (e.g. `return=name,author`).
+- Fields may be passed by their full path or by their alias (e.g. `uniprotOrganism` for `references.proteins.organism`), as defined in the `QUERY_FIELDS` of `mddb-database`. Aliases mean the same field in every endpoint, so `/references/{reference}` also takes aliases or full paths (e.g. `uniprotGene` or `references.proteins.gene`) instead of fields relative to the reference. Values are parsed according to the field type, and wrong filters are rejected with a 400 error explaining the problem.
+
 ## v0.0.18 — 2026-10-26
 
 Changes since v0.0.17 (2026-09-02).

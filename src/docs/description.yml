@@ -39,23 +39,8 @@ paths:
           description: Text search inside project names, descriptions, authors and group names.
           schema:
             type: string
-        - name: query
-          in: query
-          description: >
-            A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
-            Note that this is an alternative to the 'search' parameter
-            which is more flexible but also more difficult to use if you have not experiencie with Mongo.
-          schema:
-            type: string
-        - name: projection
-          in: query
-          description: >
-            A projection stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
-            It is useful to reduce the amount of data in the response and thus the internet traffic.
-            Note that this parameter is difficult to use if you have not experiencie with Mongo.
-            Note that when the projection parameter is passed the response becomes raw (i.e. data as it is stored in the database, not formatted).
-          schema:
-            type: string
+        - $ref: '#/definitions/arguments/projectsFilter'
+        - $ref: '#/definitions/arguments/projectsReturn'
         - name: raw
           in: query
           description: >
@@ -63,16 +48,6 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: filter
-          in: query
-          description: >
-            Filter projects by the value of a field, written as the field name, an operator and the value.
-            Operators are '+*' (and), '++' (or), '-*' (and not) and '--' (or not).
-            Several filters may be passed.<br>
-            Note that the 'query' parameter is more flexible.
-          schema:
-            type: string
-          example: 'metadata.TYPE+*ensemble'
         - name: sort
           in: query
           description: >
@@ -133,23 +108,8 @@ paths:
           description: Text search inside project names, descriptions, authors and group names.
           schema:
             type: string
-        - name: query
-          in: query
-          description: >
-            A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
-            Note that this is an alternative to the 'search' parameter
-            which is more flexible but also more difficult to use if you have not experiencie with Mongo.
-          schema:
-            type: string
-        - name: projection
-          in: query
-          description: >
-            A projection stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
-            It is useful to reduce the amount of data in the response and thus the internet traffic.
-            Note that this parameter is difficult to use if you have not experiencie with Mongo.
-            Note that when the projection parameter is passed the response becomes raw (i.e. data as it is stored in the database, not formatted).
-          schema:
-            type: string
+        - $ref: '#/definitions/arguments/projectsFilter'
+        - $ref: '#/definitions/arguments/projectsReturn'
         - name: raw
           in: query
           description: >
@@ -157,16 +117,6 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: filter
-          in: query
-          description: >
-            Filter projects by the value of a field, written as the field name, an operator and the value.
-            Operators are '+*' (and), '++' (or), '-*' (and not) and '--' (or not).
-            Several filters may be passed.<br>
-            Note that the 'query' parameter is more flexible.
-          schema:
-            type: string
-          example: 'metadata.TYPE+*ensemble'
         - name: sort
           in: query
           description: >
@@ -242,34 +192,20 @@ paths:
           description: Text search inside project names, descriptions, authors and group names.
           schema:
             type: string
-        - name: query
+        - $ref: '#/definitions/arguments/projectsFilter'
+        - name: return
           in: query
           description: >
-            A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
-            Not passing a query parameter will return the value of the whole database.
-            This parameter is difficult to use if you have not experiencie with Mongo.
-          schema:
-            type: string
-          examples:
-            All projects:
-              summary: No filters
-              value: ''
-            IRB Barcelona groups:
-              summary: Projects from IRB Barcelona groups
-              value: '{"metadata.GROUPS":{"$regex":"IRB Barcelona"}}'
-            Ensembles only:
-              summary: Projects with ensembles instead of time-related trajectories
-              value: '{"metadata.TYPE":"ensemble"}'
-        - name: projection
-          in: query
-          description: name of the field to be checked for options
+            Fields to be checked for options, separated by commas.
+            Several return arguments may be passed as well.
+            Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
           examples:
             authors:
               summary: simulation authors
-              value: 'metadata.AUTHORS'
+              value: 'author'
             method:
               summary: simulation methods
-              value: 'metadata.METHOD'
+              value: 'method'
           schema:
             type: string
         - name: countMds
@@ -292,24 +228,7 @@ paths:
       tags:
         - projects
       parameters:
-        - name: query
-          in: query
-          description: >
-            A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
-            Not passing a query parameter will return the value of the whole database.
-            This parameter is difficult to use if you have not experiencie with Mongo.
-          schema:
-            type: string
-          examples:
-            All projects:
-              summary: No filters
-              value: ''
-            IRB Barcelona groups:
-              summary: Projects from IRB Barcelona groups
-              value: '{"metadata.GROUPS":{"$regex":"IRB Barcelona"}}'
-            Ensembles only:
-              summary: Projects with ensembles instead of time-related trajectories
-              value: '{"metadata.TYPE":"ensemble"}'
+        - $ref: '#/definitions/arguments/projectsFilter'
       responses:
         200:
           description: an object with summary values
@@ -1430,7 +1349,7 @@ paths:
         - references
       parameters:
         - $ref: '#/definitions/arguments/referenceIds'
-        - $ref: '#/definitions/arguments/proteinReferenceQuery'
+        - $ref: '#/definitions/arguments/proteinReferenceFilter'
         - name: limit
           in: query
           description: >
@@ -1446,7 +1365,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceReturn'
         - $ref: '#/definitions/arguments/referenceJustIds'
       responses:
         200:
@@ -1472,7 +1391,7 @@ paths:
       tags:
         - references
       parameters:
-        - $ref: '#/definitions/arguments/proteinReferenceQuery'
+        - $ref: '#/definitions/arguments/proteinReferenceFilter'
         - name: limit
           in: query
           description: >
@@ -1488,7 +1407,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceReturn'
         - $ref: '#/definitions/arguments/referenceJustIds'
       requestBody:
         content:
@@ -1547,7 +1466,7 @@ paths:
         - references
       parameters:
         - $ref: '#/definitions/arguments/referenceIds'
-        - $ref: '#/definitions/arguments/pdbReferenceQuery'
+        - $ref: '#/definitions/arguments/pdbReferenceFilter'
         - name: limit
           in: query
           description: >
@@ -1563,7 +1482,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceReturn'
         - $ref: '#/definitions/arguments/referenceJustIds'
       responses:
         200:
@@ -1588,7 +1507,7 @@ paths:
       tags:
         - references
       parameters:
-        - $ref: '#/definitions/arguments/pdbReferenceQuery'
+        - $ref: '#/definitions/arguments/pdbReferenceFilter'
         - name: limit
           in: query
           description: >
@@ -1604,7 +1523,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceReturn'
         - $ref: '#/definitions/arguments/referenceJustIds'
       requestBody:
         content:
@@ -1663,7 +1582,7 @@ paths:
         - references
       parameters:
         - $ref: '#/definitions/arguments/referenceIds'
-        - $ref: '#/definitions/arguments/inchikeyReferenceQuery'
+        - $ref: '#/definitions/arguments/inchikeyReferenceFilter'
         - name: limit
           in: query
           description: >
@@ -1679,7 +1598,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceReturn'
         - $ref: '#/definitions/arguments/referenceJustIds'
       responses:
         200:
@@ -1706,7 +1625,7 @@ paths:
       tags:
         - references
       parameters:
-        - $ref: '#/definitions/arguments/inchikeyReferenceQuery'
+        - $ref: '#/definitions/arguments/inchikeyReferenceFilter'
         - name: limit
           in: query
           description: >
@@ -1722,7 +1641,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceReturn'
         - $ref: '#/definitions/arguments/referenceJustIds'
       requestBody:
         content:
@@ -1782,7 +1701,7 @@ paths:
         - references
       parameters:
         - $ref: '#/definitions/arguments/referenceIds'
-        - $ref: '#/definitions/arguments/chainReferenceQuery'
+        - $ref: '#/definitions/arguments/chainReferenceFilter'
         - name: limit
           in: query
           description: >
@@ -1798,7 +1717,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceReturn'
         - $ref: '#/definitions/arguments/referenceJustIds'
       responses:
         200:
@@ -1825,7 +1744,7 @@ paths:
       tags:
         - references
       parameters:
-        - $ref: '#/definitions/arguments/chainReferenceQuery'
+        - $ref: '#/definitions/arguments/chainReferenceFilter'
         - name: limit
           in: query
           description: >
@@ -1841,7 +1760,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceReturn'
         - $ref: '#/definitions/arguments/referenceJustIds'
       requestBody:
         content:
@@ -1899,7 +1818,7 @@ paths:
         - references
       parameters:
         - $ref: '#/definitions/arguments/referenceIds'
-        - $ref: '#/definitions/arguments/collectionReferenceQuery'
+        - $ref: '#/definitions/arguments/collectionReferenceFilter'
         - name: limit
           in: query
           description: >
@@ -1915,7 +1834,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceReturn'
         - $ref: '#/definitions/arguments/referenceJustIds'
       responses:
         200:
@@ -1942,7 +1861,7 @@ paths:
       tags:
         - references
       parameters:
-        - $ref: '#/definitions/arguments/collectionReferenceQuery'
+        - $ref: '#/definitions/arguments/collectionReferenceFilter'
         - name: limit
           in: query
           description: >
@@ -1958,7 +1877,7 @@ paths:
           schema:
             type: integer
             default: 1
-        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceReturn'
         - $ref: '#/definitions/arguments/referenceJustIds'
       requestBody:
         content:
@@ -2073,16 +1992,20 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
-        - name: projection
+        - name: return
           in: query
-          description: name of the field to be checked for options
+          description: >
+            Additional project fields to be returned in every pointer, separated by commas.
+            Several return arguments may be passed as well.
+            Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
+            Fields from references (e.g. 'uniprotOrganism') are not supported.
           examples:
             authors:
               summary: simulation authors
-              value: 'metadata.AUTHORS'
+              value: 'author'
             method:
               summary: simulation methods
-              value: 'metadata.METHOD'
+              value: 'method'
           schema:
             type: string
       responses:
@@ -2112,16 +2035,20 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
-        - name: projection
+        - name: return
           in: query
-          description: name of the field to be checked for options
+          description: >
+            Additional project fields to be returned in every pointer, separated by commas.
+            Several return arguments may be passed as well.
+            Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
+            Fields from references (e.g. 'uniprotOrganism') are not supported.
           examples:
             authors:
               summary: simulation authors
-              value: 'metadata.AUTHORS'
+              value: 'author'
             method:
               summary: simulation methods
-              value: 'metadata.METHOD'
+              value: 'method'
           schema:
             type: string
       responses:
@@ -2146,16 +2073,20 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
-        - name: projection
+        - name: return
           in: query
-          description: name of the field to be checked for options
+          description: >
+            Additional project fields to be returned in every pointer, separated by commas.
+            Several return arguments may be passed as well.
+            Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
+            Fields from references (e.g. 'uniprotOrganism') are not supported.
           examples:
             authors:
               summary: simulation authors
-              value: 'metadata.AUTHORS'
+              value: 'author'
             method:
               summary: simulation methods
-              value: 'metadata.METHOD'
+              value: 'method'
           schema:
             type: string
       responses:
@@ -2184,16 +2115,20 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
-        - name: projection
+        - name: return
           in: query
-          description: name of the field to be checked for options
+          description: >
+            Additional project fields to be returned in every pointer, separated by commas.
+            Several return arguments may be passed as well.
+            Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
+            Fields from references (e.g. 'uniprotOrganism') are not supported.
           examples:
             authors:
               summary: simulation authors
-              value: 'metadata.AUTHORS'
+              value: 'author'
             method:
               summary: simulation methods
-              value: 'metadata.METHOD'
+              value: 'method'
           schema:
             type: string
       responses:
@@ -2218,9 +2153,13 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
-        - name: projection
+        - name: return
           in: query
-          description: name of the field to be checked for options
+          description: >
+            Additional project fields to be returned in every pointer, separated by commas.
+            Several return arguments may be passed as well.
+            Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
+            Fields from references (e.g. 'uniprotOrganism') are not supported.
           schema:
             type: string
       responses:
@@ -2249,9 +2188,13 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
-        - name: projection
+        - name: return
           in: query
-          description: name of the field to be checked for options
+          description: >
+            Additional project fields to be returned in every pointer, separated by commas.
+            Several return arguments may be passed as well.
+            Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
+            Fields from references (e.g. 'uniprotOrganism') are not supported.
           schema:
             type: string
       responses:
@@ -2276,9 +2219,13 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
-        - name: projection
+        - name: return
           in: query
-          description: name of the field to be checked for options
+          description: >
+            Additional project fields to be returned in every pointer, separated by commas.
+            Several return arguments may be passed as well.
+            Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
+            Fields from references (e.g. 'uniprotOrganism') are not supported.
           schema:
             type: string
       responses:
@@ -2306,9 +2253,13 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
-        - name: projection
+        - name: return
           in: query
-          description: name of the field to be checked for options
+          description: >
+            Additional project fields to be returned in every pointer, separated by commas.
+            Several return arguments may be passed as well.
+            Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
+            Fields from references (e.g. 'uniprotOrganism') are not supported.
           schema:
             type: string
       responses:
@@ -2333,9 +2284,13 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
-        - name: projection
+        - name: return
           in: query
-          description: name of the field to be checked for options
+          description: >
+            Additional project fields to be returned in every pointer, separated by commas.
+            Several return arguments may be passed as well.
+            Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
+            Fields from references (e.g. 'uniprotOrganism') are not supported.
           schema:
             type: string
       responses:
@@ -2363,9 +2318,13 @@ paths:
           schema:
             type: string
             enum: ['json', 'csv']
-        - name: projection
+        - name: return
           in: query
-          description: name of the field to be checked for options
+          description: >
+            Additional project fields to be returned in every pointer, separated by commas.
+            Several return arguments may be passed as well.
+            Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
+            Fields from references (e.g. 'uniprotOrganism') are not supported.
           schema:
             type: string
       responses:
@@ -4571,6 +4530,41 @@ definitions:
       schema:
         type: string
       example: $ACCESSION
+    projectsFilter:
+      name: filter
+      in: query
+      description: >
+        Filter projects by the value of a field, written as the field, an operator and the value (e.g. 'uniprotOrganism==Homo sapiens').<br>
+        Supported operators are
+        '==' (equals),
+        '!=' (not equals),
+        '~=', '~' or '≃' (contains the text, case insensitive),
+        '!~=', '!~' or '≄' (does not contain the text, case insensitive),
+        '>' (greater than),
+        '>=' (greater than or equal),
+        '<' (lower than) and
+        '<=' (lower than or equal).<br>
+        Several values may be separated by '|' when using '==', '!=', '~=' and '!~=' (e.g. 'uniprotOrganism==Homo sapiens|Mus musculus').
+        Then '==' and '~=' match any of the values while '!=' and '!~=' match none of them.<br>
+        An empty value with '==' or '!=' stands for fields with no value (e.g. 'pdbId==' for projects with no PDB id).<br>
+        Several filters may be passed and projects must match all of them.<br>
+        Fields may be passed by their full path (e.g. 'references.proteins.organism') or by their alias (e.g. 'uniprotOrganism').
+        Available aliases are: $QUERY_FIELDS.
+      schema:
+        type: string
+      example: 'type==ensemble'
+    projectsReturn:
+      name: return
+      in: query
+      description: >
+        Fields to be returned for every project, separated by commas (e.g. 'name,author').
+        Several return arguments may be passed as well.
+        It is useful to reduce the amount of data in the response and thus the internet traffic.
+        Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
+        Fields from references (e.g. 'uniprotOrganism') are not supported.
+        Note that when fields to be returned are passed the response becomes raw (i.e. data as it is stored in the database, not formatted).
+      schema:
+        type: string
     referenceIds:
       name: ids
       in: query
@@ -4580,13 +4574,14 @@ definitions:
         Use the POST method for long lists of ids.
       schema:
         type: string
-    referenceProjection:
-      name: projection
+    referenceReturn:
+      name: return
       in: query
       description: >
-        A projection stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
+        Fields to be returned for every reference, separated by commas.
+        Several return arguments may be passed as well.
         It is useful to reduce the amount of data in the response.
-        Several projections may be passed.
+        Fields may be passed by their full path or by their alias (e.g. 'uniprotGene' or 'references.proteins.gene'), but they must belong to this reference.
       schema:
         type: string
     referenceJustIds:
@@ -4621,15 +4616,17 @@ definitions:
       schema:
         type: string
       example: Q9BYF1
-    proteinReferenceQuery:
-      name: query
+    proteinReferenceFilter:
+      name: filter
       in: query
       description: >
-        A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
-        It can be used to filter protein references by any field.
+        Filter protein references by the value of a field, written as the field name, an operator and the value.
+        Fields may be passed by their full path or by their alias, as in the projects 'filter' argument, but they must belong to this reference.
+        Operators are the same as in the projects 'filter' argument.
+        Several filters may be passed and references must match all of them.
       schema:
         type: string
-      example: '{"organism":"Homo sapiens"}'
+      example: 'uniprotOrganism==Homo sapiens'
     PubChemID:
       name: PubChemID
       in: path
@@ -4648,15 +4645,17 @@ definitions:
       schema:
         type: string
       example: 12CA
-    pdbReferenceQuery:
-      name: query
+    pdbReferenceFilter:
+      name: filter
       in: query
       description: >
-        A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
-        It can be used to filter PDB references by any field.
+        Filter PDB references by the value of a field, written as the field name, an operator and the value.
+        Fields may be passed by their full path or by their alias, as in the projects 'filter' argument, but they must belong to this reference.
+        Operators are the same as in the projects 'filter' argument.
+        Several filters may be passed and references must match all of them.
       schema:
         type: string
-      example: '{"method":"X-RAY DIFFRACTION"}'
+      example: 'pdbMethod==X-RAY DIFFRACTION'
     InChIKey:
       name: InChIKey
       in: path
@@ -4666,15 +4665,17 @@ definitions:
       schema:
         type: string
       example: AAKJLRGGTJKAMG-UHFFFAOYSA-N
-    inchikeyReferenceQuery:
-      name: query
+    inchikeyReferenceFilter:
+      name: filter
       in: query
       description: >
-        A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
-        It can be used to filter InChIKey references by top-level or nested fields.
+        Filter InChIKey references by the value of a field, written as the field name, an operator and the value.
+        Fields may be passed by their full path or by their alias, as in the projects 'filter' argument, but they must belong to this reference.
+        Operators are the same as in the projects 'filter' argument.
+        Several filters may be passed and references must match all of them.
       schema:
         type: string
-      example: '{"ligand.formula":{"$regex":"P"}}'
+      example: 'references.inchikeys.ligand.formula~=P'
     ChainSequence:
       name: ChainSequence
       in: path
@@ -4684,15 +4685,17 @@ definitions:
       schema:
         type: string
       example: STIEEQAKTFLDKFNHEAEDLFYQS
-    chainReferenceQuery:
-      name: query
+    chainReferenceFilter:
+      name: filter
       in: query
       description: >
-        A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
-        It can be used to filter chain references by any field.
+        Filter chain references by the value of a field, written as the field name, an operator and the value.
+        Fields may be passed by their full path or by their alias, as in the projects 'filter' argument, but they must belong to this reference.
+        Operators are the same as in the projects 'filter' argument.
+        Several filters may be passed and references must match all of them.
       schema:
         type: string
-      example: '{"sequence":{"$regex":"^STIEE"}}'
+      example: 'references.chains.sequence~=STIEE'
     CollectionID:
       name: CollectionID
       in: path
@@ -4702,15 +4705,17 @@ definitions:
       schema:
         type: string
       example: cv19
-    collectionReferenceQuery:
-      name: query
+    collectionReferenceFilter:
+      name: filter
       in: query
       description: >
-        A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
-        It can be used to filter collection references by any field.
+        Filter collection references by the value of a field, written as the field name, an operator and the value.
+        Fields may be passed by their full path or by their alias, as in the projects 'filter' argument, but they must belong to this reference.
+        Operators are the same as in the projects 'filter' argument.
+        Several filters may be passed and references must match all of them.
       schema:
         type: string
-      example: '{"type":"dataset"}'
+      example: 'references.collections.type==dataset'
     knowledgePdbID:
       name: pdbid
       in: path

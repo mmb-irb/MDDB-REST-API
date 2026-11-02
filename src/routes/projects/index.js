@@ -8,9 +8,9 @@ const getDatabase = require('../../database');
 // Get the project formatter
 const projectFormatter = require('../../utils/project-formatter');
 // Get auxiliar functions
-const { parseJSON, getConfig, parseType, getSearchQuery, getRequestedIds } = require('../../utils/auxiliar-functions');
-// Standard HTTP response status codes
-const { BAD_REQUEST } = require('../../utils/status-codes');
+const { parseJSON, getConfig, getSearchQuery, getRequestedIds } = require('../../utils/auxiliar-functions');
+// Get the filter and return parsers
+const { parseReturn, checkNoReferenceFields } = require('../../utils/query-fields');
 
 const projectRouter = Router();
 
@@ -18,7 +18,7 @@ const projectRouter = Router();
 // Note that projects may be requested both through GET and POST methods
 // POST method was implemented to allow long lists of ids
 const rootHandler = handler({
-  supportedArguments: ['ids', 'search', 'filter', 'query', 'projection', 'sort', 'raw', 'countMds', 'page', 'limit'],
+  supportedArguments: ['ids', 'search', 'filter', 'return', 'sort', 'raw', 'countMds', 'page', 'limit'],
   async retriever(request) {
     // Get the skip (page) and limit of projects to be returned
     const pagination = getPagination(request);
@@ -48,82 +48,17 @@ const rootHandler = handler({
       else finder.$and.push(searchQuert);
     }
     // Then, filter by 'filter' parameters
-    // Look for a specified value in any database field
-    let filter = request.query.filter;
-    if (filter) {
-      // In case there is a single filter it would be a string, not an array, so adapt it
-      if (typeof filter === 'string') filter = [filter];
-      filter.forEach(f => {
-        // The filters with '++' stand for 'OR'
-        if (/\+\+/.test(f)) {
-          // Extract the field name and the value by splitting the text by '++'
-          const extract = f.split('++');
-          // Push it to the proper finder array
-          // First, check that the array to push exists and, if not, create it
-          if (!finder.$or) finder.$or = [];
-          finder.$or.push({ [extract[0]]: parseType(extract[1]) });
-        }
-        // The filters with '+*' stand for 'AND'
-        else if (/\+\*/.test(f)) {
-          // Extract the field name and the value by splitting the text by '+*'
-          const extract = f.split('+*');
-          // Push it to the proper finder array
-          // First, check that the array to push exists and, if not, create it
-          if (!finder.$and) finder.$and = [];
-          finder.$and.push({ [extract[0]]: parseType(extract[1]) });
-        }
-        // The filters with '--' stand for 'OR NOT'
-        else if (/--/.test(f)) {
-          // Extract the field name and the value by splitting the text by '+*'
-          const extract = f.split('--');
-          // Push it to the proper finder array
-          // First, check that the array to push exists and, if not, create it
-          if (!finder.$or) finder.$or = [];
-          finder.$or.push({
-            [extract[0]]: { $not: { $eq: parseType(extract[1]) } },
-          });
-        }
-        // // The filters with '-*' stand for 'AND NOT' (same as NOR)
-        else if (/-\*/.test(f)) {
-          // Extract the field name and the value by splitting the text by '+*'
-          const extract = f.split('-*');
-          // Push it to the proper finder array
-          // First, check that the array to push exists and, if not, create it
-          if (!finder.$and) finder.$and = [];
-          finder.$and.push({
-            [extract[0]]: { $not: { $eq: parseType(extract[1]) } },
-          });
-        }
-      });
-    }
-    // Handle when it is a mongo query itself
-    let query = request.query.query;
-    if (query) {
-      // Process the mongo query to convert references and topology queries
-      const processedQuery = await database.processProjectsQuery(query);
-      if (processedQuery.error) return processedQuery;
-      if (!finder.$and) finder.$and = processedQuery;
-      else finder.$and = finder.$and.concat(processedQuery);
-    }
+    // Every filter is a field (or its alias), an operator and a value (e.g. 'organism=Homo sapiens')
+    const filterQueries = await database.processProjectsFilter(request.query.filter);
+    if (filterQueries.error) return filterQueries;
+    if (filterQueries.length > 0) finder.$and = (finder.$and || []).concat(filterQueries);
     // Set the projection object for the mongo query
-    const projector = {};
-    // Handle when it is a mongo projection itself
-    // Note that when a projection is requested the project data is not formatted
-    let projection = request.query.projection;
-    if (projection) {
-      // In case there is a single query it would be a string, not an array, so adapt it
-      if (typeof projection === 'string') projection = [projection];
-      for (const p of projection) {
-        // Parse the string into a json object
-        const objectProjection = parseJSON(p);
-        if (!objectProjection) return {
-          headerError: BAD_REQUEST,
-          error: `Projection "${p}" is not well formatted`
-        };
-        // Append the specified projection to the projector object
-        Object.assign(projector, objectProjection);
-      }
-    }
+    // Note that when fields to be returned are requested the project data is not formatted
+    const returnedFields = parseReturn(request.query.return);
+    if (returnedFields.error) return returnedFields;
+    const referencesError = checkNoReferenceFields(returnedFields);
+    if (referencesError) return referencesError;
+    const projector = Object.fromEntries(returnedFields.map(field => [ field, true ]));
     // Set option to be passed
     const options = {};
     // The "score" refers to how similar is the result to the provided search terms (the string)
@@ -174,9 +109,9 @@ const rootHandler = handler({
     if (filteredCount === 0) return { filteredCount: 0, totalMdsCount: 0, projects: [] };
 
     // Check if the raw flag has been passed
-    // Besides, we use the raw project data if a projection is passed
+    // Besides, we use the raw project data if fields to be returned are passed
     const raw = request.query.raw;
-    const isRaw = (raw !== undefined && raw !== 'false') || Boolean(projection);
+    const isRaw = (raw !== undefined && raw !== 'false') || returnedFields.length > 0;
 
     // Set the project mapping function
     // If it must be raw the the mapping function dos nothing

@@ -10,7 +10,9 @@ const getPagination = require('../../utils/get-pagination');
 // Get the database handler
 const getDatabase = require('../../database');
 // Get auxiliar functions
-const { parseJSON, isObjectId, getConfig, getRequestedIds } = require('../../utils/auxiliar-functions');
+const { isObjectId, getConfig, getRequestedIds } = require('../../utils/auxiliar-functions');
+// Get the filter and return parsers
+const { getReferenceFieldResolver, parseFilters, getFilterQuery, parseReturn } = require('../../utils/query-fields');
 // Import references configuration
 const { REFERENCES } = require('mddb-database/utils/constants');
 const AVAILABLE_REFERENCES = Object.keys(REFERENCES).join(', ');
@@ -45,7 +47,7 @@ const getAvailableReferenceIds = async (database, reference, referenceQuery) => 
 // Note that references may be requested both through GET and POST methods
 // POST method was implemented to allow long lists of ids
 const wholeReferenceResponse = handler({
-    supportedArguments: ['ids', 'query', 'justids', 'projection', 'page', 'limit'],
+    supportedArguments: ['ids', 'filter', 'justids', 'return', 'page', 'limit'],
     async retriever(request) {
         // Stablish database connection and retrieve our custom handler
         const database = await getDatabase(request);
@@ -58,12 +60,12 @@ const wholeReferenceResponse = handler({
         };
         // Set the target mongo collection
         const referenceCollection = database[reference.collectionName];
-        // Set the reference query
-        let referenceQuery = {}
-        // Get the requested query, if any
-        const query = request.query.query;
-        // If a query was passed then parse it and overwrite the reference query
-        if (query) referenceQuery = JSON.parse(query);
+        // Fields are relative to the reference (e.g. 'organism') but aliases of this reference are supported as well
+        const fieldResolver = getReferenceFieldResolver(referenceName);
+        // Set the reference query from the requested filters, if any
+        const parsedFilters = parseFilters(request.query.filter, fieldResolver);
+        if (parsedFilters.error) return parsedFilters;
+        let referenceQuery = parsedFilters.length > 0 ? { $and: parsedFilters.map(getFilterQuery) } : {};
         // Get the requested reference ids, if any, and add them to the reference query
         const ids = getRequestedIds(request);
         if (ids && ids.error) return ids;
@@ -73,31 +75,16 @@ const wholeReferenceResponse = handler({
         // Get the number of references to be matched after all
         const referencesCount = sortedReferenceIds.length;
         // Check if we are to return only the available ids
-        // If so then there is no need for pagination or projections
+        // If so then there is no need for pagination or returned fields
         // LORE: This was the original behaviour of this endpoint
         const justIds = request.query.justids;
         const returnJustIds = justIds !== undefined && justIds !== 'false';
         if (returnJustIds) return sortedReferenceIds;
-        // Otherwise we must paginate and handle possible projections
+        // Otherwise we must paginate and handle possible returned fields
         // Set the projection object for the mongo query
-        const projector = { _id: false };
-        // Handle when it is a mongo projection itself
-        // Note that when a projection is requested the project data is not formatted
-        let projection = request.query.projection;
-        if (projection) {
-            // In case there is a single query it would be a string, not an array, so adapt it
-            if (typeof projection === 'string') projection = [projection];
-            for (const p of projection) {
-                // Parse the string into a json object
-                const objectProjection = parseJSON(p);
-                if (!objectProjection) return {
-                    headerError: BAD_REQUEST,
-                    error: `Projection "${p}" is not well formatted`
-                };
-                // Append the specified projection to the projector object
-                Object.assign(projector, objectProjection);
-            }
-        }
+        const returnedFields = parseReturn(request.query.return, fieldResolver);
+        if (returnedFields.error) return returnedFields;
+        const projector = { _id: false, ...Object.fromEntries(returnedFields.map(field => [ field, true ])) };
         // Do the pagination manually
         // Get the skip (page) and limit of references to be returned
         const pagination = getPagination(request);

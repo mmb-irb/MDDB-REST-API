@@ -5,7 +5,7 @@ const { BAD_REQUEST } = require('../../utils/status-codes');
 // This middleware merges body arguments into the query, so endpoints read all arguments from the query
 // Body values are converted to the same format they would have in the query:
 // Numbers and booleans become strings (e.g. 10 -> '10', false -> 'false')
-// Objects become stringified JSON objects (e.g. a mongo query or projection)
+// Objects become stringified JSON objects
 // Lists keep being lists, but their values are converted as well
 // If an argument is passed in both the query and the body then values must match
 // Otherwise an error is returned, so no value is silently ignored

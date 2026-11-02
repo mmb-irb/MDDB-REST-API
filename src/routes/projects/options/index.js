@@ -10,15 +10,17 @@ const HTTP_CODE_HEADERS = {
   400: BAD_REQUEST,
   404: NOT_FOUND,
 };
-// Set a error-proof JSON parser
+// Get auxiliar functions
 const { getSearchQuery } = require('../../../utils/auxiliar-functions');
+// Get the return parser
+const { parseReturn } = require('../../../utils/query-fields');
 
 const router = Router({ mergeParams: true });
 
 // Root
 router.route('/').get(
   handler({
-    supportedArguments: ['search', 'query', 'projection', 'countMds'],
+    supportedArguments: ['search', 'filter', 'return', 'countMds'],
     async retriever(request) {
       // Stablish database connection and retrieve our custom handler
       const database = await getDatabase(request);
@@ -33,28 +35,23 @@ router.route('/').get(
         if (!finder.$and) finder.$and = [ searchQuery ];
         else finder.$and = finder.$and.concat(searchQuery);
       }
-      // Handle when there is a mongo query
-      let query = request.query.query;
-      if (query) {
-        // Process the mongo query to convert reference queries
-        const processedQuery = await database.processProjectsQuery(query);
-        if (processedQuery.error) return processedQuery;
-        if (!finder.$and) finder.$and = processedQuery;
-        else finder.$and = finder.$and.concat(processedQuery);
-      }
-      // Get the requested projection
-      let projection = request.query.projection;
-      if (!projection) return {
+      // Handle when there are filters
+      const filterQueries = await database.processProjectsFilter(request.query.filter);
+      if (filterQueries.error) return filterQueries;
+      if (filterQueries.length > 0) finder.$and = (finder.$and || []).concat(filterQueries);
+      // Get the fields whose options are to be returned
+      const returnedFields = parseReturn(request.query.return);
+      if (returnedFields.error) return returnedFields;
+      if (returnedFields.length === 0) return {
         headerError: BAD_REQUEST,
-        error: 'Missing projection'
+        error: 'Missing fields to return'
       };
-      if (typeof projection === 'string') projection = [projection];
       // Check if we must count the number of MDs as well
       const countMds = request.query.countMds
       const shouldCountMds = countMds !== undefined && countMds.toLowerCase() !== 'false';
       // Use the MDDB database counter to calculate this
       // Note that the result must be coherent with the the count from the loader
-      const options = await database.countOptions(finder, projection, shouldCountMds, true);
+      const options = await database.countOptions(finder, returnedFields, shouldCountMds, true);
       // If something was wrong parse the error codes to HTTP header
       if (options.error) options.headerError = HTTP_CODE_HEADERS[options.code];
       // Return the options object as is
