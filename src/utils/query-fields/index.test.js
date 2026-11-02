@@ -40,16 +40,12 @@ describe('resolveField', () => {
 describe('parseFilters', () => {
   test('supports every operator', () => {
     expect(getQueries([
-      'type==ensemble', 'type!=ensemble', 'name~=sp.ke', 'name~spike', 'name≃spike', 'name!~=spike', 'name!~spike', 'name≄spike',
-      'systemAtoms>1', 'systemAtoms>=1', 'systemAtoms<1', 'systemAtoms<=1',
+      "type=eq='ensemble'", "type=ne='ensemble'", "name=ct='sp.ke'", "name=nc='spike'",
+      'systemAtoms=gt=1', 'systemAtoms=ge=1', 'systemAtoms=lt=1', 'systemAtoms=le=1',
     ])).toEqual([
       { 'metadata.TYPE': 'ensemble' },
       { $nor: [{ 'metadata.TYPE': 'ensemble' }] },
       { 'metadata.NAME': { $regex: 'sp\\.ke', $options: 'i' } },
-      { 'metadata.NAME': { $regex: 'spike', $options: 'i' } },
-      { 'metadata.NAME': { $regex: 'spike', $options: 'i' } },
-      { $nor: [{ 'metadata.NAME': { $regex: 'spike', $options: 'i' } }] },
-      { $nor: [{ 'metadata.NAME': { $regex: 'spike', $options: 'i' } }] },
       { $nor: [{ 'metadata.NAME': { $regex: 'spike', $options: 'i' } }] },
       { 'metadata.SYSTATS': { $gt: 1 } },
       { 'metadata.SYSTATS': { $gte: 1 } },
@@ -58,66 +54,114 @@ describe('parseFilters', () => {
     ]);
   });
 
+  test('supports operator symbols as well', () => {
+    expect(getQueries([
+      "type=='ensemble'", "type!='ensemble'", "name~='spike'", "name~'spike'", "name≃'spike'",
+      "name!~='spike'", "name!~'spike'", "name≄'spike'",
+      'systemAtoms>1', 'systemAtoms>=1', 'systemAtoms<1', 'systemAtoms<=1',
+    ])).toEqual([
+      { 'metadata.TYPE': 'ensemble' },
+      { $nor: [{ 'metadata.TYPE': 'ensemble' }] },
+      ...Array(3).fill({ 'metadata.NAME': { $regex: 'spike', $options: 'i' } }),
+      ...Array(3).fill({ $nor: [{ 'metadata.NAME': { $regex: 'spike', $options: 'i' } }] }),
+      { 'metadata.SYSTATS': { $gt: 1 } },
+      { 'metadata.SYSTATS': { $gte: 1 } },
+      { 'metadata.SYSTATS': { $lt: 1 } },
+      { 'metadata.SYSTATS': { $lte: 1 } },
+    ]);
+  });
+
   test('supports several values', () => {
-    expect(getQueries(['author==A|B', 'group!~=orozco|irb'])).toEqual([
+    expect(getQueries(["author=eq='A','B'", "group=nc='orozco', 'irb'"])).toEqual([
       { 'metadata.AUTHORS': { $in: ['A', 'B'] } },
       { $nor: [{ 'metadata.GROUPS': { $regex: 'orozco|irb', $options: 'i' } }] },
     ]);
   });
 
+  test('supports several conditions matched if any matches', () => {
+    expect(getQueries("uniprotOrganism=eq='Homo sapiens' ; pdbOrganism=eq='Homo sapiens','Mus musculus';temperature=gt=300"))
+      .toEqual([{ $or: [
+        { 'references.proteins.organism': 'Homo sapiens' },
+        { 'references.pdbs.organisms': { $in: ['Homo sapiens', 'Mus musculus'] } },
+        { 'metadata.TEMP': { $gt: 300 } },
+      ] }]);
+  });
+
+  test('takes any character inside quotes', () => {
+    expect(getQueries(["name=eq='a;b,c=eq=d \"e\"'", "name=eq='it\\'s'", "name=eq='a \\\\b'", "name=eq=''"])).toEqual([
+      { 'metadata.NAME': 'a;b,c=eq=d "e"' },
+      { 'metadata.NAME': "it's" },
+      { 'metadata.NAME': 'a \\b' },
+      { 'metadata.NAME': '' },
+    ]);
+  });
+
   test('takes empty values as fields with no value', () => {
-    expect(getQueries(['pdbId==', 'mds!=', 'pdbId==|6M0J'])).toEqual([
+    expect(getQueries(['pdbId=eq=', 'mds=ne=', "pdbId=eq=,'6M0J'"])).toEqual([
       { 'metadata.PDBIDS': { $in: [null, []] } },
       { $nor: [{ mds: { $in: [null, []] } }] },
       { 'metadata.PDBIDS': { $in: [null, [], '6M0J'] } },
     ]);
   });
 
-  test('keeps operator characters in the value', () => {
-    expect(getQueries('name==a=b>c')).toEqual([{ 'metadata.NAME': 'a=b>c' }]);
+  test('parses numbers, booleans and dates either quoted or not', () => {
+    expect(getQueries(['systemAtoms=gt=10', "systemAtoms=gt='10'", 'published=eq=true', "published=eq='false'",
+      'created=gt=2024-01-01', "created=gt='2024-01-01'"])).toEqual([
+      { 'metadata.SYSTATS': { $gt: 10 } },
+      { 'metadata.SYSTATS': { $gt: 10 } },
+      { published: true },
+      { published: false },
+      { creationDate: { $gt: new Date('2024-01-01') } },
+      { creationDate: { $gt: new Date('2024-01-01') } },
+    ]);
   });
 
-  test('guesses the value type of unknown fields, but not in text operators', () => {
-    expect(getQueries(['foo==1', 'foo==true', 'foo==bar', 'foo~=1'])).toEqual([
-      { foo: 1 }, { foo: true }, { foo: 'bar' }, { foo: { $regex: '1', $options: 'i' } },
+  test('takes quoted values of unknown fields as texts', () => {
+    expect(getQueries(['foo=eq=1', 'foo=eq=true', "foo=eq='1'", "foo=ct='1'"])).toEqual([
+      { foo: 1 }, { foo: true }, { foo: '1' }, { foo: { $regex: '1', $options: 'i' } },
     ]);
   });
 
   test('rejects wrong filters', () => {
-    for (const filter of ['systemAtoms==1.5', 'temperature==hot', 'published==yes', 'created>yesterday',
-      'type>a', 'systemAtoms~=1', 'systemAtoms>1|2', 'name~=', 'systemAtoms>', 'type', '==a',
-      'type=ensemble', 'name~'])
+    for (const filter of ['systemAtoms=eq=1.5', "temperature=eq='hot'", "published=eq='yes'", "created=gt='yesterday'",
+      "type=gt='a'", "systemAtoms=ct='1'", 'systemAtoms=gt=1,2', 'name=ct=', 'systemAtoms=gt=', 'type', "=eq='a'",
+      "type='ensemble'", "type=xx='ensemble'", 'name~', 'type=eq=ensemble', 'type=eq="ensemble"', 'foo=eq=bar',
+      'name=ct=spike', "name=eq='spike", "name=eq='a' b", "name=eq=a'b'", "name=eq='a';", "name=eq='a';type='b'",
+      ";name=eq='a'"])
       getError(filter);
   });
 
   test('explains the problem in error messages', () => {
-    expect(getError('type=ensemble')).toBe('Missing or unknown operator in filter "type=ensemble". ' +
-      'Filters must be a field, an operator and a value (e.g. "type==ensemble"). ' +
+    expect(getError("type='ensemble'")).toBe(`Missing or unknown operator in filter "type='ensemble'". ` +
+      `Conditions must be a field, an operator and a value (e.g. "type=eq='ensemble'"). ` +
       'Operators supported by field "type" (metadata.TYPE, string type) are: ' +
-      "'==' (equals), '!=' (not equals), '~=' (contains, case insensitive), '!~=' (does not contain, case insensitive). " +
-      "'~' or '≃' may be used instead of '~=' and '!~' or '≄' may be used instead of '!~='");
-    expect(getError('systemAtoms~=1')).toBe(`Operator '~=' in filter "systemAtoms~=1" is not supported by ` +
+      "'=eq=' (equals), '=ne=' (not equals), '=ct=' (contains, case insensitive), '=nc=' (does not contain, case insensitive)");
+    expect(getError("systemAtoms=ct='1'")).toBe(`Operator '=ct=' in filter "systemAtoms=ct='1'" is not supported by ` +
       'field "systemAtoms" (metadata.SYSTATS, int type). Supported operators are: ' +
-      "'==' (equals), '!=' (not equals), '>' (greater than), '>=' (greater than or equal), " +
-      "'<' (lower than), '<=' (lower than or equal)");
-    expect(getError('systemAtoms>abc')).toBe('Wrong value "abc" in filter "systemAtoms>abc". ' +
+      "'=eq=' (equals), '=ne=' (not equals), '=gt=' (greater than), '=ge=' (greater than or equal), " +
+      "'=lt=' (lower than), '=le=' (lower than or equal)");
+    expect(getError('systemAtoms=gt=abc')).toBe('Wrong value "abc" in filter "systemAtoms=gt=abc". ' +
       'Values of field "systemAtoms" (metadata.SYSTATS, int type) must be an integer');
-    expect(getError('$where==1')).toMatch('Wrong filter "$where==1". Wrong field name "$where"');
+    expect(getError("name=eq='a' ; type=eq=ensemble")).toBe('Wrong value "ensemble" in condition "type=eq=ensemble" ' +
+      `of filter "name=eq='a' ; type=eq=ensemble". Values of field "type" (metadata.TYPE, string type) ` +
+      "must be quoted with single quotes (e.g. 'ensemble')");
+    expect(getError("name=eq='a")).toBe(`Wrong filter "name=eq='a". Unclosed quote at position 9`);
+    expect(getError('$where=eq=1')).toMatch('Wrong filter "$where=eq=1". Wrong field name "$where"');
   });
 
   test('rejects filters which are not strings', () => {
     getError({ $ne: 'a' });
-    getError(['type==ensemble', { $ne: 'a' }]);
+    getError(["type=eq='ensemble'", { $ne: 'a' }]);
   });
 
   test('resolves fields of a reference', () => {
     const fieldResolver = getReferenceFieldResolver('proteins');
-    expect(getQueries(['uniprotOrganism==Homo sapiens', 'references.proteins.gene==ACE2', 'uniprotName~=spike'],
+    expect(getQueries(["uniprotOrganism=eq='Homo sapiens'", "references.proteins.gene=eq='ACE2'", "uniprotName=ct='spike'"],
       fieldResolver)).toEqual([
       { organism: 'Homo sapiens' }, { gene: 'ACE2' }, { name: { $regex: 'spike', $options: 'i' } },
     ]);
-    expect(getError('name==spike', fieldResolver)).toMatch('Field "name" (metadata.NAME) does not belong to proteins references');
-    expect(getError('organism==x', fieldResolver)).toMatch('Field "organism" (organism) does not belong to proteins references');
+    expect(getError("name=eq='spike'", fieldResolver)).toMatch('Field "name" (metadata.NAME) does not belong to proteins references');
+    expect(getError("organism=eq='x'", fieldResolver)).toMatch('Field "organism" (organism) does not belong to proteins references');
   });
 });
 

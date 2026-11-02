@@ -27,12 +27,12 @@ describe('processProjectsFilter', () => {
   });
 
   test('accepts both aliases and full paths', async () => {
-    expect(await processFilter('type==ensemble')).toEqual([{ 'metadata.TYPE': 'ensemble' }]);
-    expect(await processFilter('metadata.TYPE==ensemble')).toEqual([{ 'metadata.TYPE': 'ensemble' }]);
+    expect(await processFilter("type=eq='ensemble'")).toEqual([{ 'metadata.TYPE': 'ensemble' }]);
+    expect(await processFilter("metadata.TYPE=eq='ensemble'")).toEqual([{ 'metadata.TYPE': 'ensemble' }]);
   });
 
   test('parses values according to the field type', async () => {
-    expect(await processFilter(['temperature>=300', 'systemAtoms<1000', 'published==true', 'created>2024-01-01']))
+    expect(await processFilter(['temperature=ge=300', 'systemAtoms=lt=1000', 'published=eq=true', 'created=gt=2024-01-01']))
       .toEqual([
         { 'metadata.TEMP': { $gte: 300 } },
         { 'metadata.SYSTATS': { $lt: 1000 } },
@@ -42,7 +42,7 @@ describe('processProjectsFilter', () => {
   });
 
   test('supports several values, text search and negations', async () => {
-    expect(await processFilter(['author==A|B', 'name~=spike', 'program!=Amber', 'group!~=orozco|irb']))
+    expect(await processFilter(["author=eq='A','B'", "name=ct='spike'", "program=ne='Amber'", "group=nc='orozco','irb'"]))
       .toEqual([
         { 'metadata.AUTHORS': { $in: ['A', 'B'] } },
         { 'metadata.NAME': { $regex: 'spike', $options: 'i' } },
@@ -52,7 +52,7 @@ describe('processProjectsFilter', () => {
   });
 
   test('translates reference fields into project fields', async () => {
-    expect(await processFilter(['uniprotOrganism==Homo sapiens', 'references.pdbs.title~=spike', 'uniprotGene!=ACE2']))
+    expect(await processFilter(["uniprotOrganism=eq='Homo sapiens'", "references.pdbs.title=ct='spike'", "uniprotGene=ne='ACE2'"]))
       .toEqual([
         { 'metadata.REFERENCES': { $in: ['Q9BYF1'] } },
         { 'metadata.PDBIDS': { $in: ['6M0J'] } },
@@ -60,13 +60,22 @@ describe('processProjectsFilter', () => {
       ]);
   });
 
+  test('joins several conditions, including reference fields, matched if any matches', async () => {
+    expect(await processFilter("uniprotOrganism=eq='Homo sapiens'; uniprotGene=ne='ACE2'; type=eq='ensemble'"))
+      .toEqual([{ $or: [
+        { 'metadata.REFERENCES': { $in: ['Q9BYF1'] } },
+        { 'metadata.REFERENCES': { $nin: ['Q9BYF1'] } },
+        { 'metadata.TYPE': 'ensemble' },
+      ] }]);
+  });
+
   test('rejects unknown references', async () => {
-    expect((await processFilter('references.foo.bar==x')).headerError).toBe(BAD_REQUEST);
+    expect((await processFilter("references.foo.bar=eq='x'")).headerError).toBe(BAD_REQUEST);
   });
 
   test('rejects mongo operators and objects', async () => {
-    expect((await processFilter('$where==1')).headerError).toBe(BAD_REQUEST);
-    expect((await processFilter('metadata.$where==1')).headerError).toBe(BAD_REQUEST);
+    expect((await processFilter('$where=eq=1')).headerError).toBe(BAD_REQUEST);
+    expect((await processFilter('metadata.$where=eq=1')).headerError).toBe(BAD_REQUEST);
     expect((await processFilter({ $ne: 'x' })).headerError).toBe(BAD_REQUEST);
     expect((await processFilter('{"metadata.TYPE":"ensemble"}')).headerError).toBe(BAD_REQUEST);
   });

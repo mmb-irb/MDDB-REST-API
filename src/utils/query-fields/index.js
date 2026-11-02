@@ -1,5 +1,10 @@
 // Translate the 'filter' and 'return' arguments into mongo queries and projections
 // Users never send mongo code directly, so they can not inject any mongo operator
+// Every filter is one or several conditions separated by ';', which are matched if any condition matches
+// Every condition is a field, an operator and one or several values separated by ',' (e.g. "type=eq='ensemble','md'")
+// Operators are written as words between equal signs (e.g. '=eq='), although some symbols are supported as well (e.g. '==')
+// Text values must be quoted with single quotes, so they may include any character
+// The syntax relies on characters which do not need to be percent encoded in URLs, so filters remain readable
 // Fields may be requested by their alias (e.g. 'uniprotOrganism') or by their full path (e.g. 'references.proteins.organism')
 // Aliases are unique and they stand for the same field in every endpoint
 // Query fields, including their aliases and types, are defined in the database constants
@@ -18,30 +23,43 @@ const FIELD_PATTERN = /^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/;
 // Set the supported filter operators
 // - description - Shown in error messages
 // - negated - The operator is the negation of another operator
-// - multiple - The operator supports several values separated by '|', which are matched if any value matches
+// - multiple - The operator supports several values separated by ',', which are matched if any value matches
 // - nullable - The operator supports an empty value, which stands for fields with no value
 // - text - The operator matches values which contain the requested text
 // - comparison - The mongo comparison operator
 // - types - Field types which support this operator, if restricted
 const OPERATORS = {
-    '==': { description: 'equals', multiple: true, nullable: true },
-    '!=': { description: 'not equals', negated: true, multiple: true, nullable: true },
-    '~=': { description: 'contains, case insensitive', multiple: true, text: true, types: ['string'] },
-    '!~=': { description: 'does not contain, case insensitive', negated: true, multiple: true, text: true, types: ['string'] },
-    '>': { description: 'greater than', comparison: '$gt', types: ['int', 'float', 'date'] },
-    '>=': { description: 'greater than or equal', comparison: '$gte', types: ['int', 'float', 'date'] },
-    '<': { description: 'lower than', comparison: '$lt', types: ['int', 'float', 'date'] },
-    '<=': { description: 'lower than or equal', comparison: '$lte', types: ['int', 'float', 'date'] },
+    '=eq=': { description: 'equals', multiple: true, nullable: true },
+    '=ne=': { description: 'not equals', negated: true, multiple: true, nullable: true },
+    '=ct=': { description: 'contains, case insensitive', multiple: true, text: true, types: ['string'] },
+    '=nc=': { description: 'does not contain, case insensitive', negated: true, multiple: true, text: true, types: ['string'] },
+    '=gt=': { description: 'greater than', comparison: '$gt', types: ['int', 'float', 'date'] },
+    '=ge=': { description: 'greater than or equal', comparison: '$gte', types: ['int', 'float', 'date'] },
+    '=lt=': { description: 'lower than', comparison: '$lt', types: ['int', 'float', 'date'] },
+    '=le=': { description: 'lower than or equal', comparison: '$lte', types: ['int', 'float', 'date'] },
 };
-// Some operators may be written also with a single symbol
-const OPERATOR_ALIASES = { '~': '~=', '≃': '~=', '!~': '!~=', '≄': '!~=' };
+// Operators may be written also with symbols
+const OPERATOR_ALIASES = {
+    '==': '=eq=',
+    '!=': '=ne=',
+    '~=': '=ct=', '~': '=ct=', '≃': '=ct=',
+    '!~=': '=nc=', '!~': '=nc=', '≄': '=nc=',
+    '>': '=gt=', '>=': '=ge=', '<': '=lt=', '<=': '=le=',
+};
 // Operators are searched from the longest to the shortest, so they are not confused (e.g. '>=' and '>')
 const OPERATOR_SYMBOLS = [ ...Object.keys(OPERATORS), ...Object.keys(OPERATOR_ALIASES) ]
     .sort((a, b) => b.length - a.length);
-// The field ends where the first operator character is found
-const OPERATOR_CHARACTERS = new Set(OPERATOR_SYMBOLS.join(''));
-// Set the separator of several values in a single filter
-const VALUES_SEPARATOR = '|';
+// Set the separator of several conditions in a single filter
+const CONDITIONS_SEPARATOR = ';';
+// Set the separator of several values in a single condition
+const VALUES_SEPARATOR = ',';
+// Set the character used to quote text values and the character to escape characters inside quotes
+const QUOTE = "'";
+const ESCAPE = '\\';
+// The field ends where any of these characters is found
+// Note that operator words are always preceded by an equal sign, so only their first character matters
+const FIELD_END_CHARACTERS = new Set([ ...OPERATOR_SYMBOLS.map(symbol => symbol[0]), QUOTE, VALUES_SEPARATOR, CONDITIONS_SEPARATOR ]);
+const isSpace = character => /\s/.test(character);
 // Set the values matched by an empty value, which stands for fields with no value
 // Note that null matches both missing and null fields
 const NO_VALUES = [ null, [] ];
@@ -50,16 +68,15 @@ const NO_VALUES = [ null, [] ];
 const badRequest = error => ({ headerError: BAD_REQUEST, error });
 
 // Describe the operators supported by a field type, for error messages
+// Only the default operator names are shown, although their symbols are supported as well
 // If the type is unknown (null) then all operators are supported
 const describeOperators = type => Object.entries(OPERATORS)
     .filter(([ , operator ]) => type === null || !operator.types || operator.types.includes(type))
     .map(([ symbol, operator ]) => `'${symbol}' (${operator.description})`)
     .join(', ');
-const ALIASES_DESCRIPTION = Object.keys(OPERATORS)
-    .map(symbol => [ symbol, Object.keys(OPERATOR_ALIASES).filter(alias => OPERATOR_ALIASES[alias] === symbol) ])
-    .filter(([ , aliases ]) => aliases.length > 0)
-    .map(([ symbol, aliases ]) => `${aliases.map(alias => `'${alias}'`).join(' or ')} may be used instead of '${symbol}'`)
-    .join(' and ');
+// List the operators with a specific flag, for error messages
+const listOperators = flag => Object.keys(OPERATORS).filter(symbol => OPERATORS[symbol][flag])
+    .map(symbol => `'${symbol}'`).join(', ');
 
 // Describe a field, for error messages
 const describeField = (name, field) => {
@@ -98,76 +115,155 @@ const getReferenceFieldResolver = referenceName => {
 };
 
 // Parse a filter value according to the field type
-// If the type is unknown then booleans and numbers are guessed
+// Text values must be quoted while numbers, booleans and dates may be quoted or not
+// If the type is unknown then quoted values are texts, while unquoted values must be booleans or numbers
 // Return an error message if the value is wrong
-const parseValue = (value, type) => {
-    const number = Number(value);
-    const isNumber = value !== '' && !isNaN(number);
+const parseValue = ({ text, quoted }, type) => {
+    const number = Number(text);
+    const isNumber = text.trim() !== '' && !isNaN(number);
     if (type === 'int' || type === 'float') {
         if (!isNumber || (type === 'int' && !Number.isInteger(number)))
             return { error: `must be ${type === 'int' ? 'an integer' : 'a number'}` };
         return number;
     }
     if (type === 'boolean') {
-        if (value !== 'true' && value !== 'false') return { error: `must be either 'true' or 'false'` };
-        return value === 'true';
+        if (text !== 'true' && text !== 'false') return { error: `must be either true or false` };
+        return text === 'true';
     }
     if (type === 'date') {
-        const date = new Date(value);
-        if (isNaN(date)) return { error: 'must be a date (e.g. 2026-02-04)' };
+        const date = new Date(text);
+        if (text.trim() === '' || isNaN(date)) return { error: 'must be a date (e.g. 2026-02-04)' };
         return date;
     }
-    if (type === 'string') return value;
+    if (type === 'string') {
+        if (!quoted) return { error: `must be quoted with single quotes (e.g. '${text}')` };
+        return text;
+    }
     if (type !== null) throw new Error(`Unknown query field type "${type}"`);
-    if (value === 'true') return true;
-    if (value === 'false') return false;
+    if (quoted) return text;
+    if (text === 'true') return true;
+    if (text === 'false') return false;
     if (isNumber) return number;
-    return value;
+    return { error: `must be quoted with single quotes if they are text (e.g. '${text}')` };
 };
 
-// Parse a single filter (e.g. 'organism==Homo sapiens') into a mongo condition
-// Return the field path, the condition the field value must match and if the condition is to be negated
+// Read the values of a condition, starting at a given position of the filter
+// Values are separated by ',' and the condition ends with ';' or at the end of the filter
+// Quoted values may include any character, and quotes inside them may be escaped with '\'
+// Empty unquoted values stand for fields with no value and they are returned as null
+// Return the values and the position where the condition ends, or an error message
+const readValues = (filter, start) => {
+    const values = [];
+    let position = start;
+    while (true) {
+        while (position < filter.length && isSpace(filter[position])) position++;
+        const character = filter[position];
+        let value;
+        if (character === QUOTE) {
+            // Read a quoted value
+            let text = '';
+            const quoteStart = position;
+            position++;
+            while (position < filter.length && filter[position] !== QUOTE) {
+                if (filter[position] === ESCAPE) position++;
+                if (position < filter.length) text += filter[position];
+                position++;
+            }
+            if (position >= filter.length) return { error: `Unclosed quote at position ${quoteStart + 1}` };
+            position++;
+            while (position < filter.length && isSpace(filter[position])) position++;
+            const next = filter[position];
+            if (position < filter.length && next !== VALUES_SEPARATOR && next !== CONDITIONS_SEPARATOR)
+                return { error: `Unexpected character '${next}' after a quoted value. ` +
+                    `Values must be separated by '${VALUES_SEPARATOR}' and conditions by '${CONDITIONS_SEPARATOR}'` };
+            value = { text, quoted: true };
+        }
+        else {
+            // Read an unquoted value
+            const valueStart = position;
+            while (position < filter.length && filter[position] !== VALUES_SEPARATOR
+                && filter[position] !== CONDITIONS_SEPARATOR) {
+                if (filter[position] === QUOTE) return { error: 'Unexpected quote in an unquoted value. ' +
+                    'Quotes must surround the whole value' };
+                if (filter[position] === '"') return { error: 'Double quotes are not supported. ' +
+                    "Text values must be quoted with single quotes (e.g. 'ensemble')" };
+                position++;
+            }
+            const text = filter.slice(valueStart, position).trim();
+            value = text === '' ? null : { text, quoted: false };
+        }
+        values.push(value);
+        if (filter[position] !== VALUES_SEPARATOR) return { values, end: position };
+        position++;
+    }
+};
+
+// Parse a single condition (e.g. "uniprotOrganism=eq='Homo sapiens'") into a mongo condition
+// The condition starts at a given position of the filter
+// Return the field path, the condition the field value must match, if the condition is to be negated
+// and the position where the condition ends
 // Note that the condition is returned always in positive, so it can be applied to references collections as well
-const parseFilter = (filter, fieldResolver) => {
-    if (typeof filter !== 'string') return badRequest(`Wrong filter ${JSON.stringify(filter)}. Filters must be strings`);
-    // Split the field and the rest of the filter
-    const fieldLength = [ ...filter ].findIndex(character => OPERATOR_CHARACTERS.has(character));
-    const fieldName = (fieldLength === -1 ? filter : filter.slice(0, fieldLength)).trim();
-    const rest = fieldLength === -1 ? '' : filter.slice(fieldLength);
-    if (!fieldName) return badRequest(`Missing field in filter "${filter}". ` +
-        'Filters must be a field, an operator and a value (e.g. "type==ensemble")');
+const parseCondition = (filter, start, fieldResolver) => {
+    // Set a function to return errors which mention the wrong condition
+    // If the end of the condition is not known yet then the condition is guessed until the next conditions separator
+    const conditionError = (message, end) => {
+        if (end === undefined) {
+            const separatorIndex = filter.indexOf(CONDITIONS_SEPARATOR, start);
+            end = separatorIndex === -1 ? filter.length : separatorIndex;
+        }
+        const conditionText = filter.slice(start, end).trim();
+        let location = `condition "${conditionText}" of filter "${filter}"`;
+        if (conditionText === filter.trim()) location = `filter "${filter}"`;
+        else if (conditionText === '') location = `an empty condition of filter "${filter}"`;
+        return badRequest(message.replace('$CONDITION', location));
+    };
+    // Read the field
+    let position = start;
+    while (position < filter.length && isSpace(filter[position])) position++;
+    const fieldStart = position;
+    while (position < filter.length && !FIELD_END_CHARACTERS.has(filter[position]) && !isSpace(filter[position])) position++;
+    const fieldName = filter.slice(fieldStart, position);
+    if (!fieldName) return conditionError(`Missing field in $CONDITION. ` +
+        `Conditions must be a field, an operator and a value (e.g. "type=eq='ensemble'")`);
     const field = fieldResolver(fieldName);
-    if (field.error) return { ...field, error: `Wrong filter "${filter}". ${field.error}` };
+    if (field.error) return conditionError(`Wrong $CONDITION. ${field.error}`);
     const fieldDescription = describeField(fieldName, field);
     // Find the operator
-    const symbol = OPERATOR_SYMBOLS.find(operatorSymbol => rest.startsWith(operatorSymbol));
-    if (!symbol) return badRequest(`Missing or unknown operator in filter "${filter}". ` +
-        `Filters must be a field, an operator and a value (e.g. "type==ensemble"). ` +
-        `Operators supported by ${fieldDescription} are: ${describeOperators(field.type)}. ${ALIASES_DESCRIPTION}`);
+    while (position < filter.length && isSpace(filter[position])) position++;
+    const symbol = OPERATOR_SYMBOLS.find(operatorSymbol => filter.startsWith(operatorSymbol, position));
+    if (!symbol) return conditionError(`Missing or unknown operator in $CONDITION. ` +
+        `Conditions must be a field, an operator and a value (e.g. "type=eq='ensemble'"). ` +
+        `Operators supported by ${fieldDescription} are: ${describeOperators(field.type)}`);
     const operatorName = OPERATOR_ALIASES[symbol] || symbol;
     const operator = OPERATORS[operatorName];
+    position += symbol.length;
+    // Read the values
+    const read = readValues(filter, position);
+    if (read.error) return conditionError(`Wrong $CONDITION. ${read.error}`);
+    const { values: rawValues, end } = read;
     // Check the operator is supported for the field type
     // If the type is unknown then we let it go
     if (operator.types && field.type !== null && !operator.types.includes(field.type))
-        return badRequest(`Operator '${symbol}' in filter "${filter}" is not supported by ${fieldDescription}. ` +
-            `Supported operators are: ${describeOperators(field.type)}`);
-    // Parse the value or values
+        return conditionError(`Operator '${symbol}' in $CONDITION is not supported by ${fieldDescription}. ` +
+            `Supported operators are: ${describeOperators(field.type)}`, end);
+    if (!operator.multiple && rawValues.length > 1)
+        return conditionError(`Operator '${symbol}' in $CONDITION does not support several values. ` +
+            `Several values are supported by operators ${listOperators('multiple')} only`, end);
+    // Parse the values
     // Text operators always take the value as text, even if the field type is unknown
     const valueType = operator.text ? 'string' : field.type;
-    const rawValue = rest.slice(symbol.length);
-    const rawValues = operator.multiple ? rawValue.split(VALUES_SEPARATOR) : [rawValue];
     const values = [];
-    for (const value of rawValues.map(rawValue => rawValue.trim())) {
+    for (const rawValue of rawValues) {
         // Empty values stand for fields with no value (i.e. missing, null or an empty list)
-        if (value === '') {
-            if (!operator.nullable) return badRequest(`Missing value in filter "${filter}". ` +
-                `Empty values, which stand for fields with no value, are only supported by operators '==' and '!='`);
+        if (rawValue === null) {
+            if (!operator.nullable) return conditionError(`Missing value in $CONDITION. ` +
+                `Empty values, which stand for fields with no value, are only supported by operators ${listOperators('nullable')}`, end);
             values.push(...NO_VALUES);
             continue;
         }
-        const parsedValue = parseValue(value, valueType);
-        if (parsedValue && parsedValue.error) return badRequest(
-            `Wrong value "${value}" in filter "${filter}". Values of ${fieldDescription} ${parsedValue.error}`);
+        const parsedValue = parseValue(rawValue, valueType);
+        if (parsedValue && parsedValue.error) return conditionError(
+            `Wrong value ${JSON.stringify(rawValue.text)} in $CONDITION. Values of ${fieldDescription} ${parsedValue.error}`, end);
         values.push(parsedValue);
     }
     // Set the mongo condition
@@ -180,11 +276,27 @@ const parseFilter = (filter, fieldResolver) => {
         condition = { $regex: pattern, $options: 'i' };
     }
     else condition = values.length === 1 ? values[0] : { $in: values };
-    return { path: field.path, condition, negated: Boolean(operator.negated) };
+    return { path: field.path, condition, negated: Boolean(operator.negated), end };
+};
+
+// Parse a single filter into a list of conditions, which are matched if any condition matches
+const parseFilter = (filter, fieldResolver) => {
+    if (typeof filter !== 'string') return badRequest(`Wrong filter ${JSON.stringify(filter)}. Filters must be strings`);
+    const conditions = [];
+    let position = 0;
+    while (true) {
+        const parsedCondition = parseCondition(filter, position, fieldResolver);
+        if (parsedCondition.error) return parsedCondition;
+        const { end, ...condition } = parsedCondition;
+        conditions.push(condition);
+        if (end >= filter.length) return conditions;
+        // Skip the conditions separator
+        position = end + 1;
+    }
 };
 
 // Parse the 'filter' argument, which may be a single filter or a list of them
-// Return a list of parsed filters, or an error
+// Return a list of parsed filters, where every filter is a list of conditions, or an error
 const parseFilters = (filters, fieldResolver = resolveField) => {
     if (filters === undefined) return [];
     const filtersList = Array.isArray(filters) ? filters : [filters];
@@ -197,11 +309,17 @@ const parseFilters = (filters, fieldResolver = resolveField) => {
     return parsedFilters;
 };
 
-// Get the mongo query of a parsed filter
-const getFilterQuery = ({ path, condition, negated }) => {
+// Get the mongo query of a parsed condition
+const getConditionQuery = ({ path, condition, negated }) => {
     const query = { [path]: condition };
     return negated ? { $nor: [ query ] } : query;
 };
+
+// Join the mongo queries of the conditions in a filter, which are matched if any of them matches
+const joinConditionQueries = queries => queries.length === 1 ? queries[0] : { $or: queries };
+
+// Get the mongo query of a parsed filter
+const getFilterQuery = conditions => joinConditionQueries(conditions.map(getConditionQuery));
 
 // Parse the 'return' argument into a list of field paths
 // It may be a single string or a list of strings, and every string may include several fields separated by commas
@@ -239,6 +357,8 @@ module.exports = {
     resolveField,
     getReferenceFieldResolver,
     parseFilters,
+    getConditionQuery,
+    joinConditionQueries,
     getFilterQuery,
     parseReturn,
     checkNoReferenceFields,

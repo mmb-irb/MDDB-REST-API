@@ -4534,25 +4534,32 @@ definitions:
       name: filter
       in: query
       description: >
-        Filter projects by the value of a field, written as the field, an operator and the value (e.g. 'uniprotOrganism==Homo sapiens').<br>
+        Filter projects by the value of a field, written as the field, an operator and the value (e.g. "uniprotOrganism=eq='Homo sapiens'").<br>
         Supported operators are
-        '==' (equals),
-        '!=' (not equals),
-        '~=', '~' or '≃' (contains the text, case insensitive),
-        '!~=', '!~' or '≄' (does not contain the text, case insensitive),
-        '>' (greater than),
-        '>=' (greater than or equal),
-        '<' (lower than) and
-        '<=' (lower than or equal).<br>
-        Several values may be separated by '|' when using '==', '!=', '~=' and '!~=' (e.g. 'uniprotOrganism==Homo sapiens|Mus musculus').
-        Then '==' and '~=' match any of the values while '!=' and '!~=' match none of them.<br>
-        An empty value with '==' or '!=' stands for fields with no value (e.g. 'pdbId==' for projects with no PDB id).<br>
+        '=eq=' (equals),
+        '=ne=' (not equals),
+        '=ct=' (contains the text, case insensitive),
+        '=nc=' (does not contain the text, case insensitive),
+        '=gt=' (greater than),
+        '=ge=' (greater than or equal),
+        '=lt=' (lower than) and
+        '=le=' (lower than or equal).
+        Some symbols are supported as well: '==', '!=', '~=', '!~=', '>', '>=', '<' and '<='.<br>
+        Text values must be quoted with single quotes (e.g. "type=eq='ensemble'"), so they may include any character.
+        A quote inside a value may be escaped with a backslash (e.g. "name=eq='it\'s'").
+        Numbers, booleans and dates may be quoted or not (e.g. 'temperature=gt=300' or 'created=gt=2024-01-01').<br>
+        Several values may be separated by ',' when using '=eq=', '=ne=', '=ct=' and '=nc=' (e.g. "uniprotOrganism=eq='Homo sapiens','Mus musculus'").
+        Then '=eq=' and '=ct=' match any of the values while '=ne=' and '=nc=' match none of them.<br>
+        An empty value with '=eq=' or '=ne=' stands for fields with no value (e.g. 'pdbId=eq=' for projects with no PDB id),
+        while "''" stands for an empty text.<br>
+        Several conditions may be separated by ';' in a single filter and then projects must match any of them
+        (e.g. "uniprotOrganism=eq='Homo sapiens';pdbOrganism=eq='Homo sapiens'").<br>
         Several filters may be passed and projects must match all of them.<br>
         Fields may be passed by their full path (e.g. 'references.proteins.organism') or by their alias (e.g. 'uniprotOrganism').
         Available aliases are: $QUERY_FIELDS.
       schema:
         type: string
-      example: 'type==ensemble'
+      example: "type=eq='ensemble'"
     projectsReturn:
       name: return
       in: query
@@ -4622,11 +4629,11 @@ definitions:
       description: >
         Filter protein references by the value of a field, written as the field name, an operator and the value.
         Fields may be passed by their full path or by their alias, as in the projects 'filter' argument, but they must belong to this reference.
-        Operators are the same as in the projects 'filter' argument.
+        The syntax (operators, quotes, several values and several conditions) is the same as in the projects 'filter' argument.
         Several filters may be passed and references must match all of them.
       schema:
         type: string
-      example: 'uniprotOrganism==Homo sapiens'
+      example: "uniprotOrganism=eq='Homo sapiens'"
     PubChemID:
       name: PubChemID
       in: path
@@ -4651,11 +4658,11 @@ definitions:
       description: >
         Filter PDB references by the value of a field, written as the field name, an operator and the value.
         Fields may be passed by their full path or by their alias, as in the projects 'filter' argument, but they must belong to this reference.
-        Operators are the same as in the projects 'filter' argument.
+        The syntax (operators, quotes, several values and several conditions) is the same as in the projects 'filter' argument.
         Several filters may be passed and references must match all of them.
       schema:
         type: string
-      example: 'pdbMethod==X-RAY DIFFRACTION'
+      example: "pdbMethod=eq='X-RAY DIFFRACTION'"
     InChIKey:
       name: InChIKey
       in: path
@@ -4671,11 +4678,11 @@ definitions:
       description: >
         Filter InChIKey references by the value of a field, written as the field name, an operator and the value.
         Fields may be passed by their full path or by their alias, as in the projects 'filter' argument, but they must belong to this reference.
-        Operators are the same as in the projects 'filter' argument.
+        The syntax (operators, quotes, several values and several conditions) is the same as in the projects 'filter' argument.
         Several filters may be passed and references must match all of them.
       schema:
         type: string
-      example: 'references.inchikeys.ligand.formula~=P'
+      example: "references.inchikeys.ligand.formula=ct='P'"
     ChainSequence:
       name: ChainSequence
       in: path
@@ -4691,11 +4698,11 @@ definitions:
       description: >
         Filter chain references by the value of a field, written as the field name, an operator and the value.
         Fields may be passed by their full path or by their alias, as in the projects 'filter' argument, but they must belong to this reference.
-        Operators are the same as in the projects 'filter' argument.
+        The syntax (operators, quotes, several values and several conditions) is the same as in the projects 'filter' argument.
         Several filters may be passed and references must match all of them.
       schema:
         type: string
-      example: 'references.chains.sequence~=STIEE'
+      example: "references.chains.sequence=ct='STIEE'"
     CollectionID:
       name: CollectionID
       in: path
@@ -4711,11 +4718,11 @@ definitions:
       description: >
         Filter collection references by the value of a field, written as the field name, an operator and the value.
         Fields may be passed by their full path or by their alias, as in the projects 'filter' argument, but they must belong to this reference.
-        Operators are the same as in the projects 'filter' argument.
+        The syntax (operators, quotes, several values and several conditions) is the same as in the projects 'filter' argument.
         Several filters may be passed and references must match all of them.
       schema:
         type: string
-      example: 'references.collections.type==dataset'
+      example: "references.collections.type=eq='dataset'"
     knowledgePdbID:
       name: pdbid
       in: path
