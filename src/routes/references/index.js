@@ -15,6 +15,29 @@ const AVAILABLE_REFERENCES = Object.keys(REFERENCES).join(', ');
 // Standard codes for HTTP responses
 const { BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR } = require('../../utils/status-codes');
 
+// Get the sorted ids of references matching the query which are covered by the available projects
+const getAvailableReferenceIds = async (database, reference, referenceQuery) => {
+    // Query references and get only their reference ids
+    const referenceCursor = await database[reference.collectionName]
+        .find(referenceQuery)
+        .project({ _id: false, [reference.idField]: true })
+        .map(ref => ref[reference.idField]);
+    const referenceIds = await referenceCursor.toArray();
+    // WARNING: We must always start from these ids collected from references
+    // WARNING: Note that projects may have reference ids for references which do not exist
+    // WARNING: Although they shouldn't
+    // Get a list with all reference ids which are to be returned according to the available projects
+    // Note that less references are to be returned if this is the production API
+    const projectsQuery = database.getBaseFilter();
+    const distinctResult = await database.projects.distinct(
+        reference.projectIdsField, projectsQuery);
+    const coveredReferenceIds = new Set(distinctResult);
+    // Filter away references which are not covered by the available projects
+    const availableReferenceIds = new Set(referenceIds.filter(id => coveredReferenceIds.has(id)));
+    // Sort the available reference ids
+    return Array.from(availableReferenceIds).sort();
+};
+
 // Set the response when a specific reference is requested
 // Return a list with all available reference ids
 const wholeReferenceResponse = handler({
@@ -37,29 +60,8 @@ const wholeReferenceResponse = handler({
         const query = request.query.query;
         // If a query was passed then parse it and overwrite the reference query
         if (query) referenceQuery = JSON.parse(query);
-        // Query references and get only their reference ids
-        const referenceCursor = await referenceCollection
-            .find(referenceQuery)
-            .project({ _id: false, [reference.idField]: true })
-            .map(ref => ref[reference.idField]);
-        const referenceIds = await referenceCursor.toArray();
-        // Get reference ids alone
-        // WARNING: We must always start from these ids collected from references
-        // WARNING: Note that projects may have reference ids for references which do not exist
-        // WARNING: Although they shouldn't
-        let availableReferenceIds = new Set(referenceIds);
-        // Get a list with all reference ids which are to be returned according to the available projects
-        // Note that less references are to be returned if this is the production API
-        const projectsQuery = database.getBaseFilter();
-        const distinctResult = await database.projects.distinct(
-            reference.projectIdsField, projectsQuery);
-        const coveredReferenceIds = new Set(distinctResult);
-        // Filter away references which are not covered by the available projects
-        availableReferenceIds = new Set(
-            [...availableReferenceIds].filter(id => coveredReferenceIds.has(id))
-        );
-        // Sort the available reference ids
-        const sortedReferenceIds = Array.from(availableReferenceIds).sort();
+        // Get the sorted available reference ids
+        const sortedReferenceIds = await getAvailableReferenceIds(database, reference, referenceQuery);
         // Get the number of references to be matched after all
         const referencesCount = sortedReferenceIds.length;
         // Check if we are to return only the available ids
@@ -104,6 +106,57 @@ const wholeReferenceResponse = handler({
         // Finally consume the cursor
         const references = await cursor.toArray();
         return { referencesCount, references };
+    }
+});
+
+// Set the maximum (and default) number of reference versions to be returned per page
+// This limit is much greater than in other endpoints since every result is small
+const MAX_VERSIONS_LIMIT = 100000;
+
+// Set the response when the versions of all references of a specific type are requested
+// Return the number of references and an object with reference ids as keys and their versions as values
+const referenceVersionsResponse = handler({
+    supportedArguments: ['page', 'limit'],
+    async retriever(request) {
+        // Stablish database connection and retrieve our custom handler
+        const database = await getDatabase(request);
+        // Get the requested reference configuration
+        const referenceName = request.params.reference;
+        const reference = database.REFERENCES[referenceName];
+        if (!reference) return {
+            headerError: NOT_FOUND,
+            error: `Unknown reference "${referenceName}". Available references: ${database.AVAILABLE_REFERENCES}`
+        };
+        // Get the requested limit
+        // Note that we can not use the limit set by the pagination middleware since it is capped to 100
+        const rawLimit = request.rawQuery.limit;
+        let limit = MAX_VERSIONS_LIMIT;
+        if (rawLimit !== undefined) {
+            if (!/^\d+$/.test(rawLimit)) return {
+                headerError: BAD_REQUEST,
+                error: `Limit "${rawLimit}" is not a non-negative integer`
+            };
+            limit = Math.min(Number(rawLimit), MAX_VERSIONS_LIMIT);
+        }
+        // Get the sorted available reference ids and paginate them
+        // Note that the page is already parsed by the pagination middleware
+        const sortedReferenceIds = await getAvailableReferenceIds(database, reference, {});
+        // Get the number of references to be matched after all
+        const referencesCount = sortedReferenceIds.length;
+        const skip = (request.query.page - 1) * limit;
+        const paginatedReferenceIds = sortedReferenceIds.slice(skip, skip + limit);
+        // Get the version of every paginated reference
+        const cursor = await database[reference.collectionName]
+            .find({ [reference.idField]: { $in: paginatedReferenceIds } })
+            .project({ _id: false, [reference.idField]: true, version: true });
+        const references = await cursor.toArray();
+        // References with no version are set as 0.0.0
+        const versions = {};
+        references.forEach(ref => versions[ref[reference.idField]] = ref.version || '0.0.0');
+        // Return versions in the same order as the sorted reference ids
+        const sortedVersions = {};
+        paginatedReferenceIds.forEach(id => sortedVersions[id] = versions[id]);
+        return { referencesCount, versions: sortedVersions };
     }
 });
 
@@ -243,6 +296,8 @@ referencesRouter.route('/').get((_, response) => {
     response.json(`Available reference endpoints: ${AVAILABLE_REFERENCES}`);
 });
 referencesRouter.route('/:reference').get(wholeReferenceResponse);
+// Note that this route must be set before the specific reference id route
+referencesRouter.route('/:reference/versions').get(referenceVersionsResponse);
 referencesRouter.route('/:reference/:id').get(specificReferenceResponse);
 referencesRouter.route('/:reference/:id/files').get(specificReferenceFilesResponse);
 // Note that this endpoint is to be attended by the local rounter only

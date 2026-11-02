@@ -1588,6 +1588,56 @@ paths:
               schema:
                 $ref: '#/components/schemas/CollectionReference'
 
+  /references/{reference}/versions:
+    get:
+      summary: Get the versions of all references of a specific type.
+      description: >
+        Get the version of every reference of the requested type, sorted by reference id.
+        References with no version are returned as 0.0.0.
+      tags:
+        - references
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          description: Reference type
+          schema:
+            type: string
+            enum: [proteins, inchikeys, pdbs, chains, collections]
+          example: proteins
+        - name: limit
+          in: query
+          description: pagination, maximum number of references per query
+          schema:
+            type: integer
+            default: 100000
+            maximum: 100000
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
+      responses:
+        200:
+          description: Object with a count and the versions of the paginated references
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  referencesCount:
+                    type: integer
+                    example: 850
+                  versions:
+                    type: object
+                    description: Reference versions, by reference id
+                    additionalProperties:
+                      type: string
+                    example:
+                      P0DTC2: 1.0.0
+                      P0DTD1: 0.0.0
+
   /pointers/proteins:
     get:
       summary: Get all available UniProt IDs and their pointers with projects including these UniProt ID.

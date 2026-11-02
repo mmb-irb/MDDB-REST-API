@@ -78,6 +78,8 @@ app.use(express.urlencoded({limit: '4mb', extended: false}));
 // This way endpoints may reject unsupported arguments (see src/utils/check-arguments)
 app.use((request, response, next) => {
   request.queryArguments = Object.keys(request.query);
+  // Save also their raw values, since some endpoints need a different pagination limit
+  request.rawQuery = { ...request.query };
   next();
 });
 
