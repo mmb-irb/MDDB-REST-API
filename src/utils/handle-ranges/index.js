@@ -43,8 +43,8 @@ const handleRanges = (request, parsedRanges, descriptor) => {
       }).join(', ')}.`
   }
   // Search for query parameters with these names in the request
-  // We check both the body (in case it is a POST) and the query (in case it is a GET)
-  const rangeLocations = request ? [request.body, request.query] : [];
+  // Note that body arguments (e.g. POST) are already merged into the query (see src/middlewares/merge-arguments)
+  const rangeLocations = request ? [request.query] : [];
   // Get all requested ranges in the query
   const rangeStrings = {};
   // Search for a bytes range in the request

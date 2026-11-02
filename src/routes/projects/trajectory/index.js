@@ -234,14 +234,13 @@ const getTrajectory = async (request, transformFormat) => {
   // The user may request directly a list of atom indices
   // The legacy name for this field is 'atoms', and this is handled by the 'handleRanges' function
   // Then I added 'atomindices' to make it coherent with the structure endpoint which is handled here
-  let atomIndices = request.body.atomindices || request.query.atomindices || [];
+  let atomIndices = request.query.atomindices || [];
   // The user may request directly a list of residue indices
-  let residueIndices = request.body.resindices || request.query.resindices || [];
+  let residueIndices = request.query.resindices || [];
   // The user may request a list of chain indices
-  let chainIndices = request.body.chaindices || request.query.chaindices || [];
+  let chainIndices = request.query.chaindices || [];
   // In case we have a selection we must parse it to atoms
-  // We check both the body (in case it is a POST) and the query (in case it is a GET)
-  const selectionRequest = request.body.selection || request.query.selection;
+  const selectionRequest = request.query.selection;
   // The topology is needed to resolve residue, chain and NGL selections to atoms
   const topologyData = residueIndices.length || chainIndices.length || selectionRequest
     ? await project.getTopologyData()
@@ -276,14 +275,14 @@ const getTrajectory = async (request, transformFormat) => {
       ' positive integers (0-based) lower than the number of atoms, residues and chains, or ranges of them (e.g. 0-9,12)'
   };
   // Get the residue numeration used by the selection, which is the author numeration by default
-  const requestedNumbering = request.body.numbering || request.query.numbering;
+  const requestedNumbering = request.query.numbering;
   const numbering = parseNumbering(requestedNumbering);
   if (!numbering) return {
     headerError: BAD_REQUEST,
     error: `Not supported numbering "${requestedNumbering}". Supported numberings are ${NUMBERINGS.join(', ')}`
   };
   // The legacy 'atoms' param cannot be combined with the new selection params
-  const atomsRequest = request.body.atoms || request.query.atoms;
+  const atomsRequest = request.query.atoms;
   const anyNewSelection = atomIndices.length || residueIndices.length || chainIndices.length || selectionRequest;
   if (atomsRequest && anyNewSelection) return {
     headerError: BAD_REQUEST,
@@ -446,8 +445,7 @@ const trajectoryHandler = handler({
   async retriever(request) {
     // Set the format in which data will be sent
     // Format is requested through the query
-    // We check both the body (in case it is a POST) and the query (in case it is a GET)
-    const formatRequest = request.body.format || request.query.format;
+    const formatRequest = request.query.format;
     const transformFormat = acceptTransformFormat(formatRequest);
     if (!transformFormat) return {
       headerError: BAD_REQUEST,

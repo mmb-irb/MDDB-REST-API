@@ -11,6 +11,11 @@ info:
     Use the 'try it out' button to test any endpoint at the moment.
     <br />
     <br />
+    Endpoints which support the POST method accept any argument in either the query or the JSON request body.
+    The POST method is useful when arguments are too long for the URL (e.g. long lists of ids or atom selections).
+    An argument may be passed in both places only if both values are the same.
+    <br />
+    <br />
     Data may be accessed also through an
     <a href="//$CLIENT_URL/api/optimade/" target="_blank" rel="noreferrer noopener">OPTIMADE API</a>.
     <br />
@@ -25,6 +30,101 @@ paths:
       summary: Get a list of projects.
       description: >
         Get a list of $DATABASE projects (simulations and related data and analyses).
+      tags:
+        - projects
+      parameters:
+        - $ref: '#/definitions/arguments/projectIds'
+        - name: search
+          in: query
+          description: Text search inside project names, descriptions, authors and group names.
+          schema:
+            type: string
+        - name: query
+          in: query
+          description: >
+            A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
+            Note that this is an alternative to the 'search' parameter
+            which is more flexible but also more difficult to use if you have not experiencie with Mongo.
+          schema:
+            type: string
+        - name: projection
+          in: query
+          description: >
+            A projection stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
+            It is useful to reduce the amount of data in the response and thus the internet traffic.
+            Note that this parameter is difficult to use if you have not experiencie with Mongo.
+            Note that when the projection parameter is passed the response becomes raw (i.e. data as it is stored in the database, not formatted).
+          schema:
+            type: string
+        - name: raw
+          in: query
+          description: >
+            Set if the response is not to be formatted, but sent as it is stored in the database.
+          schema:
+            type: boolean
+            default: false
+        - name: filter
+          in: query
+          description: >
+            Filter projects by the value of a field, written as the field name, an operator and the value.
+            Operators are '+*' (and), '++' (or), '-*' (and not) and '--' (or not).
+            Several filters may be passed.<br>
+            Note that the 'query' parameter is more flexible.
+          schema:
+            type: string
+          example: 'metadata.TYPE+*ensemble'
+        - name: sort
+          in: query
+          description: >
+            A sort stringified JSON object for the MongoDB [sort](https://www.mongodb.com/docs/manual/reference/method/cursor.sort/) command.
+            Projects are sorted by accession by default.
+          schema:
+            type: string
+          example: '{"updateDate":-1}'
+        - name: countMds
+          in: query
+          description: get also the total number of MDs in all matched projects
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          description: >
+            pagination, maximum number of projects per query.
+            Limits greater than the maximum are rejected with a 400 error.
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
+      responses:
+        200:
+          description: an array of projects, paginated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProjectMD'
+                  filteredCount:
+                    type: integer
+                    example: 10
+                  totalCount:
+                    type: integer
+                    example: 250
+    post:
+      summary: Get a list of projects (long lists of ids allowed).
+      description: >
+        Get a list of $DATABASE projects (simulations and related data and analyses).
+        The list of ids may be sent in the request body, which allows long lists.
+        Other arguments are the same as in the GET method and may be passed in either the query or the request body.
       tags:
         - projects
       parameters:
@@ -95,6 +195,21 @@ paths:
           schema:
             type: integer
             default: 1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  description: Project accessions to be returned, either as a list or as a string with comma separated ids
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
+            example:
+              ids: [ $ACCESSION ]
       responses:
         200:
           description: an array of projects, paginated
@@ -339,7 +454,7 @@ paths:
       description: >
         Get a json object containing data related to atom, residue and chains (e.g. atom names, residue numbers).
         Atom, residue and chain selections may be sent in the request body, which allows long selections.
-        Other arguments are the same as in the GET method.
+        Other arguments are the same as in the GET method and may be passed in either the query or the request body.
       parameters:
         - $ref: '#/definitions/arguments/projectAccessionOrID'
         - name: include
@@ -555,6 +670,7 @@ paths:
       description: >
         Get the main structure of the project in pdb or mmCIF format.
         Structure may be filtered by specific atoms.
+        Arguments are the same as in the GET method and may be passed in either the query or the request body.
       produces:
         - chemical/x-pdb
         - chemical/x-mmcif
@@ -828,6 +944,7 @@ paths:
       description: >
         Get a complete or partial trajectory of the project.
         This process may take some time since trajectories are heavy files.
+        Arguments are the same as in the GET method and may be passed in either the query or the request body.
       produces:
         - application/octet-stream
         - text/mdcrd
@@ -1102,7 +1219,8 @@ paths:
         Get the coordinates of a complete or partial trajectory of the project.<br>
         Coordinates are always returned in the internal binary format (bin) used by the web client,
         with the same atom and frame selections than the trajectory endpoint.<br>
-        This process may take some time since trajectories are heavy files.
+        This process may take some time since trajectories are heavy files.<br>
+        Arguments are the same as in the GET method and may be passed in either the query or the request body.
       produces:
         - application/octet-stream
       parameters:
@@ -1254,7 +1372,7 @@ paths:
     post:
       summary: Get the simulation box along the trajectory (long frame selections allowed).
       description: >
-        Same as the GET method but parameters are passed in the request body.
+        Same as the GET method but parameters may be passed in either the query or the request body.
       produces:
         - application/octet-stream
       parameters:
@@ -1311,6 +1429,7 @@ paths:
       tags:
         - references
       parameters:
+        - $ref: '#/definitions/arguments/referenceIds'
         - $ref: '#/definitions/arguments/proteinReferenceQuery'
         - name: limit
           in: query
@@ -1329,6 +1448,63 @@ paths:
             default: 1
         - $ref: '#/definitions/arguments/referenceProjection'
         - $ref: '#/definitions/arguments/referenceJustIds'
+      responses:
+        200:
+          description: List of protein references
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  referencesCount:
+                    type: integer
+                    example: 42
+                  references:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProteinReference'
+    post:
+      summary: Get all available protein reference UniProt IDs (long lists of ids allowed).
+      description: >
+        Get a list of UniProt IDs with an ID for each protein reference in the database.
+        The list of ids may be sent in the request body, which allows long lists.
+        Other arguments are the same as in the GET method and may be passed in either the query or the request body.
+      tags:
+        - references
+      parameters:
+        - $ref: '#/definitions/arguments/proteinReferenceQuery'
+        - name: limit
+          in: query
+          description: >
+            pagination, maximum number of references per query.
+            Limits greater than the maximum are rejected with a 400 error.
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
+        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceJustIds'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  description: Reference ids to be returned, either as a list or as a string with comma separated ids
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
+            example:
+              ids: [ Q9BYF1, P0DTC2 ]
       responses:
         200:
           description: List of protein references
@@ -1370,6 +1546,7 @@ paths:
       tags:
         - references
       parameters:
+        - $ref: '#/definitions/arguments/referenceIds'
         - $ref: '#/definitions/arguments/pdbReferenceQuery'
         - name: limit
           in: query
@@ -1388,6 +1565,62 @@ paths:
             default: 1
         - $ref: '#/definitions/arguments/referenceProjection'
         - $ref: '#/definitions/arguments/referenceJustIds'
+      responses:
+        200:
+          description: List of PDB IDs
+          content:
+            application/json:
+              type: object
+              properties:
+                referencesCount:
+                  type: integer
+                  example: 42
+                references:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/PdbReference'
+    post:
+      summary: Get all available PDB reference ids (long lists of ids allowed).
+      description: >
+        Get a list of PDB IDs with for each ligand reference in the database.
+        The list of ids may be sent in the request body, which allows long lists.
+        Other arguments are the same as in the GET method and may be passed in either the query or the request body.
+      tags:
+        - references
+      parameters:
+        - $ref: '#/definitions/arguments/pdbReferenceQuery'
+        - name: limit
+          in: query
+          description: >
+            pagination, maximum number of references per query.
+            Limits greater than the maximum are rejected with a 400 error.
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
+        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceJustIds'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  description: Reference ids to be returned, either as a list or as a string with comma separated ids
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
+            example:
+              ids: [ 12CA ]
       responses:
         200:
           description: List of PDB IDs
@@ -1429,6 +1662,7 @@ paths:
       tags:
         - references
       parameters:
+        - $ref: '#/definitions/arguments/referenceIds'
         - $ref: '#/definitions/arguments/inchikeyReferenceQuery'
         - name: limit
           in: query
@@ -1447,6 +1681,64 @@ paths:
             default: 1
         - $ref: '#/definitions/arguments/referenceProjection'
         - $ref: '#/definitions/arguments/referenceJustIds'
+      responses:
+        200:
+          description: Object with a count and an array of InChIKey references
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  referencesCount:
+                    type: integer
+                    example: 850
+                  references:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InChIKeyReference'
+    post:
+      summary: Get all available InChIKey reference IDs (long lists of ids allowed).
+      description: >
+        Get a list of InChIKey references including their InChI string, PubChem,
+        SwissLipids and LipidMaps data.
+        The list of ids may be sent in the request body, which allows long lists.
+        Other arguments are the same as in the GET method and may be passed in either the query or the request body.
+      tags:
+        - references
+      parameters:
+        - $ref: '#/definitions/arguments/inchikeyReferenceQuery'
+        - name: limit
+          in: query
+          description: >
+            pagination, maximum number of references per query.
+            Limits greater than the maximum are rejected with a 400 error.
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
+        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceJustIds'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  description: Reference ids to be returned, either as a list or as a string with comma separated ids
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
+            example:
+              ids: [ AAKJLRGGTJKAMG-UHFFFAOYSA-N ]
       responses:
         200:
           description: Object with a count and an array of InChIKey references
@@ -1489,6 +1781,7 @@ paths:
       tags:
         - references
       parameters:
+        - $ref: '#/definitions/arguments/referenceIds'
         - $ref: '#/definitions/arguments/chainReferenceQuery'
         - name: limit
           in: query
@@ -1507,6 +1800,62 @@ paths:
             default: 1
         - $ref: '#/definitions/arguments/referenceProjection'
         - $ref: '#/definitions/arguments/referenceJustIds'
+      responses:
+        200:
+          description: Object with a count and an array of chain sequence references
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  referencesCount:
+                    type: integer
+                    example: 2378
+                  references:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChainReference'
+    post:
+      summary: Get all available chain sequence references (long lists of ids allowed).
+      description: >
+        Get a list of chain sequence references including their InterProScan
+        analysis results.
+        The list of ids may be sent in the request body, which allows long lists.
+        Other arguments are the same as in the GET method and may be passed in either the query or the request body.
+      tags:
+        - references
+      parameters:
+        - $ref: '#/definitions/arguments/chainReferenceQuery'
+        - name: limit
+          in: query
+          description: >
+            pagination, maximum number of references per query.
+            Limits greater than the maximum are rejected with a 400 error.
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
+        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceJustIds'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  description: Reference ids to be returned, either as a list or as a string with comma separated ids
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
       responses:
         200:
           description: Object with a count and an array of chain sequence references
@@ -1549,6 +1898,7 @@ paths:
       tags:
         - references
       parameters:
+        - $ref: '#/definitions/arguments/referenceIds'
         - $ref: '#/definitions/arguments/collectionReferenceQuery'
         - name: limit
           in: query
@@ -1567,6 +1917,62 @@ paths:
             default: 1
         - $ref: '#/definitions/arguments/referenceProjection'
         - $ref: '#/definitions/arguments/referenceJustIds'
+      responses:
+        200:
+          description: Object with a count and an array of collection references
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  referencesCount:
+                    type: integer
+                    example: 9
+                  references:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CollectionReference'
+    post:
+      summary: Get all available collection references (long lists of ids allowed).
+      description: >
+        Get a list of dataset collections available in the database,
+        including metadata such as name, type, description, image, citation and summary.
+        The list of ids may be sent in the request body, which allows long lists.
+        Other arguments are the same as in the GET method and may be passed in either the query or the request body.
+      tags:
+        - references
+      parameters:
+        - $ref: '#/definitions/arguments/collectionReferenceQuery'
+        - name: limit
+          in: query
+          description: >
+            pagination, maximum number of references per query.
+            Limits greater than the maximum are rejected with a 400 error.
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
+        - $ref: '#/definitions/arguments/referenceProjection'
+        - $ref: '#/definitions/arguments/referenceJustIds'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  description: Reference ids to be returned, either as a list or as a string with comma separated ids
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
       responses:
         200:
           description: Object with a count and an array of collection references
@@ -4155,6 +4561,25 @@ definitions:
     IDPattern: '^[a-fA-F\d]{24}$'
     AccessionPattern: 'Free'
   arguments:
+    projectIds:
+      name: ids
+      in: query
+      description: >
+        Accessions of the projects to be returned, separated by commas.
+        Several ids arguments may be passed as well.
+        Use the POST method for long lists of accessions.
+      schema:
+        type: string
+      example: $ACCESSION
+    referenceIds:
+      name: ids
+      in: query
+      description: >
+        Ids of the references to be returned, separated by commas.
+        Several ids arguments may be passed as well.
+        Use the POST method for long lists of ids.
+      schema:
+        type: string
     referenceProjection:
       name: projection
       in: query

@@ -1,4 +1,4 @@
-const { rangedSelectionParser } = require('.');
+const { rangedSelectionParser, getRequestedIds } = require('.');
 const { BAD_REQUEST } = require('../status-codes');
 
 // Set a limit for all tests, as if the system had 10 atoms
@@ -47,5 +47,29 @@ describe('rangedSelectionParser', () => {
 
   test('missing limit', () => {
     expect(() => rangedSelectionParser('0-9')).toThrow();
+  });
+});
+
+describe('getRequestedIds', () => {
+  const request = query => ({ query });
+
+  test('no ids requested', () => {
+    expect(getRequestedIds(request({}))).toBe(null);
+  });
+
+  test('ids as comma separated strings or lists', () => {
+    expect(getRequestedIds(request({ ids: 'A0001' }))).toEqual(['A0001']);
+    expect(getRequestedIds(request({ ids: 'A0001, A0002,' }))).toEqual(['A0001', 'A0002']);
+    expect(getRequestedIds(request({ ids: ['A0001', 'A0002,A0003'] }))).toEqual(['A0001', 'A0002', 'A0003']);
+  });
+
+  test('empty lists of ids are rejected', () => {
+    for (const ids of ['', ' , ', [], ['']])
+      expect(getRequestedIds(request({ ids })).headerError).toBe(BAD_REQUEST);
+  });
+
+  test('ids which are not strings are rejected', () => {
+    // e.g. '?ids[a]=1' is parsed as an object
+    expect(getRequestedIds(request({ ids: { a: '1' } })).headerError).toBe(BAD_REQUEST);
   });
 });

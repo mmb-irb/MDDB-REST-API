@@ -10,7 +10,7 @@ const getPagination = require('../../utils/get-pagination');
 // Get the database handler
 const getDatabase = require('../../database');
 // Get auxiliar functions
-const { parseJSON, isObjectId, getConfig } = require('../../utils/auxiliar-functions');
+const { parseJSON, isObjectId, getConfig, getRequestedIds } = require('../../utils/auxiliar-functions');
 // Import references configuration
 const { REFERENCES } = require('mddb-database/utils/constants');
 const AVAILABLE_REFERENCES = Object.keys(REFERENCES).join(', ');
@@ -42,8 +42,10 @@ const getAvailableReferenceIds = async (database, reference, referenceQuery) => 
 
 // Set the response when a specific reference is requested
 // Return a list with all available reference ids
+// Note that references may be requested both through GET and POST methods
+// POST method was implemented to allow long lists of ids
 const wholeReferenceResponse = handler({
-    supportedArguments: ['query', 'justids', 'projection', 'page', 'limit'],
+    supportedArguments: ['ids', 'query', 'justids', 'projection', 'page', 'limit'],
     async retriever(request) {
         // Stablish database connection and retrieve our custom handler
         const database = await getDatabase(request);
@@ -62,6 +64,10 @@ const wholeReferenceResponse = handler({
         const query = request.query.query;
         // If a query was passed then parse it and overwrite the reference query
         if (query) referenceQuery = JSON.parse(query);
+        // Get the requested reference ids, if any, and add them to the reference query
+        const ids = getRequestedIds(request);
+        if (ids && ids.error) return ids;
+        if (ids) referenceQuery = { $and: [ referenceQuery, { [reference.idField]: { $in: ids } } ] };
         // Get the sorted available reference ids
         const sortedReferenceIds = await getAvailableReferenceIds(database, reference, referenceQuery);
         // Get the number of references to be matched after all
@@ -285,7 +291,7 @@ referencesRouter.route('/').get((_, response) => {
     // This is just a map so the API user know which options are available
     response.json(`Available reference endpoints: ${AVAILABLE_REFERENCES}`);
 });
-referencesRouter.route('/:reference').get(wholeReferenceResponse);
+referencesRouter.route('/:reference').get(wholeReferenceResponse).post(wholeReferenceResponse);
 // Note that this route must be set before the specific reference id route
 referencesRouter.route('/:reference/versions').get(referenceVersionsResponse);
 referencesRouter.route('/:reference/:id').get(specificReferenceResponse);

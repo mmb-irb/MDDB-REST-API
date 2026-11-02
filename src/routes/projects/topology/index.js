@@ -55,11 +55,10 @@ const topologyHandler = handler({
     const dupbonds = request.query.dupbonds;
     const duplicatedBonds = dupbonds !== undefined && dupbonds !== 'false';
     // The user may request a selection of atom, residue and/or chain indices
-    // We check both the body (in case it is a POST) and the query (in case it is a GET)
     const selection = {
-      atomIndices: parseIndices(request.body.atomindices || request.query.atomindices),
-      residueIndices: parseIndices(request.body.resindices || request.query.resindices),
-      chainIndices: parseIndices(request.body.chaindices || request.query.chaindices),
+      atomIndices: parseIndices(request.query.atomindices),
+      residueIndices: parseIndices(request.query.resindices),
+      chainIndices: parseIndices(request.query.chaindices),
     };
     const anySelection = Object.values(selection).some(indices => typeof indices === 'string' || indices.length > 0);
     if (anySelection && isRaw) return {

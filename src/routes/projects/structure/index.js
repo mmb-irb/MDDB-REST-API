@@ -42,7 +42,7 @@ const structureHandler = handler({
     if (project.error) return project;
     // Get the requested output format, which is PDB by default in v1 and mmCIF since v2
     const defaultFormat = getApiVersion() >= 2 ? 'cif' : 'pdb';
-    const requestedFormat = request.body.format || request.query.format || defaultFormat;
+    const requestedFormat = request.query.format || defaultFormat;
     const structureFormat = structureFormats[String(requestedFormat).toLowerCase()];
     if (!structureFormat) return {
       headerError: BAD_REQUEST,
@@ -51,14 +51,14 @@ const structureHandler = handler({
     // Get the requested residue numeration, which is the author numeration by default
     // It is used by the NGL selection and in the residue numbers of the PDB
     // Note that the mmCIF has always both numerations
-    const requestedNumbering = request.body.numbering || request.query.numbering;
+    const requestedNumbering = request.query.numbering;
     const numbering = parseNumbering(requestedNumbering);
     if (!numbering) return {
       headerError: BAD_REQUEST,
       error: `Not supported numbering "${requestedNumbering}". Supported numberings are ${NUMBERINGS.join(', ')}`
     };
     // Get the NGL atom selection, if any
-    const selection = request.body.selection || request.query.selection;
+    const selection = request.query.selection;
     // Get the topology data, only the fields needed to build the structure
     // Note that NGL selections are always parsed from a mmCIF, no matter the requested format
     // Note that the mmCIF fields include the reference numbers, which are needed by the UniProt numeration
@@ -70,20 +70,19 @@ const structureHandler = handler({
     const numberedTopologyData = applyNumbering(topologyData, numbering);
     // Get any kind of requested selection
     // If multiple values are passed then the sum of them will be returned
-    // We check both the body (in case it is a POST) and the query (in case it is a GET)
     // Ranged selections (e.g. 0-9,12) must not exceed the number of atoms, residues and chains
     // The user may request directly a list of atom indices
-    let atomIndices = request.body.atomindices || request.query.atomindices || [];
+    let atomIndices = request.query.atomindices || [];
     if (typeof atomIndices === 'string')
       atomIndices = rangedSelectionParser(atomIndices, topologyData.atom_residue_indices.length, 'atom');
     if (atomIndices.error) return atomIndices;
     // The user may request directly a list of residue indices
-    let residueIndices = request.body.resindices || request.query.resindices || [];
+    let residueIndices = request.query.resindices || [];
     if (typeof residueIndices === 'string')
       residueIndices = rangedSelectionParser(residueIndices, topologyData.residue_chain_indices.length, 'residue');
     if (residueIndices.error) return residueIndices;
     // The user may request directly a list of residue indices
-    let chainIndices = request.body.chaindices || request.query.chaindices || [];
+    let chainIndices = request.query.chaindices || [];
     if (typeof chainIndices === 'string')
       chainIndices = rangedSelectionParser(chainIndices, topologyData.chain_names.length, 'chain');
     if (chainIndices.error) return chainIndices;

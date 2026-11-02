@@ -97,8 +97,7 @@ router.route('/:file').get(
       // Parse the final stream if the flag is parse has been passed
       let finalStream = rangedStream;
       // Check if the parse flag has been passed
-      // We check both the body (in case it is a POST) and the query (in case it is a GET)
-      const parse = request.body.parse || request.query.parse;
+      const parse = request.query.parse;
       const isParse = parse !== undefined && parse !== 'false';
       if (isParse) {
         // Make sure it is a binary file

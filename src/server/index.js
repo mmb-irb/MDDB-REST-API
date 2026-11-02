@@ -9,6 +9,7 @@ const chalk = require('chalk');
 // logging for grafana
 const { metricsMiddleware } = require('../middlewares/metrics');
 const { compressionMiddleware } = require('../middlewares/compression');
+const { mergeArgumentsMiddleware } = require('../middlewares/merge-arguments');
 
 const routes = require('../routes');
 //const getCustomTimeout = require('../middlewares/custom-timeout');
@@ -106,8 +107,9 @@ app.get('/rest/codemeta', (_, res) => {
 
 // Routes with more logic
 // All versions share the same routes and the requested version is available through getApiVersion
+// Body arguments are merged into the query, so endpoints read all arguments from the query
 for (const versionName of API_VERSION_NAMES)
-  app.use(`/rest/${versionName}`, apiVersionMiddleware(versionName), routes);
+  app.use(`/rest/${versionName}`, apiVersionMiddleware(versionName), mergeArgumentsMiddleware, routes);
 
 
 // NEVER FORGET: El sistema recomendado para editar el swagger on the fly no me funcionaba bien y no me permitía pasar opciones

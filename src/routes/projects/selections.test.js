@@ -8,6 +8,7 @@ const { Readable } = require('stream');
 const express = require('express');
 const { BAD_REQUEST } = require('../../utils/status-codes');
 const { API_VERSION_NAMES, apiVersionMiddleware } = require('../../utils/api-version');
+const { mergeArgumentsMiddleware } = require('../../middlewares/merge-arguments');
 
 // Chain A: residue 0 (atoms 0, 1), residue 1 (atoms 2, 3)
 // Chain B: residue 2 (atoms 4, 5)
@@ -66,8 +67,10 @@ app.use((request, response, next) => {
   next();
 });
 for (const versionName of API_VERSION_NAMES) {
-  app.use(`/${versionName}/:project/structure`, apiVersionMiddleware(versionName), require('./structure'));
-  app.use(`/${versionName}/:project/trajectory`, apiVersionMiddleware(versionName), require('./trajectory'));
+  app.use(`/${versionName}/:project/structure`, apiVersionMiddleware(versionName), mergeArgumentsMiddleware,
+    require('./structure'));
+  app.use(`/${versionName}/:project/trajectory`, apiVersionMiddleware(versionName), mergeArgumentsMiddleware,
+    require('./trajectory'));
 }
 let server;
 beforeAll(done => { server = app.listen(0, done) });

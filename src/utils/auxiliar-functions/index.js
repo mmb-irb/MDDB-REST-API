@@ -249,6 +249,28 @@ const rangedSelectionParser = (selection, limit, name) => {
   return parsedSelection;
 };
 
+// Get the list of requested ids (e.g. project accessions or reference ids) in the 'ids' argument
+// Ids may be passed in the body (POST), which allows long lists of ids which would not fit in the URL
+// Note that body arguments are already merged into the query (see src/middlewares/merge-arguments)
+// Ids may be passed as a list or as a string with comma separated ids
+// Return null if no ids were requested and an error if the list of ids is empty
+const getRequestedIds = request => {
+  const ids = request.query.ids;
+  if (ids === undefined) return null;
+  const idsList = Array.isArray(ids) ? ids : [ids];
+  if (idsList.some(id => typeof id !== 'string')) return {
+    headerError: BAD_REQUEST,
+    error: 'Ids must be strings'
+  };
+  // Split comma separated ids and remove empty ids (e.g. trailing commas)
+  const parsedIds = idsList.flatMap(id => id.split(',')).map(id => id.trim()).filter(id => id);
+  if (parsedIds.length === 0) return {
+    headerError: BAD_REQUEST,
+    error: 'The list of ids is empty'
+  };
+  return parsedIds;
+};
+
 module.exports = {
     getRequestUrl,
     parseJSON,
@@ -270,4 +292,5 @@ module.exports = {
     escapeRegExp,
     getSearchQuery,
     rangedSelectionParser,
+    getRequestedIds,
 }
