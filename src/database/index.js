@@ -275,9 +275,10 @@ class Database4Api extends Database {
                     // If the field does not start with the references header then skip it
                     if (!field.startsWith(REFERENCE_HEADER)) continue;
                     // Get the name of the field and the reference collection
+                    // The field may be nested in the reference (e.g. references.inchikeys.ligand.name)
                     const fieldSplits = field.split('.');
                     const referenceName = fieldSplits[1];
-                    const referenceField = fieldSplits[2];
+                    const referenceField = fieldSplits.slice(2).join('.');
                     // Get the reference configuration
                     const reference = this.REFERENCES[referenceName];
                     if (!reference) return {

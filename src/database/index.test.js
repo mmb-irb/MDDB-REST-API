@@ -1,12 +1,18 @@
 // In a test environment 'mddb-database' gets its mongo connection from this module, so fake it
 // Every reference collection finds the same references whatever the query, since we only check the translation
+// The queries sent to reference collections are kept, to check which fields they search
+const mockReferenceQueries = [];
 jest.mock('mddb-database/utils/fake-mongo', () => {
   const references = {
     references: [{ uniprot: 'Q9BYF1' }],
     pdb_refs: [{ id: '6M0J' }],
+    inchikey_refs: [{ inchikey: 'HVYWMOMLDIMFJA-DPAQBDIFSA-N' }],
   };
   const collection = name => ({
-    find: () => ({ project: () => ({ map: getId => ({ toArray: async () => references[name].map(getId) }) }) }),
+    find: query => {
+      mockReferenceQueries.push({ collection: name, query });
+      return { project: () => ({ map: getId => ({ toArray: async () => references[name].map(getId) }) }) };
+    },
     countDocuments: async () => 0,
   });
   return Promise.resolve({ db: () => ({ collection }) });
@@ -25,6 +31,7 @@ const processQuery = async query => {
 // The project fields which reference fields are translated to
 const PROTEIN = { 'metadata.REFERENCES': { $in: ['Q9BYF1'] } };
 const PDB = { 'metadata.PDBIDS': { $in: ['6M0J'] } };
+const INCHIKEY = { 'metadata.INCHIKEYS': { $in: ['HVYWMOMLDIMFJA-DPAQBDIFSA-N'] } };
 
 describe('processProjectsQuery', () => {
   test('translates reference fields after other fields', async () => {
@@ -71,6 +78,12 @@ describe('processProjectsQuery', () => {
       $and: [{ 'metadata.TYPE': 'trajectory', updateDate: new Date('2024-01-01') }],
       updateDate: { $lt: new Date('2025-01-01') },
     });
+  });
+
+  test('searches nested fields of the references', async () => {
+    mockReferenceQueries.length = 0;
+    expect(await processQuery({ 'references.inchikeys.ligand.name': 'cholesterol' })).toEqual(INCHIKEY);
+    expect(mockReferenceQueries).toEqual([{ collection: 'inchikey_refs', query: { 'ligand.name': 'cholesterol' } }]);
   });
 
   test('rejects unknown references', async () => {
