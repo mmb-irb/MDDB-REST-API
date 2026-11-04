@@ -1,5 +1,5 @@
 const { QUERY_FIELDS } = require('mddb-database/utils/constants');
-const { splitQuery } = require('./api');
+const { MAX_CHARS, splitQuery } = require('./api');
 const { round } = require('./analyses');
 
 // One line per field the API knows how to query, from the same definitions the API and the loader use
@@ -27,6 +27,9 @@ const sum = values => {
   return numbers.length ? round(numbers.reduce((a, b) => a + b, 0)) : undefined;
 };
 
+// A requested parent (e.g. metadata) replaces its fields, since MongoDB refuses to project both
+const projectionPaths = paths => paths.filter(path => !paths.some(other => path.startsWith(other + '.')));
+
 // Top-level fields a query filters on. Fields inside $or and references.* fields are left out
 const queriedFields = query => Object.entries(query).flatMap(([key, value]) => {
   if (key === '$and' && Array.isArray(value)) return value.flatMap(queriedFields);
@@ -48,7 +51,7 @@ const countMissing = async (api, fields) => {
 };
 
 const searchProjects = async (api, { text, query = {}, fields = [], sort, limit = 10, page = 1 }) => {
-  const projection = Object.fromEntries([...SEARCH_PROJECTION, ...fields].map(field => [field, 1]));
+  const projection = Object.fromEntries(projectionPaths([...SEARCH_PROJECTION, ...fields]).map(field => [field, 1]));
   const [response, missingFields] = await Promise.all([
     api('projects', {
       search: text,
@@ -78,7 +81,10 @@ const searchProjects = async (api, { text, query = {}, fields = [], sort, limit 
       fields: fields.length ? Object.fromEntries(fields.map(field => [field, getPath(project, field.split('.'))])) : undefined,
     };
   });
-  return { total: response.filteredCount, page, limit, missingFields, projects };
+  const result = { total: response.filteredCount, page, limit, missingFields, projects };
+  const length = JSON.stringify(result).length;
+  if (length > MAX_CHARS) throw new Error(`The result is ${length} characters long. Ask for fewer fields or a smaller limit`);
+  return result;
 };
 
 const projectOptions = async (api, { fields, text, query = {}, top = 30 }) => {

@@ -60,6 +60,21 @@ describe('searchProjects', () => {
     expect(result.projects[0].timeNs).toBe(0.3);
   });
 
+  // Asking for a parent of a base field (e.g. metadata.NAME) would make MongoDB refuse the projection
+  it('asks for whole parents instead of their fields', async () => {
+    const api = fakeApi([project]);
+    const result = await searchProjects(api, { fields: ['metadata', 'mds'] });
+    const projection = JSON.parse(String(api.mock.calls[0][1].projection));
+    expect(Object.keys(projection).sort()).toEqual(['accession', 'mds', 'metadata', 'node']);
+    expect(result.projects[0]).toMatchObject({ name: 'Envelope protein E', frames: 10002, fields: { metadata: project.metadata } });
+  });
+
+  it('refuses results that would flood the context', async () => {
+    const huge = { ...project, metadata: { ...project.metadata, PROTSEQ: ['A'.repeat(50000)] } };
+    await expect(searchProjects(fakeApi([huge]), { fields: ['metadata'] }))
+      .rejects.toThrow(/^The result is \d+ characters long. Ask for fewer fields or a smaller limit$/);
+  });
+
   it('leaves out totals that no MD stores', async () => {
     const result = await searchProjects(fakeApi([{ accession: 'A00P6', metadata: {}, mds: [{ frames: 1000 }] }]), {});
     expect(result.projects[0]).toMatchObject({ mds: 1, frames: 1000, timeNs: undefined });
