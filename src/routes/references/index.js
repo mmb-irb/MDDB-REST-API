@@ -12,7 +12,7 @@ const getDatabase = require('../../database');
 // Get auxiliar functions
 const { isObjectId, getConfig, getRequestedIds } = require('../../utils/auxiliar-functions');
 // Get the filter and return parsers
-const { getReferenceFieldResolver, parseFilters, getFilterQuery, parseReturn } = require('../../utils/query-fields');
+const { getReferenceFieldResolver, parseFilters, getFilterQuery, parseReturn } = require('mddb-database/utils/query-fields');
 // Import references configuration
 const { REFERENCES } = require('mddb-database/utils/constants');
 const AVAILABLE_REFERENCES = Object.keys(REFERENCES).join(', ');

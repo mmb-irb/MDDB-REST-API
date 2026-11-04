@@ -114,8 +114,6 @@ const PROTEIN_LETTER_RESIDUE_NAMES = {
 
 // Set some constants
 module.exports = {
-    // Set the headers for some queries
-    REFERENCE_HEADER: 'references.',
     // Structural helps
     PROTEIN_RESIDUE_NAME_LETTERS,
     PROTEIN_LETTER_RESIDUE_NAMES,

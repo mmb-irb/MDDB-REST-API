@@ -13,7 +13,7 @@ const HTTP_CODE_HEADERS = {
 // Get auxiliar functions
 const { getSearchQuery } = require('../../../utils/auxiliar-functions');
 // Get the return parser
-const { parseReturn } = require('../../../utils/query-fields');
+const { parseReturn } = require('mddb-database/utils/query-fields');
 
 const router = Router({ mergeParams: true });
 

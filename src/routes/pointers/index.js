@@ -15,7 +15,7 @@ const { rangeNotation } = require('../../utils/parse-query-range');
 // Get the reference id query formatter
 const { referenceIdQueryFormatter } = require('../../utils/reference-id-query-formatters');
 // Get the return parser
-const { parseReturn, checkNoReferenceFields } = require('../../utils/query-fields');
+const { parseReturn, checkNoReferenceFields } = require('mddb-database/utils/query-fields');
 // Set which references support "presence"
 // These are references to be residue-assigned in the topology
 // Thus PDB references do not support presence

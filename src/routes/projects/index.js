@@ -10,7 +10,7 @@ const projectFormatter = require('../../utils/project-formatter');
 // Get auxiliar functions
 const { parseJSON, getConfig, getSearchQuery, getRequestedIds } = require('../../utils/auxiliar-functions');
 // Get the filter and return parsers
-const { parseReturn, checkNoReferenceFields } = require('../../utils/query-fields');
+const { parseReturn, checkNoReferenceFields } = require('mddb-database/utils/query-fields');
 
 const projectRouter = Router();
 
