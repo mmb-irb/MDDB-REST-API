@@ -17,12 +17,13 @@ const { getApiVersion } = require('../../../utils/api-version');
 const producePdb = require('./produce-pdb');
 // Function to produce a mmCIF from topology and coordinates
 const produceMmcif = require('./produce-mmcif');
+const { STRUCTURE_FORMATS } = require('../../../utils/constants');
 
 // Supported output formats
 // Note that format names are case insensitive
 const structureFormats = {
-  pdb: { extension: 'pdb', contentType: 'chemical/x-pdb', producer: producePdb },
-  mmcif: { extension: 'cif', contentType: 'chemical/x-mmcif', producer: produceMmcif },
+  pdb: { ...STRUCTURE_FORMATS.pdb, producer: producePdb },
+  mmcif: { ...STRUCTURE_FORMATS.mmcif, producer: produceMmcif },
 };
 structureFormats.cif = structureFormats.mmcif;
 

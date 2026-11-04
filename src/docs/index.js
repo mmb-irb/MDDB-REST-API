@@ -2,9 +2,9 @@
 const yaml = require('yamljs');
 // Import the swagger logic
 const swaggerUI = require('swagger-ui-express');
-const swaggerInit = swaggerUI.serve[0];
-// Query fields, including their aliases
+// Get the fields projects can be queried by
 const { QUERY_FIELDS } = require('mddb-database/utils/constants');
+const swaggerInit = swaggerUI.serve[0];
 // Supported REST API versions
 const { API_VERSION_NAMES, CURRENT_API_VERSION } = require('../utils/api-version');
 // Get the configuration parameters for the different requesting hosts
@@ -16,8 +16,6 @@ hostConfig[null] = {
     'The requesting URL is not recognized, all simulations will be returned',
   accession: 'A0001'
 };
-// List the query field aliases and their paths, to be shown in the filter docs
-const QUERY_FIELDS_DOCS = QUERY_FIELDS.map(field => `'${field.alias}' (${field.path})`).join(', ');
 // Set a placeholder for the host name
 // This is internal and should not be seen by the final user
 const UNKNOWN_HOST_PLACEHOLDER = 'UNKNOWN_HOST';
@@ -45,6 +43,17 @@ const replaceAnywhere = (targetObject, targetString, replaceString) => {
     }
   }
 };
+
+// Set a markdown table of the fields projects can be queried by, from the same definitions the API queries with
+// Global-only fields (e.g. node) are left out for the rest of hosts
+const getQueryFieldsTable = isGlobal => [
+  '',
+  '',
+  '| Alias | Field | Type | Description | Example |',
+  '|---|---|---|---|---|',
+  ...QUERY_FIELDS.filter(field => isGlobal || !field.global).map(field =>
+    `| ${field.alias} | ${field.path} | ${field.type} | ${field.description || field.name} | ${field.example} |`),
+].join('\n');
 
 // Elaborate the different possible swagger responsed depending on the request URL
 const swaggerResponses = {};
@@ -83,7 +92,7 @@ Object.entries(hostConfig).forEach(([host, config]) => {
   replaceAnywhere(swaggerDocs, '$DATABASE', config.name);
   const accessionExample = config.accession || '< No example available >';
   replaceAnywhere(swaggerDocs, '$ACCESSION', accessionExample);
-  replaceAnywhere(swaggerDocs, '$QUERY_FIELDS', QUERY_FIELDS_DOCS);
+  replaceAnywhere(swaggerDocs, '$QUERY_FIELDS', getQueryFieldsTable(config.global));
   // If optimade is not to be shown then remove this part from the docs
   if (config.optimade == false) {
     const optimadeRegExp = new RegExp("<br />.*OPTIMADE API</a>.");

@@ -1,12 +1,18 @@
 // In a test environment 'mddb-database' gets its mongo connection from this module, so fake it
 // Every reference collection finds the same references whatever the query, since we only check the translation
+// The queries sent to reference collections are kept, to check which fields they search
+const mockReferenceQueries = [];
 jest.mock('mddb-database/utils/fake-mongo', () => {
   const references = {
     references: [{ uniprot: 'Q9BYF1' }],
     pdb_refs: [{ id: '6M0J' }],
+    inchikey_refs: [{ inchikey: 'HVYWMOMLDIMFJA-DPAQBDIFSA-N' }],
   };
   const collection = name => ({
-    find: () => ({ project: () => ({ map: getId => ({ toArray: async () => references[name].map(getId) }) }) }),
+    find: query => {
+      mockReferenceQueries.push({ collection: name, query });
+      return { project: () => ({ map: getId => ({ toArray: async () => references[name].map(getId) }) }) };
+    },
     countDocuments: async () => 0,
   });
   return Promise.resolve({ db: () => ({ collection }) });
@@ -67,6 +73,13 @@ describe('processProjectsFilter', () => {
         { 'metadata.REFERENCES': { $nin: ['Q9BYF1'] } },
         { 'metadata.TYPE': 'ensemble' },
       ] }]);
+  });
+
+  test('searches nested fields of the references', async () => {
+    mockReferenceQueries.length = 0;
+    expect(await processFilter("references.inchikeys.ligand.name=eq='cholesterol'"))
+      .toEqual([{ 'metadata.INCHIKEYS': { $in: ['HVYWMOMLDIMFJA-DPAQBDIFSA-N'] } }]);
+    expect(mockReferenceQueries).toEqual([{ collection: 'inchikey_refs', query: { 'ligand.name': 'cholesterol' } }]);
   });
 
   test('rejects unknown references', async () => {

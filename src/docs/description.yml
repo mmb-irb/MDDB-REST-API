@@ -2844,7 +2844,7 @@ components:
         BOXSIZEZ:
           type: number
           example: 5.36386
-        SYSATS:
+        SYSTATS:
           type: number
           example: 10000
         PROTATS:
@@ -4556,7 +4556,9 @@ definitions:
         (e.g. "uniprotOrganism=eq='Homo sapiens';pdbOrganism=eq='Homo sapiens'").<br>
         Several filters may be passed and projects must match all of them.<br>
         Fields may be passed by their full path (e.g. 'references.proteins.organism') or by their alias (e.g. 'uniprotOrganism').
-        Available aliases are: $QUERY_FIELDS.
+        Any stored field may be filtered. These are the main ones, and the descriptions say which projects lack them.
+        Fields starting with 'references.' are matched in the references and then in the projects which refer to them.
+        $QUERY_FIELDS
       schema:
         type: string
       example: "type=eq='ensemble'"

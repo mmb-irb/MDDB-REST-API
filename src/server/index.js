@@ -111,6 +111,9 @@ app.get('/rest/codemeta', (_, res) => {
 for (const versionName of API_VERSION_NAMES)
   app.use(`/rest/${versionName}`, apiVersionMiddleware(versionName), mergeArgumentsMiddleware, routes);
 
+// MCP server for LLM clients, over this API
+app.use('/rest/mcp', require('../mcp'));
+
 
 // NEVER FORGET: El sistema recomendado para editar el swagger on the fly no me funcionaba bien y no me permitía pasar opciones
 //    https://github.com/scottie1984/swagger-ui-express#modify-swagger-file-on-the-fly-before-load
