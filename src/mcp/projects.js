@@ -83,7 +83,14 @@ const searchProjects = async (api, { text, query = {}, fields = [], sort, limit 
 const projectOptions = async (api, { fields, text, query = {}, top = 30 }) => {
   const queries = splitQuery(query);
   // Without a query the API answers from precounted totals, which lag behind the stored projects
-  const response = await api('projects/options', { projection: fields, search: text, query: queries.length ? queries : '{}' });
+  let response;
+  try {
+    response = await api('projects/options', { projection: fields, search: text, query: queries.length ? queries : '{}' });
+  } catch (error) {
+    // The API answers 404 when no project matches the query
+    if (error.status !== 404) throw error;
+    return Object.fromEntries(fields.map(field => [field, { values: [] }]));
+  }
   // Pairs rather than an object: JS would reorder integer-like values such as temperatures
   return Object.fromEntries(Object.entries(response).map(([field, counts]) => {
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);

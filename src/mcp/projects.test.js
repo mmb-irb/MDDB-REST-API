@@ -82,6 +82,16 @@ describe('projectOptions', () => {
     });
   });
 
+  // The API answers 404 when no project matches the query
+  it('counts no values when no project matches', async () => {
+    const api = jest.fn(async () => { throw Object.assign(new Error('HTTP 404 from /projects/options: The result of query is empty'), { status: 404 }); });
+    expect(await projectOptions(api, { fields: ['metadata.TYPE', 'metadata.FF'], query: { 'metadata.TEMP': 1 } })).toEqual({
+      'metadata.TYPE': { values: [] }, 'metadata.FF': { values: [] },
+    });
+    const failing = jest.fn(async () => { throw Object.assign(new Error('HTTP 500'), { status: 500 }); });
+    await expect(projectOptions(failing, { fields: ['metadata.TYPE'] })).rejects.toThrow('HTTP 500');
+  });
+
   it('always sends a query, since without one the API answers from stale precounted totals', async () => {
     const api = jest.fn(async () => ({}));
     await projectOptions(api, { fields: ['metadata.SYSKEYS'] });

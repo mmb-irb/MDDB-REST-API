@@ -36,7 +36,10 @@ const request = async (baseUrl, path, params, fetchApi, headers) => {
     for (const item of Array.isArray(value) ? value : [value]) url.searchParams.append(key, String(item));
   }
   const response = await fetchApi(url, { headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
-  if (!response.ok) throw new Error(`HTTP ${response.status} from ${url.pathname}: ${errorMessage(await response.text())}`);
+  if (!response.ok) {
+    const message = `HTTP ${response.status} from ${url.pathname}: ${errorMessage(await response.text())}`;
+    throw Object.assign(new Error(message), { status: response.status });
+  }
   return response;
 };
 
