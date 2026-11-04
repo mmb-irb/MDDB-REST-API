@@ -111,8 +111,9 @@ const getProject = async (api, accession) => {
   const project = await api(`projects/${encodeURIComponent(accession)}`);
   const metadata = Object.entries(project.metadata ?? {}).filter(([key, value]) =>
     !SKIPPED_METADATA.has(key) && !isEmpty(value) && value !== 0 &&
-    // Older uploads store the protein sequences twice
-    !(key === 'SEQUENCES' && JSON.stringify(value) === JSON.stringify(project.metadata.PROTSEQ)));
+    // Older uploads also store the sequences in SEQUENCES, with placeholder chains (e.g. thousands of X for a
+    // membrane), so only projects without PROTSEQ keep them
+    !(key === 'SEQUENCES' && project.metadata.PROTSEQ));
   return Object.fromEntries(Object.entries({ ...project, metadata: Object.fromEntries(metadata) })
     .filter(([key, value]) => !SKIPPED_FIELDS.has(key) && !isEmpty(value)));
 };

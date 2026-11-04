@@ -106,7 +106,13 @@ describe('getProject', () => {
     expect(api).toHaveBeenCalledWith('projects/MD-A00001');
   });
 
-  it('keeps SEQUENCES when it differs from PROTSEQ', async () => {
+  // Legacy SEQUENCES also hold placeholder chains (e.g. thousands of X for a membrane), which PROTSEQ leaves out
+  it('drops SEQUENCES when there is PROTSEQ, even if they differ', async () => {
+    const api = jest.fn(async () => ({ accession: 'A', metadata: { PROTSEQ: ['WGYG'], SEQUENCES: ['WGYG', 'XXXXXX'] } }));
+    expect(await getProject(api, 'A')).toEqual({ accession: 'A', metadata: { PROTSEQ: ['WGYG'] } });
+  });
+
+  it('keeps SEQUENCES in older projects without PROTSEQ', async () => {
     const api = jest.fn(async () => ({ accession: 'A', metadata: { SEQUENCES: ['GGTT'] } }));
     expect(await getProject(api, 'A')).toEqual({ accession: 'A', metadata: { SEQUENCES: ['GGTT'] } });
   });
