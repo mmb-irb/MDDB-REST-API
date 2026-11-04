@@ -1,16 +1,18 @@
 const { QUERY_FIELDS } = require('mddb-database/utils/constants');
-const { MAX_CHARS, splitQuery } = require('./api');
+const { parseFilters } = require('mddb-database/utils/query-fields');
+const { MAX_CHARS } = require('./api');
 const { round } = require('./analyses');
 
 // One line per field the API knows how to query, from the same definitions the API and the loader use
-// Older mddb-database versions have no descriptions, and generic examples (e.g. "any number") add nothing
+// Fields may be filtered by their alias or by their path
+// Some fields have no description, and generic examples (e.g. "any number") add nothing
 const fieldCatalog = fields => fields
-  .map(({ path, type, name, description, example }) =>
-    `${path} (${type}): ${description ?? name}` + (example.startsWith('any ') ? '' : ` E.g. ${example}`))
+  .map(({ alias, path, type, name, description, example }) =>
+    `${alias} = ${path} (${type}): ${description ?? name}` + (example.startsWith('any ') ? '' : ` E.g. ${example}`))
   .join('\n');
 const FIELD_CATALOG = fieldCatalog(QUERY_FIELDS);
 
-const SEARCH_PROJECTION = [
+const SEARCH_RETURN = [
   'accession', 'node', 'metadata.NAME', 'metadata.TYPE', 'metadata.SYSKEYS', 'metadata.SYSTATS',
   'metadata.PDBIDS', 'metadata.REFERENCES', 'mds.name', 'mds.frames', 'mds.time',
 ];
@@ -27,41 +29,41 @@ const sum = values => {
   return numbers.length ? round(numbers.reduce((a, b) => a + b, 0)) : undefined;
 };
 
-// A requested parent (e.g. metadata) replaces its fields, since MongoDB refuses to project both
-const projectionPaths = paths => paths.filter(path => !paths.some(other => path.startsWith(other + '.')));
+// A requested parent (e.g. metadata) replaces its fields, since the API refuses to return both
+const returnedPaths = paths => paths.filter(path => !paths.some(other => path.startsWith(other + '.')));
 
-// Top-level fields a query filters on. Fields inside $or and references.* fields are left out
-const queriedFields = query => Object.entries(query).flatMap(([key, value]) => {
-  if (key === '$and' && Array.isArray(value)) return value.flatMap(queriedFields);
-  return key.startsWith('$') || key.startsWith('references.') ? [] : [key];
-});
+// Paths of the fields the filters are on, parsed as the API parses them. references.* fields are left out
+// Wrong filters are reported here with the same message the API would answer
+const filteredFields = filters => {
+  const parsedFilters = parseFilters(filters);
+  if (parsedFilters.error) throw new Error(parsedFilters.error);
+  return parsedFilters.flat().map(condition => condition.path).filter(path => !path.startsWith('references.'));
+};
 
-// Count projects in the whole database without each field, since nodes uploaded with older workflows lack some
+// Count projects in the whole database with no value in each field, since nodes uploaded with older workflows lack some
+// Note that an empty value in a filter stands for fields with no value: missing, null or an empty list
 const countMissing = async (api, fields) => {
   const counts = await Promise.all(fields.map(async field => {
-    const response = await api('projects', {
-      query: JSON.stringify({ [field]: { $exists: false } }),
-      projection: '{"accession":1}',
-      limit: 1,
-    });
+    const response = await api('projects', { filter: `${field}=eq=`, return: 'accession', limit: 1 });
     return [field, response.filteredCount];
   }));
   const missing = counts.filter(([, count]) => count > 0);
   return missing.length ? Object.fromEntries(missing) : undefined;
 };
 
-const searchProjects = async (api, { text, query = {}, fields = [], sort, limit = 10, page = 1 }) => {
-  const projection = Object.fromEntries(projectionPaths([...SEARCH_PROJECTION, ...fields]).map(field => [field, 1]));
+const searchProjects = async (api, { text, filters = [], fields = [], sort, limit = 10, page = 1 }) => {
+  // Parse the filters first, so wrong filters are refused before any request
+  const missingCandidates = [...new Set(filteredFields(filters))];
   const [response, missingFields] = await Promise.all([
     api('projects', {
       search: text,
-      query: splitQuery(query),
-      projection: JSON.stringify(projection),
+      filter: filters,
+      return: returnedPaths([...SEARCH_RETURN, ...fields]),
       sort: sort && JSON.stringify(sort),
       limit,
       page,
     }),
-    countMissing(api, [...new Set(queriedFields(query))]),
+    countMissing(api, missingCandidates),
   ]);
   const projects = response.projects.map(project => {
     const metadata = project.metadata ?? {};
@@ -87,14 +89,14 @@ const searchProjects = async (api, { text, query = {}, fields = [], sort, limit 
   return result;
 };
 
-const projectOptions = async (api, { fields, text, query = {}, top = 30 }) => {
-  const queries = splitQuery(query);
-  // Without a query the API answers from precounted totals, which lag behind the stored projects
+// Note that without text or filters the API answers from precounted totals
+// These are updated by the loader and the monitor every time projects change
+const projectOptions = async (api, { fields, text, filters = [], top = 30 }) => {
   let response;
   try {
-    response = await api('projects/options', { projection: fields, search: text, query: queries.length ? queries : '{}' });
+    response = await api('projects/options', { return: fields, search: text, filter: filters });
   } catch (error) {
-    // The API answers 404 when no project matches the query
+    // The API answers 404 when no project matches the filters
     if (error.status !== 404) throw error;
     return Object.fromEntries(fields.map(field => [field, { values: [] }]));
   }

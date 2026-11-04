@@ -1,24 +1,5 @@
 const http = require('http');
-const { createApi, createLocalFetch, createProbe, splitQuery } = require('./api');
-
-describe('splitQuery', () => {
-  it('sends every top-level condition separately so references.* keys need not come first', () => {
-    expect(splitQuery({ 'metadata.TYPE': 'trajectory', 'references.proteins.gene': 'ACE2' })).toEqual([
-      '{"metadata.TYPE":"trajectory"}',
-      '{"references.proteins.gene":"ACE2"}',
-    ]);
-  });
-
-  it('flattens $and but keeps $or whole', () => {
-    const or = [{ 'metadata.TEMP': 300 }, { 'metadata.TEMP': 310 }];
-    expect(splitQuery({ $and: [{ a: 1, b: 2 }, { $or: or }] })).toEqual(['{"a":1}', '{"b":2}', JSON.stringify({ $or: or })]);
-  });
-
-  it('sends nothing for an empty query', () => {
-    expect(splitQuery({})).toEqual([]);
-    expect(splitQuery()).toEqual([]);
-  });
-});
+const { createApi, createLocalFetch, createProbe } = require('./api');
 
 describe('createApi', () => {
   const originalFetch = global.fetch;

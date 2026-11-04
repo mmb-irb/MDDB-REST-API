@@ -65,7 +65,7 @@ describe('findSimulations', () => {
         { id: 'MDR00017902', source: 'mdrepo.org', name: '8 ns simulation of 5v7a', web: 'https://mdrepo.org/explore/MDR00017902' },
       ],
     });
-    expect(api).toHaveBeenCalledWith('pointers/proteins/P0AC13', { projection: 'metadata.NAME' });
+    expect(api).toHaveBeenCalledWith('pointers/proteins/P0AC13', { return: 'metadata.NAME' });
     const secondPage = await findSimulations(api, { type: 'proteins', id: 'P0AC13', limit: 2, page: 2 });
     expect(secondPage.simulations.map(simulation => simulation.id)).toEqual(['MDR00017901']);
   });

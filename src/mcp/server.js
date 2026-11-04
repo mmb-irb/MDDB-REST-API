@@ -12,7 +12,7 @@ const INSTRUCTIONS = `MDDB is a federated database of atomistic molecular dynami
 Each project is one simulated system with one or more MD replicas, stored on one node (IRB Barcelona, Oxford, Inria...). \
 Accessions look like A0001 on a node and MD-A00001 in the global database; append .N to pick the Nth MD, e.g. A01YJ.2.`;
 
-const QUERY_DESCRIPTION = 'MongoDB filter on stored project fields; conditions are ANDed';
+const FILTERS_DESCRIPTION = 'Filters on stored project fields, e.g. ["type=eq=\'trajectory\'"]; projects must match all of them';
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true };
 
 const json = data => ({ content: [{ type: 'text', text: JSON.stringify(data) }] });
@@ -27,26 +27,33 @@ const createServer = (api, probe) => {
 project: accession, node, name, keywords, atom count, number of MDs, total frames and simulated time (ns), PDB and \
 UniProt ids.
 
-Filter with \`text\` (free text over names, descriptions, authors and groups) and/or \`query\`, a MongoDB filter on \
-the fields listed below. Examples:
-- {"metadata.SYSKEYS": "membrane"}
-- {"references.proteins.gene": "ACE2", "metadata.TYPE": "trajectory"}
-- {"metadata.PROTSEQ": {"$regex": "SFELLHAPATV"}} (a protein sequence motif, here of the SARS-CoV-2 spike)
-- {"metadata.TEMP": {"$gte": 310}}
-- {"updateDate": {"$gt": "2026-01-01"}} (dates as ISO strings)
-references.* fields are matched in the UniProt, PDB and ligand records that projects refer to.
+Filter with \`text\` (free text over names, descriptions, authors and groups) and/or \`filters\`, a list of \
+filters on the fields listed below, which projects must all match. A filter is a field (its alias or its path), an \
+operator and a value: =eq= (equals), =ne= (not equals), =ct= (contains, case insensitive), =nc= (does not contain), \
+=gt=, =ge=, =lt= and =le=. Text values go in single quotes; numbers, booleans and dates (e.g. 2026-01-01) may go \
+without. =eq=, =ne=, =ct= and =nc= take several values separated by commas, matching any (or, negated, none) of them. \
+An empty value stands for no value (e.g. "pdbId=eq=" for projects without PDB id). Several conditions separated by \
+';' in one filter match if any of them matches. Examples:
+- ["keyword=eq='membrane'"]
+- ["uniprotGene=eq='ACE2'", "type=eq='trajectory'"]
+- ["proteinSequence=ct='SFELLHAPATV'"] (a protein sequence motif, here of the SARS-CoV-2 spike)
+- ["temperature=ge=310"]
+- ["updated=gt=2026-01-01"]
+- ["forcefield=eq='amber14sb','charmm36m'"]
+- ["uniprotOrganism=eq='Homo sapiens';pdbOrganism=eq='Homo sapiens'"] (either of them)
+references.* fields (e.g. uniprotGene) are matched in the UniProt, PDB and ligand records that projects refer to.
 
 Which fields a project has depends on the workflow version that uploaded it, so some projects lack some fields. \
-\`missingFields\` gives, for each queried field, how many projects in the whole database don't have it.
+\`missingFields\` gives, for each filtered field, how many projects in the whole database don't have it.
 
 Call project_options first to see which values a field actually takes. Add more stored fields to every row with \
 \`fields\`, e.g. ["metadata.FF", "metadata.TEMP"].
 
-Queryable fields:
+Filterable fields, as alias = path:
 ${FIELD_CATALOG}`,
     inputSchema: {
       text: z.string().optional().describe('Free-text search'),
-      query: z.record(z.string(), z.unknown()).optional().describe(QUERY_DESCRIPTION),
+      filters: z.array(z.string()).optional().describe(FILTERS_DESCRIPTION),
       fields: z.array(z.string()).optional().describe('Extra dotted field paths to include in every row'),
       sort: z.record(z.string(), z.union([z.literal(1), z.literal(-1)])).optional()
         .describe('MongoDB sort, e.g. {"updateDate": -1}. Default: by accession'),
@@ -60,12 +67,12 @@ ${FIELD_CATALOG}`,
     title: 'Count field values',
     description: `Count how many projects have each value of one or more fields, most frequent first, e.g. \
 the force fields in use, or which UniProt ids have the most simulations. Narrow it with the same \`text\` and \
-\`query\` as search_projects. Values beyond \`top\` are summed up in otherValues (how many) and otherCount. A project \
+\`filters\` as search_projects. Values beyond \`top\` are summed up in otherValues (how many) and otherCount. A project \
 counts once for every value of a list field.`,
     inputSchema: {
       fields: z.array(z.string()).min(1).describe('Dotted field paths, e.g. ["metadata.FF", "metadata.SYSKEYS"]'),
       text: z.string().optional().describe('Free-text search'),
-      query: z.record(z.string(), z.unknown()).optional().describe(QUERY_DESCRIPTION),
+      filters: z.array(z.string()).optional().describe(FILTERS_DESCRIPTION),
       top: z.number().int().min(1).max(500).default(30).describe('Values to list per field'),
     },
     annotations: READ_ONLY,
@@ -160,7 +167,7 @@ From the global API this also lists simulations in other MD databases, such as M
 them by website. Node APIs also say how much of each simulated system is that reference (presence, \
 present_residues as 0-based residue indices) and, for proteins, which of its residues it covers (coverage, \
 covered_residues as UniProt positions). To filter MDDB projects by other fields too, use search_projects with \
-references.* or metadata.REFERENCES conditions instead.`,
+references.* or uniprotId filters instead.`,
     inputSchema: {
       type: referenceType,
       id: z.string().describe('A UniProt id, PDB id, InChI key, chain sequence or collection id'),

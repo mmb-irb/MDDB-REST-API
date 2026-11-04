@@ -53,7 +53,7 @@ const getReferences = async (api, { accession, type, id }) => {
 
 // Simulations in this database and, from the global API, in other MD databases
 const findSimulations = async (api, { type, id, limit = 50, page = 1 }) => {
-  const pointers = await api(`pointers/${type}/${encodeURIComponent(id)}`, { projection: 'metadata.NAME' });
+  const pointers = await api(`pointers/${type}/${encodeURIComponent(id)}`, { return: 'metadata.NAME' });
   const sources = {};
   // API links are left out: MDDB projects are read through the other tools
   const simulations = pointers.map(({ id, web, api: _apiUrl, 'metadata.NAME': name, ...rest }) => {

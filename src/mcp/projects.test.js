@@ -1,29 +1,30 @@
 const { FIELD_CATALOG, fieldCatalog, getProject, projectOptions, searchProjects } = require('./projects');
 
-// Answers /projects searches with `projects`, and $exists:false counts from `missing`
+// Answers /projects searches with `projects`, and counts of projects with no value in a field from `missing`
+const NO_VALUE_FILTER = /^(.*)=eq=$/;
 const fakeApi = (projects, missing = {}) => jest.fn(async (_path, params = {}) => {
-  const { query } = params;
-  if (typeof query === 'string' && query.includes('"$exists":false')) {
-    return { filteredCount: missing[Object.keys(JSON.parse(query))[0]] ?? 0, projects: [] };
-  }
+  const match = typeof params.filter === 'string' && params.filter.match(NO_VALUE_FILTER);
+  if (match) return { filteredCount: missing[match[1]] ?? 0, projects: [] };
   return { filteredCount: 1234, projects };
 });
+// Get the parameters of the search request, leaving out the counts of projects with no value
+const searchParams = api => api.mock.calls.find(([, params]) => Array.isArray(params?.filter))[1];
 
 describe('fieldCatalog', () => {
   it('lists the fields from mddb-database, including the sequences', () => {
-    expect(FIELD_CATALOG).toContain('metadata.PROTSEQ (string): ');
-    expect(FIELD_CATALOG).toContain('metadata.NUCLSEQ (string): ');
+    expect(FIELD_CATALOG).toContain('proteinSequence = metadata.PROTSEQ (string): ');
+    expect(FIELD_CATALOG).toContain('= metadata.NUCLSEQ (string): ');
   });
 
-  it('describes each field, or names it with older mddb-database versions, and leaves out generic examples', () => {
+  it('gives each field alias and describes it, or names it when it has no description, and leaves out generic examples', () => {
     expect(fieldCatalog([
-      { name: 'Temperature (K)', path: 'metadata.TEMP', description: 'Temperature in Kelvin (K).', type: 'float', example: '300' },
-      { name: 'Protein sequence', path: 'metadata.PROTSEQ', type: 'string', example: 'VNLTTRT' },
-      { name: 'System atom count', path: 'metadata.SYSTATS', type: 'int', example: 'any integer number' },
+      { name: 'Temperature (K)', path: 'metadata.TEMP', alias: 'temperature', description: 'Temperature in Kelvin (K).', type: 'float', example: '300' },
+      { name: 'Protein sequence', path: 'metadata.PROTSEQ', alias: 'proteinSequence', type: 'string', example: 'VNLTTRT' },
+      { name: 'System atom count', path: 'metadata.SYSTATS', alias: 'systemAtoms', type: 'int', example: 'any integer number' },
     ])).toBe([
-      'metadata.TEMP (float): Temperature in Kelvin (K). E.g. 300',
-      'metadata.PROTSEQ (string): Protein sequence E.g. VNLTTRT',
-      'metadata.SYSTATS (int): System atom count',
+      'temperature = metadata.TEMP (float): Temperature in Kelvin (K). E.g. 300',
+      'proteinSequence = metadata.PROTSEQ (string): Protein sequence E.g. VNLTTRT',
+      'systemAtoms = metadata.SYSTATS (int): System atom count',
     ].join('\n'));
   });
 });
@@ -37,13 +38,13 @@ describe('searchProjects', () => {
     mds: [{ name: 'replica 1', frames: 5001, time: 15003 }, { name: 'replica 2', frames: 5001, time: 15003 }],
   };
 
-  it('splits the query, adds extra fields to the projection, and sums frames and time over MDs', async () => {
+  it('passes the filters, adds extra fields to the returned ones, and sums frames and time over MDs', async () => {
     const api = fakeApi([project]);
-    const result = await searchProjects(api, { query: { 'metadata.TYPE': 'trajectory', 'references.proteins.gene': 'E' },
-      fields: ['metadata.FF', 'mds.name'], limit: 5 });
-    const params = api.mock.calls.find(([, p]) => !String(p?.query).includes('$exists'))[1];
-    expect(params.query).toEqual(['{"metadata.TYPE":"trajectory"}', '{"references.proteins.gene":"E"}']);
-    expect(JSON.parse(String(params.projection))).toMatchObject({ 'metadata.FF': 1, 'mds.name': 1, accession: 1 });
+    const filters = ["type=eq='trajectory'", "uniprotGene=eq='E'"];
+    const result = await searchProjects(api, { filters, fields: ['metadata.FF', 'mds.name'], limit: 5 });
+    const params = searchParams(api);
+    expect(params.filter).toEqual(filters);
+    expect(params.return).toEqual(expect.arrayContaining(['metadata.FF', 'mds.name', 'accession']));
     expect(result).toEqual({
       total: 1234, page: 1, limit: 5, missingFields: undefined,
       projects: [{
@@ -60,12 +61,11 @@ describe('searchProjects', () => {
     expect(result.projects[0].timeNs).toBe(0.3);
   });
 
-  // Asking for a parent of a base field (e.g. metadata.NAME) would make MongoDB refuse the projection
+  // Asking for a parent of a base field (e.g. metadata.NAME) would make the API refuse the returned fields
   it('asks for whole parents instead of their fields', async () => {
     const api = fakeApi([project]);
     const result = await searchProjects(api, { fields: ['metadata', 'mds'] });
-    const projection = JSON.parse(String(api.mock.calls[0][1].projection));
-    expect(Object.keys(projection).sort()).toEqual(['accession', 'mds', 'metadata', 'node']);
+    expect([...searchParams(api).return].sort()).toEqual(['accession', 'mds', 'metadata', 'node']);
     expect(result.projects[0]).toMatchObject({ name: 'Envelope protein E', frames: 10002, fields: { metadata: project.metadata } });
   });
 
@@ -80,17 +80,22 @@ describe('searchProjects', () => {
     expect(result.projects[0]).toMatchObject({ mds: 1, frames: 1000, timeNs: undefined });
   });
 
-  it('reports how many projects lack each queried field, skipping references.* and $or', async () => {
+  it('reports how many projects lack each filtered field, by its path and skipping references.*', async () => {
     const api = fakeApi([], { 'metadata.SYSKEYS': 606, 'metadata.TEMP': 0 });
-    const result = await searchProjects(api, { query: {
-      'metadata.SYSKEYS': 'protein',
-      $and: [{ 'metadata.TEMP': { $gt: 300 } }],
-      $or: [{ 'metadata.FF': 'x' }],
-      'references.proteins.gene': 'ACE2',
-    } });
+    const result = await searchProjects(api, { filters: [
+      "keyword=eq='protein'",
+      'temperature=gt=300;metadata.SYSKEYS=ct=\'membrane\'',
+      "uniprotGene=eq='ACE2'",
+    ] });
     expect(result.missingFields).toEqual({ 'metadata.SYSKEYS': 606 });
-    const counted = api.mock.calls.map(([, p]) => String(p?.query)).filter(q => q.includes('$exists'));
-    expect(counted).toEqual(['{"metadata.SYSKEYS":{"$exists":false}}', '{"metadata.TEMP":{"$exists":false}}']);
+    const counted = api.mock.calls.map(([, p]) => p?.filter).filter(filter => typeof filter === 'string');
+    expect(counted).toEqual(['metadata.SYSKEYS=eq=', 'metadata.TEMP=eq=']);
+  });
+
+  it('refuses wrong filters with the message the API would answer', async () => {
+    const api = fakeApi([project]);
+    await expect(searchProjects(api, { filters: ['type=eq=trajectory'] })).rejects.toThrow(/must be quoted with single quotes/);
+    expect(api).not.toHaveBeenCalled();
   });
 });
 
@@ -105,18 +110,17 @@ describe('projectOptions', () => {
   // The API answers 404 when no project matches the query
   it('counts no values when no project matches', async () => {
     const api = jest.fn(async () => { throw Object.assign(new Error('HTTP 404 from /projects/options: The result of query is empty'), { status: 404 }); });
-    expect(await projectOptions(api, { fields: ['metadata.TYPE', 'metadata.FF'], query: { 'metadata.TEMP': 1 } })).toEqual({
+    expect(await projectOptions(api, { fields: ['metadata.TYPE', 'metadata.FF'], filters: ['temperature=eq=1'] })).toEqual({
       'metadata.TYPE': { values: [] }, 'metadata.FF': { values: [] },
     });
     const failing = jest.fn(async () => { throw Object.assign(new Error('HTTP 500'), { status: 500 }); });
     await expect(projectOptions(failing, { fields: ['metadata.TYPE'] })).rejects.toThrow('HTTP 500');
   });
 
-  it('always sends a query, since without one the API answers from stale precounted totals', async () => {
+  it('passes the fields, the text and the filters', async () => {
     const api = jest.fn(async () => ({}));
-    await projectOptions(api, { fields: ['metadata.SYSKEYS'] });
-    await projectOptions(api, { fields: ['metadata.SYSKEYS'], query: { a: 1, b: 2 } });
-    expect(api.mock.calls.map(([, params]) => params?.query)).toEqual(['{}', ['{"a":1}', '{"b":2}']]);
+    await projectOptions(api, { fields: ['metadata.SYSKEYS'], text: 'spike', filters: ["type=eq='md'"] });
+    expect(api).toHaveBeenCalledWith('projects/options', { return: ['metadata.SYSKEYS'], search: 'spike', filter: ["type=eq='md'"] });
   });
 });
 

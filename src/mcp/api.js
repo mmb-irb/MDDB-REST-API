@@ -74,9 +74,4 @@ const errorMessage = text => {
   }
 };
 
-// Send every top-level condition as its own `query` param, which the API ANDs together
-// Older API versions only translate a references.* key, or parse a date, when it is the first key of its object
-const splitQuery = (query = {}) => Object.entries(query).flatMap(([key, value]) =>
-  key === '$and' && Array.isArray(value) ? value.flatMap(splitQuery) : [JSON.stringify({ [key]: value })]);
-
-module.exports = { MAX_CHARS, createLocalFetch, createApi, createProbe, splitQuery };
+module.exports = { MAX_CHARS, createLocalFetch, createApi, createProbe };

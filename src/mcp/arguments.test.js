@@ -15,9 +15,9 @@ const createServer = require('./server');
 // Every tool with every input it passes on to the API
 const indices = { selection: 'protein', numbering: 'uniprot', atoms: '0', residues: '0', chains: '0' };
 const CALLS = [
-  ['search_projects', { text: 'spike', query: { 'metadata.TYPE': 'trajectory' }, fields: ['metadata.FF'],
+  ['search_projects', { text: 'spike', filters: ["type=eq='trajectory'"], fields: ['metadata.FF'],
     sort: { updateDate: -1 }, limit: 1, page: 1 }],
-  ['project_options', { fields: ['metadata.FF'], text: 'spike', query: { 'metadata.TYPE': 'trajectory' } }],
+  ['project_options', { fields: ['metadata.FF'], text: 'spike', filters: ["type=eq='trajectory'"] }],
   ['get_project', { accession: 'A0001' }],
   ['get_analysis', { accession: 'A0001', name: 'rmsds' }],
   ['get_topology', { accession: 'A0001' }],
