@@ -24,6 +24,12 @@ describe('summarize', () => {
     expect(summarize(matrix)).toMatchObject({ shape: [30, 4], min: 1, max: 9, argmin: [0, 0], argmax: [7, 2] });
   });
 
+  // Per-residue analyses (e.g. rmsd-perres) store a null row for every residue they leave out, like lipids
+  it('summarizes matrices with null rows, with positions in the original rows', () => {
+    const matrix = range(30, row => row < 5 ? null : range(4, column => row === 12 && column === 2 ? 9 : 1));
+    expect(summarize(matrix)).toMatchObject({ shape: [30, 4], nullRows: 5, min: 1, max: 9, argmin: [5, 0], argmax: [12, 2] });
+  });
+
   it('summarizes each row of a short matrix, like the PCA projections', () => {
     expect(summarize([indices(30), indices(30)])).toEqual([
       expect.objectContaining({ length: 30, max: 29 }),
@@ -83,6 +89,13 @@ describe('selectPart', () => {
     const part = selectPart(analysis, 'rmsds', undefined, 25);
     expect(part).toMatchObject({ shape: [200, 200], stride: [40, 40] });
     expect(part.values[1]).toEqual([40, 80, 120, 160, 200]);
+  });
+
+  it('keeps the null rows of a matrix', () => {
+    const rows = range(6, row => row % 2 ? null : range(4, column => row + column));
+    expect(selectPart({ rows }, 'rows', undefined, 100)).toEqual({
+      shape: [6, 4], offset: 0, stride: [1, 1], values: [[0, 1, 2, 3], null, [2, 3, 4, 5], null, [4, 5, 6, 7], null],
+    });
   });
 
   it('returns other lists item by item', () => {

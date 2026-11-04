@@ -13,7 +13,9 @@ const roundAll = values => values.map(value => typeof value === 'number' ? round
 // null stands for a missing value in numeric lists (e.g. NaN in the workflow)
 const isNumbers = list => list.every(item => typeof item === 'number' || item === null);
 const isBooleans = list => list.every(item => typeof item === 'boolean');
-const isMatrix = (list, isRow) => list.length > 0 && list.every(row => Array.isArray(row) && isRow(row));
+// A null row stands for a left-out row (e.g. lipids in per-residue analyses)
+const isMatrix = (list, isRow) => list.some(Array.isArray) && list.every(row => row === null || (Array.isArray(row) && isRow(row)));
+const columnCount = rows => Math.max(...rows.map(row => row?.length ?? 0));
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 const stats = list => {
@@ -37,12 +39,17 @@ const stats = list => {
 };
 
 const matrixStats = rows => {
-  const { length, nulls, argmin, argmax, first, last, ...rest } = stats(rows.flat());
-  const columns = Math.max(...rows.map(row => row.length));
+  // Statistics of the rows which are not null, whose positions are then mapped back to the original rows
+  const filledRows = rows.flatMap((row, index) => row ? [index] : []);
+  const { length, nulls, argmin, argmax, first, last, ...rest } = stats(filledRows.flatMap(index => rows[index]));
+  const columns = columnCount(rows);
   // Flat indices become [row, column] when every row has the same length
-  const cell = index => index === undefined || rows.some(row => row.length !== columns)
-    ? undefined : [Math.floor(index / columns), index % columns];
-  return { shape: [rows.length, columns], nulls, ...rest, argmin: cell(argmin), argmax: cell(argmax) };
+  const cell = index => index === undefined || filledRows.some(row => rows[row].length !== columns)
+    ? undefined : [filledRows[Math.floor(index / columns)], index % columns];
+  return {
+    shape: [rows.length, columns], nullRows: rows.length - filledRows.length || undefined, nulls, ...rest,
+    argmin: cell(argmin), argmax: cell(argmax),
+  };
 };
 
 const countTrue = list => list.filter(item => item === true).length;
@@ -56,7 +63,7 @@ const summarize = value => {
     if (isNumbers(value)) return isLong ? stats(value) : roundAll(value);
     if (isBooleans(value)) return isLong ? { length: value.length, true: countTrue(value) } : value;
     if (isLong && isMatrix(value, isNumbers)) return matrixStats(value);
-    if (isLong && isMatrix(value, isBooleans)) return { shape: [value.length, value[0].length], true: countTrue(value.flat()) };
+    if (isLong && isMatrix(value, isBooleans)) return { shape: [value.length, columnCount(value)], true: countTrue(value.flat()) };
     return isLong ? { length: value.length, head: value.slice(0, HEAD_LENGTH).map(summarize) } : value.map(summarize);
   }
   if (isObject(value)) {
@@ -94,14 +101,14 @@ const selectPart = (data, path, range, maxPoints) => {
     return { length: list.length, offset, stride, values: roundAll(downsample(list, stride)) };
   }
   if (isMatrix(list, isNumbers) || isMatrix(list, isBooleans)) {
-    const columns = Math.max(...list.map(row => row.length));
+    const columns = columnCount(list);
     // Keep about √maxPoints rows, or more when there are few columns, and spend the rest on columns
     const keptRows = Math.min(list.length, Math.max(Math.sqrt(maxPoints), maxPoints / columns));
     const rowStride = Math.ceil(list.length / keptRows);
     const columnStride = Math.ceil(columns / Math.max(1, Math.floor(maxPoints / Math.ceil(list.length / rowStride))));
     return {
       shape: [list.length, columns], offset, stride: [rowStride, columnStride],
-      values: downsample(list, rowStride).map(row => roundAll(downsample(row, columnStride))),
+      values: downsample(list, rowStride).map(row => row && roundAll(downsample(row, columnStride))),
     };
   }
   return { length: list.length, offset, items: list.slice(0, maxPoints).map(summarize) };
