@@ -42,6 +42,7 @@
   "author": "Aurélien Luciani <aurelien.luciani@irbbarcelona.org>",
   "license": "ISC",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@opentelemetry/api": "^1.10.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.300.0",
     "@opentelemetry/resources": "^3.0.0",
@@ -61,7 +62,8 @@
     "mongodb": "^6.21.0",
     "ngl": "0.10.4",
     "swagger-ui-express": "^5.0.1",
-    "yamljs": "0.3.0"
+    "yamljs": "0.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -39,6 +39,9 @@ paths:
             A query stringified JSON object for the MongoDB [find](https://www.mongodb.com/docs/manual/reference/method/db.collection.find/) command.
             Note that this is an alternative to the 'search' parameter
             which is more flexible but also more difficult to use if you have not experiencie with Mongo.
+            Any stored field may be queried. These are the main ones, and the descriptions say which projects lack them.
+            Fields starting with 'references.' are matched in the references and then in the projects which refer to them.
+            $QUERY_FIELDS
           schema:
             type: string
         - name: projection
@@ -145,7 +148,7 @@ paths:
               value: '{"metadata.TYPE":"ensemble"}'
         - name: projection
           in: query
-          description: name of the field to be checked for options
+          description: name of the field to be checked for options, e.g. any of the fields listed in the query parameter of GET /projects
           examples:
             authors:
               summary: simulation authors
@@ -2415,7 +2418,7 @@ components:
         BOXSIZEZ:
           type: number
           example: 5.36386
-        SYSATS:
+        SYSTATS:
           type: number
           example: 10000
         PROTATS:

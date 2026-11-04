@@ -113,6 +113,71 @@ const PROTEIN_LETTER_RESIDUE_NAMES = {
 }
 
 // Set some constants
+// Structure exporting supported formats, by the name requests use
+// The structure endpoint adds the function producing each of them, and accepts 'cif' for mmcif
+const STRUCTURE_FORMATS = {
+    pdb: { extension: 'pdb', contentType: 'chemical/x-pdb' },
+    mmcif: { extension: 'cif', contentType: 'chemical/x-mmcif' },
+};
+
+// Trajectory exporting supported formats
+const TRAJECTORY_FORMATS = {
+    bin: {
+        name: 'bin',
+        contentType: 'application/octet-stream',
+    },
+    mdcrd: {
+        name: 'mdcrd',
+        contentType: 'text/mdcrd',
+    },
+    xtc: {
+        name: 'xtc',
+        contentType: 'application/xtc',
+        chemfilesName: 'XTC',
+        // The whole box matrix is stored, so a rotated box (e.g. after a fit) is kept as is
+        includesBox: true,
+    },
+    trr: {
+        name: 'trr',
+        contentType: 'application/trr',
+        chemfilesName: 'TRR',
+        includesBox: true,
+    },
+    // Streaming NetCDF requires the chemfiles fork to know the number of frames in advance
+    // The chemfiles converter sets it from the frame count passed as argument
+    nc: {
+        name: 'nc',
+        contentType: 'application/nc',
+        chemfilesName: 'Amber NetCDF',
+    },
+    // DCD also stores the number of frames in the header, so it is streamed the same way
+    dcd: {
+        name: 'dcd',
+        contentType: 'application/dcd',
+        chemfilesName: 'DCD',
+    },
+};
+
+// List the expected topology fields
+const TOPOLOGY_FIELDS = new Set([
+    'atom_names',
+    'atom_elements',
+    'atom_charges',
+    'atom_residue_indices',
+    'atom_bonds',
+    'residue_names',
+    'residue_numbers',
+    'residue_icodes',
+    'residue_chain_indices',
+    'chain_names',
+    'references',
+    'reference_types',
+    'residue_reference_indices',
+    'residue_reference_numbers',
+    'selections',
+    'version',
+]);
+
 module.exports = {
     // Set the headers for some queries
     REFERENCE_HEADER: 'references.',
@@ -123,4 +188,8 @@ module.exports = {
     KNOWLEDGE_REFERENCE_KEYWORD: 'REFERENCE',
     // Reference types supported in pointers
     POINTERS_SUPPORTED_REFERENCES,
+    // Supported formats and fields, which the MCP tools also offer
+    STRUCTURE_FORMATS,
+    TRAJECTORY_FORMATS,
+    TOPOLOGY_FIELDS,
 }

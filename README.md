@@ -84,6 +84,19 @@ make install
 
 After updating the chemfiles fork, repeat the `make` and `make install` steps and then run `npm run build` again.
 
+## MCP server
+
+The API also serves an [MCP](https://modelcontextprotocol.io) server at `/rest/mcp` (e.g. `https://mmb.mddbr.eu/api/rest/mcp`),
+so LLM clients can search projects, summarize analyses and topologies, read references and get checked download links.
+Its tools call this same API through localhost, keeping the requesting host, so every host gets its own data.
+Download links are built on the host clients requested, with the protocol in the `X-Forwarded-Proto` header if the proxy sets it.
+
+To use it from a local client against any node's API, run it over stdio:
+
+```bash
+claude mcp add mddb -e MDDB_API_URL=https://irb.mddbr.eu/api/rest/v1/ -- node src/mcp/stdio.js
+```
+
 ## Development
 
 ### Make a new version
