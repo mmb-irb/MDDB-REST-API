@@ -31,7 +31,7 @@ Filter with \`text\` (free text over names, descriptions, authors and groups) an
 the fields listed below. Examples:
 - {"metadata.SYSKEYS": "membrane"}
 - {"references.proteins.gene": "ACE2", "metadata.TYPE": "trajectory"}
-- {"metadata.PROTSEQ": {"$regex": "NPPTFEPV"}} (protein sequence motif)
+- {"metadata.PROTSEQ": {"$regex": "SFELLHAPATV"}} (a protein sequence motif, here of the SARS-CoV-2 spike)
 - {"metadata.TEMP": {"$gte": 310}}
 - {"updateDate": {"$gt": "2026-01-01"}} (dates as ISO strings)
 references.* fields are matched in the UniProt, PDB and ligand records that projects refer to.
