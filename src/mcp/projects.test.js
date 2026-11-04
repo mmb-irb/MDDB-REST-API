@@ -55,6 +55,11 @@ describe('searchProjects', () => {
     });
   });
 
+  it('rounds summed times like analysis values', async () => {
+    const result = await searchProjects(fakeApi([{ accession: 'A', metadata: {}, mds: [{ time: 0.1 }, { time: 0.2 }] }]), {});
+    expect(result.projects[0].timeNs).toBe(0.3);
+  });
+
   it('leaves out totals that no MD stores', async () => {
     const result = await searchProjects(fakeApi([{ accession: 'A00P6', metadata: {}, mds: [{ frames: 1000 }] }]), {});
     expect(result.projects[0]).toMatchObject({ mds: 1, frames: 1000, timeNs: undefined });

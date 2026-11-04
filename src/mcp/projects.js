@@ -1,5 +1,6 @@
 const { QUERY_FIELDS } = require('mddb-database/utils/constants');
 const { splitQuery } = require('./api');
+const { round } = require('./analyses');
 
 // One line per field the API knows how to query, from the same definitions the API and the loader use
 // Older mddb-database versions have no descriptions, and generic examples (e.g. "any number") add nothing
@@ -23,7 +24,7 @@ const getPath = (value, path) => {
 
 const sum = values => {
   const numbers = values.filter(value => typeof value === 'number');
-  return numbers.length ? numbers.reduce((a, b) => a + b, 0) : undefined;
+  return numbers.length ? round(numbers.reduce((a, b) => a + b, 0)) : undefined;
 };
 
 // Top-level fields a query filters on. Fields inside $or and references.* fields are left out
