@@ -55,6 +55,26 @@ describe('searchProjects', () => {
     });
   });
 
+  it('rounds summed times like analysis values', async () => {
+    const result = await searchProjects(fakeApi([{ accession: 'A', metadata: {}, mds: [{ time: 0.1 }, { time: 0.2 }] }]), {});
+    expect(result.projects[0].timeNs).toBe(0.3);
+  });
+
+  // Asking for a parent of a base field (e.g. metadata.NAME) would make MongoDB refuse the projection
+  it('asks for whole parents instead of their fields', async () => {
+    const api = fakeApi([project]);
+    const result = await searchProjects(api, { fields: ['metadata', 'mds'] });
+    const projection = JSON.parse(String(api.mock.calls[0][1].projection));
+    expect(Object.keys(projection).sort()).toEqual(['accession', 'mds', 'metadata', 'node']);
+    expect(result.projects[0]).toMatchObject({ name: 'Envelope protein E', frames: 10002, fields: { metadata: project.metadata } });
+  });
+
+  it('refuses results that would flood the context', async () => {
+    const huge = { ...project, metadata: { ...project.metadata, PROTSEQ: ['A'.repeat(50000)] } };
+    await expect(searchProjects(fakeApi([huge]), { fields: ['metadata'] }))
+      .rejects.toThrow(/^The result is \d+ characters long. Ask for fewer fields or a smaller limit$/);
+  });
+
   it('leaves out totals that no MD stores', async () => {
     const result = await searchProjects(fakeApi([{ accession: 'A00P6', metadata: {}, mds: [{ frames: 1000 }] }]), {});
     expect(result.projects[0]).toMatchObject({ mds: 1, frames: 1000, timeNs: undefined });
@@ -80,6 +100,16 @@ describe('projectOptions', () => {
     expect(await projectOptions(api, { fields: ['metadata.TEMP'], top: 2 })).toEqual({
       'metadata.TEMP': { values: [['310', 9], ['300', 5]], otherValues: 2, otherCount: 3 },
     });
+  });
+
+  // The API answers 404 when no project matches the query
+  it('counts no values when no project matches', async () => {
+    const api = jest.fn(async () => { throw Object.assign(new Error('HTTP 404 from /projects/options: The result of query is empty'), { status: 404 }); });
+    expect(await projectOptions(api, { fields: ['metadata.TYPE', 'metadata.FF'], query: { 'metadata.TEMP': 1 } })).toEqual({
+      'metadata.TYPE': { values: [] }, 'metadata.FF': { values: [] },
+    });
+    const failing = jest.fn(async () => { throw Object.assign(new Error('HTTP 500'), { status: 500 }); });
+    await expect(projectOptions(failing, { fields: ['metadata.TYPE'] })).rejects.toThrow('HTTP 500');
   });
 
   it('always sends a query, since without one the API answers from stale precounted totals', async () => {

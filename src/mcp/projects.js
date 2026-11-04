@@ -1,5 +1,6 @@
 const { QUERY_FIELDS } = require('mddb-database/utils/constants');
-const { splitQuery } = require('./api');
+const { MAX_CHARS, splitQuery } = require('./api');
+const { round } = require('./analyses');
 
 // One line per field the API knows how to query, from the same definitions the API and the loader use
 // Older mddb-database versions have no descriptions, and generic examples (e.g. "any number") add nothing
@@ -23,8 +24,11 @@ const getPath = (value, path) => {
 
 const sum = values => {
   const numbers = values.filter(value => typeof value === 'number');
-  return numbers.length ? numbers.reduce((a, b) => a + b, 0) : undefined;
+  return numbers.length ? round(numbers.reduce((a, b) => a + b, 0)) : undefined;
 };
+
+// A requested parent (e.g. metadata) replaces its fields, since MongoDB refuses to project both
+const projectionPaths = paths => paths.filter(path => !paths.some(other => path.startsWith(other + '.')));
 
 // Top-level fields a query filters on. Fields inside $or and references.* fields are left out
 const queriedFields = query => Object.entries(query).flatMap(([key, value]) => {
@@ -47,7 +51,7 @@ const countMissing = async (api, fields) => {
 };
 
 const searchProjects = async (api, { text, query = {}, fields = [], sort, limit = 10, page = 1 }) => {
-  const projection = Object.fromEntries([...SEARCH_PROJECTION, ...fields].map(field => [field, 1]));
+  const projection = Object.fromEntries(projectionPaths([...SEARCH_PROJECTION, ...fields]).map(field => [field, 1]));
   const [response, missingFields] = await Promise.all([
     api('projects', {
       search: text,
@@ -77,13 +81,23 @@ const searchProjects = async (api, { text, query = {}, fields = [], sort, limit 
       fields: fields.length ? Object.fromEntries(fields.map(field => [field, getPath(project, field.split('.'))])) : undefined,
     };
   });
-  return { total: response.filteredCount, page, limit, missingFields, projects };
+  const result = { total: response.filteredCount, page, limit, missingFields, projects };
+  const length = JSON.stringify(result).length;
+  if (length > MAX_CHARS) throw new Error(`The result is ${length} characters long. Ask for fewer fields or a smaller limit`);
+  return result;
 };
 
 const projectOptions = async (api, { fields, text, query = {}, top = 30 }) => {
   const queries = splitQuery(query);
   // Without a query the API answers from precounted totals, which lag behind the stored projects
-  const response = await api('projects/options', { projection: fields, search: text, query: queries.length ? queries : '{}' });
+  let response;
+  try {
+    response = await api('projects/options', { projection: fields, search: text, query: queries.length ? queries : '{}' });
+  } catch (error) {
+    // The API answers 404 when no project matches the query
+    if (error.status !== 404) throw error;
+    return Object.fromEntries(fields.map(field => [field, { values: [] }]));
+  }
   // Pairs rather than an object: JS would reorder integer-like values such as temperatures
   return Object.fromEntries(Object.entries(response).map(([field, counts]) => {
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);

@@ -52,6 +52,8 @@ describe('createApi', () => {
     stubFetch(404, body);
     await expect(createApi('https://node.example/api/rest/v1/')('projects/x')).rejects.toThrow(
       `HTTP 404 from /api/rest/v1/projects/x: ${message}`);
+    // Tools tell API answers apart by their status
+    await expect(createApi('https://node.example/api/rest/v1/')('projects/x')).rejects.toMatchObject({ status: 404 });
   });
 });
 

@@ -140,4 +140,4 @@ const getAnalysis = async (api, { accession, name, path, range, maxPoints = 200 
   return result;
 };
 
-module.exports = { summarize, selectPart, getAnalysis };
+module.exports = { round, summarize, selectPart, getAnalysis };
