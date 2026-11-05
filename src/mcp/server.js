@@ -39,7 +39,7 @@ conditions separated by ';' in one filter match if any of them matches. Examples
 - ["proteinSequence=ct='SFELLHAPATV'"] (a protein sequence motif, here of the SARS-CoV-2 spike)
 - ["temperature=ge=310"]
 - ["updated=gt=2026-01-01"]
-- ["forcefield=eq='amber14sb','charmm36m'"]
+- ["forcefield=eq='Amber ff14SB','CHARMM36m'"]
 - ["uniprotOrganism=eq='Homo sapiens';pdbOrganism=eq='Homo sapiens'"] (either of them)
 references.* fields (e.g. uniprotGene) are matched in the UniProt, PDB and ligand records that projects refer to.
 
