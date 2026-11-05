@@ -29,11 +29,11 @@ UniProt ids.
 
 Filter with \`text\` (free text over names, descriptions, authors and groups) and/or \`filters\`, a list of \
 filters on the fields listed below, which projects must all match. A filter is a field (its alias or its path), an \
-operator and a value: =eq= (equals), =ne= (not equals), =ct= (contains, case insensitive), =nc= (does not contain), \
-=gt=, =ge=, =lt= and =le=. Text values go in single quotes; numbers, booleans and dates (e.g. 2026-01-01) may go \
-without. =eq=, =ne=, =ct= and =nc= take several values separated by commas, matching any (or, negated, none) of them. \
-An empty value stands for no value (e.g. "pdbId=eq=" for projects without PDB id). Several conditions separated by \
-';' in one filter match if any of them matches. Examples:
+operator and a value: =eq= (equals, case sensitive), =ne= (not equals), =ct= (contains, case insensitive), =nc= \
+(does not contain), =gt=, =ge=, =lt= and =le=. Text values go in single quotes; numbers, booleans and dates (e.g. \
+2026-01-01) may go without. =eq=, =ne=, =ct= and =nc= take several values separated by commas, matching any (or, \
+negated, none) of them. An empty value stands for no value (e.g. "pdbId=eq=" for projects without PDB id). Several \
+conditions separated by ';' in one filter match if any of them matches. Examples:
 - ["keyword=eq='membrane'"]
 - ["uniprotGene=eq='ACE2'", "type=eq='trajectory'"]
 - ["proteinSequence=ct='SFELLHAPATV'"] (a protein sequence motif, here of the SARS-CoV-2 spike)
@@ -46,8 +46,9 @@ references.* fields (e.g. uniprotGene) are matched in the UniProt, PDB and ligan
 Which fields a project has depends on the workflow version that uploaded it, so some projects lack some fields. \
 \`missingFields\` gives, for each filtered field, how many projects in the whole database don't have it.
 
-Call project_options first to see which values a field actually takes. Add more stored fields to every row with \
-\`fields\`, e.g. ["forcefield", "metadata.TEMP"].
+Call project_options first to see which values a field actually takes. It lists the values of references.* fields \
+lower-cased, so filter those with =ct=. Add more stored fields to every row with \`fields\`, e.g. ["forcefield", \
+"metadata.TEMP"].
 
 Filterable fields, as alias = path:
 ${FIELD_CATALOG}`,
@@ -68,7 +69,8 @@ ${FIELD_CATALOG}`,
     description: `Count how many projects have each value of one or more fields, most frequent first, e.g. \
 the force fields in use, or which UniProt ids have the most simulations. Narrow it with the same \`text\` and \
 \`filters\` as search_projects. Values beyond \`top\` are summed up in otherValues (how many) and otherCount. A project \
-counts once for every value of a list field.`,
+counts once for every value of a list field. Values of references.* fields (e.g. uniprotGene) are lower-cased, so \
+that spellings of one value merge; since =eq= is case sensitive, filter by them with =ct=.`,
     inputSchema: {
       fields: z.array(z.string()).min(1).describe('Dotted field paths, e.g. ["metadata.FF", "metadata.SYSKEYS"]'),
       text: z.string().optional().describe('Free-text search'),
