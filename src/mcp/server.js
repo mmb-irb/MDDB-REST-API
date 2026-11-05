@@ -47,14 +47,14 @@ Which fields a project has depends on the workflow version that uploaded it, so 
 \`missingFields\` gives, for each filtered field, how many projects in the whole database don't have it.
 
 Call project_options first to see which values a field actually takes. Add more stored fields to every row with \
-\`fields\`, e.g. ["metadata.FF", "metadata.TEMP"].
+\`fields\`, e.g. ["forcefield", "metadata.TEMP"].
 
 Filterable fields, as alias = path:
 ${FIELD_CATALOG}`,
     inputSchema: {
       text: z.string().optional().describe('Free-text search'),
       filters: z.array(z.string()).optional().describe(FILTERS_DESCRIPTION),
-      fields: z.array(z.string()).optional().describe('Extra dotted field paths to include in every row'),
+      fields: z.array(z.string()).optional().describe('Extra fields to include in every row, by alias or dotted path'),
       sort: z.record(z.string(), z.union([z.literal(1), z.literal(-1)])).optional()
         .describe('MongoDB sort, e.g. {"updateDate": -1}. Default: by accession'),
       limit: z.number().int().min(1).max(100).default(10),

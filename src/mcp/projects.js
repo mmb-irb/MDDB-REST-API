@@ -1,5 +1,5 @@
 const { QUERY_FIELDS } = require('mddb-database/utils/constants');
-const { parseFilters } = require('mddb-database/utils/query-fields');
+const { parseFilters, resolveField } = require('mddb-database/utils/query-fields');
 const { MAX_CHARS } = require('./api');
 const { round } = require('./analyses');
 
@@ -40,6 +40,13 @@ const filteredFields = filters => {
   return parsedFilters.flat().map(condition => condition.path).filter(path => !path.startsWith('references.'));
 };
 
+// Paths of the extra fields, which may also be given by their alias, as the API returns them under their path
+const fieldPaths = fields => fields.map(field => {
+  const resolved = resolveField(field);
+  if (resolved.error) throw new Error(resolved.error);
+  return resolved.path;
+});
+
 // Count projects in the whole database with no value in each field, since nodes uploaded with older workflows lack some
 // Note that an empty value in a filter stands for fields with no value: missing, null or an empty list
 const countMissing = async (api, fields) => {
@@ -52,13 +59,14 @@ const countMissing = async (api, fields) => {
 };
 
 const searchProjects = async (api, { text, filters = [], fields = [], sort, limit = 10, page = 1 }) => {
-  // Parse the filters first, so wrong filters are refused before any request
+  // Parse the filters and fields first, so wrong ones are refused before any request
   const missingCandidates = [...new Set(filteredFields(filters))];
+  const paths = fieldPaths(fields);
   const [response, missingFields] = await Promise.all([
     api('projects', {
       search: text,
       filter: filters,
-      return: returnedPaths([...SEARCH_RETURN, ...fields]),
+      return: returnedPaths([...SEARCH_RETURN, ...paths]),
       sort: sort && JSON.stringify(sort),
       limit,
       page,
@@ -80,7 +88,9 @@ const searchProjects = async (api, { text, filters = [], fields = [], sort, limi
       timeNs: sum(mds.map(md => md.time)),
       pdb: metadata.PDBIDS,
       uniprot: metadata.REFERENCES,
-      fields: fields.length ? Object.fromEntries(fields.map(field => [field, getPath(project, field.split('.'))])) : undefined,
+      fields: fields.length
+        ? Object.fromEntries(fields.map((field, index) => [field, getPath(project, paths[index].split('.'))]))
+        : undefined,
     };
   });
   const result = { total: response.filteredCount, page, limit, missingFields, projects };
