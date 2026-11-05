@@ -1,5 +1,8 @@
 // auxiliar-functions loads config.yml through yamljs, which fails under jest, and the host is all the route needs
-jest.mock('../utils/auxiliar-functions', () => ({ getHost: () => 'irb.mddbr.eu' }));
+jest.mock('../utils/auxiliar-functions', () => ({
+  getHost: () => 'irb.mddbr.eu',
+  getConfig: () => ({ name: 'MDDB IRB', accession: 'A0001' }),
+}));
 const http = require('http');
 const express = require('express');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
@@ -75,5 +78,25 @@ describe('MCP endpoint', () => {
       expect(response.status).toBe(405);
       expect(response.headers.get('allow')).toBe('POST');
     }
+  });
+
+  it('answers clients which accept only JSON', async () => {
+    const response = await fetch(mcpUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).result.tools.map(tool => tool.name)).toContain('get_project');
+  });
+
+  it('shows browsers how to connect', async () => {
+    const response = await fetch(mcpUrl, { headers: { accept: 'text/html,*/*;q=0.8', 'x-forwarded-proto': 'https' } });
+    expect(response.status).toBe(200);
+    const page = await response.text();
+    expect(page).toContain('<title>MDDB IRB MCP server</title>');
+    expect(page).toContain('claude mcp add --transport http mddb https://irb.mddbr.eu/api/rest/mcp');
+    expect(page).toContain('MDDB_API_URL=https://irb.mddbr.eu/api/rest/v1/');
+    expect(page).toContain('<code>search_projects</code>');
   });
 });

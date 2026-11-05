@@ -16,6 +16,8 @@ const docs = yaml.load(`${__dirname}/../docs/description.yml`);
 const UNCHECKED_ENDPOINTS = {
   // Supported range arguments depend on the file dimensions, so arguments are checked after reading the file
   'GET /projects/{projectAccessionOrID}/files/{filename}': true,
+  // The MCP server lives outside the versions and takes JSON-RPC messages rather than arguments
+  'POST /mcp': true,
 };
 
 // Arguments which are supported but intentionally not documented

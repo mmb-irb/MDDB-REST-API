@@ -95,6 +95,7 @@ app.get('/rest', (_, res) =>
     'current version': `v${CURRENT_API_VERSION}`,
     documentation: 'docs',
     'federated specification': 'spec',
+    'mcp server': 'mcp',
     'software version': version,
   }),
 );
