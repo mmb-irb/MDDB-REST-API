@@ -1,6 +1,7 @@
 const { REFERENCES } = require('mddb-database/utils/constants');
 const { MAX_CHARS } = require('./api');
 const { isEmpty } = require('./projects');
+const { numberRanges } = require('./topology');
 
 // The reference types the references and pointers endpoints look up
 const REFERENCE_TYPES = Object.keys(REFERENCES);
@@ -28,18 +29,31 @@ const interproEntries = interproscan => {
   return [...entries.values()].map(entry => ({ ...entry, locations: [...new Set(entry.locations)].join(', ') }));
 };
 
-// Leave out empty values and bulk data at any depth, and summarize the InterProScan results
+// The antibody epitopes of a protein, stored as the residues bound in each PDB structure, as the web client shows them:
+// all residues together, since one protein may have hundreds of structures (e.g. 258 for the SARS-CoV-2 spike)
+const epitopeSummary = epitopes => {
+  const residues = new Set(Object.values(epitopes).flatMap(epitope => epitope?.residues ?? []));
+  return { pdbIds: Object.keys(epitopes), residues: numberRanges([...residues].sort((a, b) => a - b), Infinity) };
+};
+
+// Leave out empty values and bulk data at any depth, and summarize the InterProScan results and the epitopes
 const compact = value => {
   if (Array.isArray(value)) return value.map(compact);
   if (value === null || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value).flatMap(([key, item]) => {
     if (key === 'interproscan') return [['interpro', interproEntries(item)]];
+    if (key === 'epitopes' && !isEmpty(item)) return [['epitopes', epitopeSummary(item)]];
     return OMITTED_FIELDS.has(key) || isEmpty(item) ? [] : [[key, compact(item)]];
   }));
 };
 
 const getReferences = async (api, { accession, type, id }) => {
-  if (type && id) return compact(await api(`references/${type}/${encodeURIComponent(id)}`));
+  if (type && id) {
+    const reference = compact(await api(`references/${type}/${encodeURIComponent(id)}`));
+    const length = JSON.stringify(reference).length;
+    if (length > MAX_CHARS) throw new Error(`The ${type} reference ${id} is ${length} characters long, too long to read here`);
+    return reference;
+  }
   if (!accession) throw new Error('Pass either an accession, or a reference type and id');
   const references = compact(await api(`projects/${encodeURIComponent(accession)}/references`));
   const length = JSON.stringify(references).length;

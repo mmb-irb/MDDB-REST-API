@@ -150,8 +150,9 @@ values, hbonds acceptors).`,
 sequence, domains, functions), PDB entries (title, method, organisms, chain UniProt ids), InChI keys for ligands \
 and lipids (names, formula, PubChem, DrugBank, ChEMBL, LIPID MAPS and SwissLipids data), chain sequences with the \
 InterPro entries found in them, and collections. Per-residue PDBe data, 2D structures, fingerprints and Mordred \
-descriptors are left out. Each project reference has a ref_type. References are stored as each workflow version \
-wrote them, so their fields vary.`,
+descriptors are left out. Protein epitopes come as the PDB ids of the structures where an antibody binds the protein \
+and the epitope residues of all of them together, as UniProt positions. Each project reference has a ref_type. \
+References are stored as each workflow version wrote them, so their fields vary.`,
     inputSchema: {
       accession: z.string().optional().describe('A project, e.g. MD-A00001, to get all its references'),
       type: referenceType.optional(),

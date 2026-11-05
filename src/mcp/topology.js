@@ -12,7 +12,7 @@ const ATOM_FIELDS = [
 const MAX_RANGES = 10;
 
 // Residue number ranges, e.g. "1-120, 130-255"
-const numberRanges = numbers => {
+const numberRanges = (numbers, maxRanges = MAX_RANGES) => {
   const ranges = [];
   let start = numbers[0];
   numbers.forEach((number, index) => {
@@ -21,8 +21,8 @@ const numberRanges = numbers => {
     ranges.push(start === number ? `${number}` : `${start}-${number}`);
     start = next;
   });
-  return ranges.length > MAX_RANGES
-    ? ranges.slice(0, MAX_RANGES).join(', ') + `, … ${ranges.length - MAX_RANGES} more ranges`
+  return ranges.length > maxRanges
+    ? ranges.slice(0, maxRanges).join(', ') + `, … ${ranges.length - maxRanges} more ranges`
     : ranges.join(', ');
 };
 
@@ -105,4 +105,4 @@ const getTopology = async (api, { accession, residues, atoms }) => {
   };
 };
 
-module.exports = { RESIDUE_FIELDS, ATOM_FIELDS, getTopology };
+module.exports = { RESIDUE_FIELDS, ATOM_FIELDS, numberRanges, getTopology };

@@ -27,6 +27,23 @@ describe('getReferences', () => {
     }] });
   });
 
+  // Hundreds of structures per protein would flood the context, e.g. 63k characters for the SARS-CoV-2 spike
+  it('merges the epitope residues of all structures', async () => {
+    const api = jest.fn(async () => ({ uniprot: 'P0DTC2', epitopes: {
+      '7FG2': { mas: 2903.6000000000004, residues: [346, 348, 349, 350] },
+      '7CAH': { mas: 3148.7, residues: [350, 351, 500] },
+    } }));
+    expect(await getReferences(api, { type: 'proteins', id: 'P0DTC2' })).toEqual({ uniprot: 'P0DTC2', epitopes: {
+      pdbIds: ['7FG2', '7CAH'], residues: '346, 348-351, 500',
+    } });
+  });
+
+  it('refuses a single reference that would flood the context', async () => {
+    const api = jest.fn(async () => ({ uniprot: 'P0DTC2', sequence: 'A'.repeat(50_000) }));
+    await expect(getReferences(api, { type: 'proteins', id: 'P0DTC2' }))
+      .rejects.toThrow(/^The proteins reference P0DTC2 is \d+ characters long, too long to read here$/);
+  });
+
   it('gets all the references of a project', async () => {
     const api = jest.fn(async () => [{ uniprot: 'P0DTC4', gene: null, ref_type: 'proteins' }]);
     expect(await getReferences(api, { accession: 'MD-A001SU' })).toEqual([{ uniprot: 'P0DTC4', ref_type: 'proteins' }]);
