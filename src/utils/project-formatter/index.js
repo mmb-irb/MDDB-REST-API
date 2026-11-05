@@ -75,6 +75,8 @@ const projectFormatter = (projectData, requestedMdIndex = null) => {
   projectData.internalId = projectData._id;
   projectData.creationDate = projectData.creationDate || projectData._id.getTimestamp();
   delete projectData._id;
+  // Remove the loader internal record of deletions in progress
+  delete projectData.pending_deletions;
   // Add the identifier
   // This id is the one to be used by the client to ask for more data about the same project
   projectData.identifier = identifier;
