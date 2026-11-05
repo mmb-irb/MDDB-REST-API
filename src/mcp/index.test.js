@@ -68,4 +68,12 @@ describe('MCP endpoint', () => {
     expect(client.transport.sessionId).toBeUndefined();
     await client.close();
   });
+
+  it('refuses to open a stream or end a session', async () => {
+    for (const method of ['GET', 'DELETE']) {
+      const response = await fetch(mcpUrl, { method, headers: { accept: 'text/event-stream' } });
+      expect(response.status).toBe(405);
+      expect(response.headers.get('allow')).toBe('POST');
+    }
+  });
 });

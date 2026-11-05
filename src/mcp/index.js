@@ -15,7 +15,7 @@ const getPublicUrl = (request, host) => {
 };
 
 // Every request gets its own server over the requested host's API, so no session is kept between requests
-router.all('/', async (request, response) => {
+router.post('/', async (request, response) => {
   const host = getHost(request);
   const localUrl = `http://localhost:${process.env.LISTEN_PORT}/rest/v1/`;
   const fetchApi = createLocalFetch({ localUrl, publicUrl: getPublicUrl(request, host), host });
@@ -39,5 +39,12 @@ router.all('/', async (request, response) => {
     });
   }
 });
+
+// Without sessions there is no stream to open with GET nor session to end with DELETE
+router.all('/', (request, response) => response.status(405).set('Allow', 'POST').json({
+  jsonrpc: '2.0',
+  error: { code: -32000, message: 'Method not allowed' },
+  id: null,
+}));
 
 module.exports = router;
