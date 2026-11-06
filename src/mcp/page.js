@@ -92,6 +92,7 @@ const createPage = async ({ name, accession, mcpUrl, apiUrl, docsUrl }) => {
 <p>Where some of them keep it:</p>
 <ul>
 <li>Claude Code: <code>.mcp.json</code> in a project, or <code>~/.claude.json</code> for every project</li>
+<li>Codex: <code>~/.codex/config.toml</code>, in TOML as a <code>[mcp_servers.mddb]</code> table with a <code>url</code></li>
 <li>Cursor: <code>.cursor/mcp.json</code> in a project, or <code>~/.cursor/mcp.json</code> for every project</li>
 <li>VS Code: <code>.vscode/mcp.json</code> in a workspace, under <code>servers</code> instead of <code>mcpServers</code></li>
 <li>Windsurf: <code>~/.codeium/windsurf/mcp_config.json</code>, with the URL as <code>serverUrl</code></li>
