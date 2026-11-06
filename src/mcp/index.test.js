@@ -98,5 +98,6 @@ describe('MCP endpoint', () => {
     expect(page).toContain('claude mcp add --transport http mddb https://irb.mddbr.eu/api/rest/mcp');
     expect(page).toContain('MDDB_API_URL=https://irb.mddbr.eu/api/rest/v1/');
     expect(page).toContain('<code>search_projects</code>');
+    expect(page).toContain('<code>~/.cursor/mcp.json</code>');
   });
 });

@@ -89,6 +89,14 @@ const createPage = async ({ name, accession, mcpUrl, apiUrl, docsUrl }) => {
     "mddb": { "type": "http", "url": "${escape(mcpUrl)}" }
   }
 }</code></pre>
+<p>Where some of them keep it:</p>
+<ul>
+<li>Claude Code: <code>.mcp.json</code> in a project, or <code>~/.claude.json</code> for every project</li>
+<li>Cursor: <code>.cursor/mcp.json</code> in a project, or <code>~/.cursor/mcp.json</code> for every project</li>
+<li>VS Code: <code>.vscode/mcp.json</code> in a workspace, under <code>servers</code> instead of <code>mcpServers</code></li>
+<li>Windsurf: <code>~/.codeium/windsurf/mcp_config.json</code>, with the URL as <code>serverUrl</code></li>
+<li>Gemini CLI: <code>~/.gemini/settings.json</code>, with the URL as <code>httpUrl</code></li>
+</ul>
 <h3>Locally over stdio</h3>
 <p>From a clone of the <a href="https://github.com/mmb-irb/MDDB-REST-API" target="_blank" rel="noreferrer noopener">API repository</a>, after <code>npm install</code>:</p>
 <pre><code>claude mcp add mddb -e MDDB_API_URL=${escape(apiUrl)} -- node src/mcp/stdio.js</code></pre>
