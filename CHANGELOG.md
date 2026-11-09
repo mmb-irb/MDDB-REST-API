@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.0.19 — 2026-11-09
+
+Changes since v0.0.18 (2026-10-26).
 
 ### Breaking changes
 
@@ -10,6 +12,45 @@
 - **New `filter` syntax**: a field, an operator and a value (e.g. `uniprotOrganism=eq='Homo sapiens'`). Operators are `=eq=`, `=ne=`, `=ct=` (contains, case insensitive), `=nc=` (does not contain), `=gt=`, `=ge=`, `=lt=` and `=le=`, and the symbols `==`, `!=`, `~=`, `!~=`, `>`, `>=`, `<` and `<=` are supported as well. Text values must be quoted with single quotes, so they may include any character (quotes inside may be escaped with `\`), while numbers, booleans and dates may be quoted or not. Several values may be separated by `,`. An empty value with `=eq=` or `=ne=` stands for fields with no value (e.g. `pdbId=eq=`). Several conditions may be separated by `;` in a single filter and they are combined with OR (e.g. `uniprotOrganism=eq='Homo sapiens';pdbOrganism=eq='Homo sapiens'`), while several filters are combined with AND. The syntax only relies on characters which do not need to be percent encoded in URLs. The old `++`, `+*`, `--` and `-*` operators are no longer supported.
 - `return` takes field names separated by commas (e.g. `return=name,author`).
 - Fields may be passed by their full path or by their alias (e.g. `uniprotOrganism` for `references.proteins.organism`), as defined in the `QUERY_FIELDS` of `mddb-database`. Aliases mean the same field in every endpoint, so `/references/{reference}` also takes aliases or full paths (e.g. `uniprotGene` or `references.proteins.gene`) instead of fields relative to the reference. Values are parsed according to the field type, and wrong filters are rejected with a 400 error explaining the problem.
+- **Unsupported arguments are rejected** with a 400 error in every endpoint, in the query or the body.
+- **Pagination limits greater than the maximum** of each endpoint are rejected with a 400 error stating the maximum, instead of being silently capped. Wrong `page` and `limit` values are rejected too, instead of being replaced by defaults.
+
+### API versions
+
+- **REST API v2** is added and `current` points to it. Every version is served from the same routes, responses include an `X-API-Version` header, and unknown versions (e.g. `/rest/v9`) return a 404 listing the available ones.
+- Since v2, `/structure` returns **mmCIF** and `/trajectory` returns **xtc** by default. v1 keeps PDB and bin, and an explicit `format` is respected in every version.
+
+### MCP server
+
+- **An MCP server is served at `/rest/mcp`**, so LLM clients can use every API host through tools: search projects, count field values, read projects, summarize analyses and topologies, look up residues and atoms, read references, find the simulations of a reference and get download links. Results over 40k characters are refused with a list of their parts.
+- Browsers get a page at `/rest/mcp` on how to connect to it, with the configuration files of the main clients (Claude Code, Cursor, VS Code, Windsurf, Gemini CLI, Codex). It is listed in the `/rest` index and documented in Swagger.
+- `src/mcp/stdio.js` runs the same tools over stdio against any node's API, for local clients.
+
+### New endpoints and arguments
+
+- **`/references/{reference}/versions`** — versions of all references of a type, with references without version as 0.0.0.
+- **`/projects/{id}/trajectory/coordinates`** — always returns the binary trajectory, with the same selections as `/trajectory`.
+- **`ids` argument and POST support** in `/projects` and `/references/{reference}`, so long lists of ids fit. Any argument of any endpoint may be passed in the query or in the JSON body.
+
+### Topology, structure and trajectory
+
+- `/structure` supports **mmCIF** (`format=mmcif`), and NGL selections are always parsed from a mmCIF, so they work with long chain names and residue numbers over 9999.
+- New **`numbering`** argument (`author` or `uniprot`) to choose the residue numeration in structure and trajectory.
+- `/trajectory` supports **Amber NetCDF** (`nc`) and **DCD** formats, and XTC and TRR trajectories include the simulation box.
+- `/structure` no longer requires the stored structure file.
+- Topology selections may be per-MD and grouped in `[first, last]` ranges.
+- The chemfiles converter is built without root permissions, as a static library in `build/chemfiles`.
+
+### Queries and docs
+
+- The `/projects` docs list the queryable fields with their type, description and an example.
+- Fixed queries with several reference fields of the same type, nested reference fields (e.g. `references.inchikeys.ligand.name`), and reference or date fields after other fields or inside `$and`/`$or`.
+- `/projects/options` refuses counting fields which hold objects, naming the fields to count instead.
+- The internal `pending_deletions` field of projects is hidden.
+
+### Security
+
+- Huge ranges and numbers, zero steps and out-of-range index lists in selections are rejected with a 400 error, instead of running the API out of memory or reading beyond the trajectory file.
 
 ## v0.0.18 — 2026-10-26
 
