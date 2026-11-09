@@ -69,6 +69,24 @@ describe('searchProjects', () => {
     expect(result.projects[0]).toMatchObject({ name: 'Envelope protein E', frames: 10002, fields: { metadata: project.metadata } });
   });
 
+  // The API returns aliased fields under their path, e.g. forcefield as metadata.FF
+  it('takes extra fields by alias and answers them under the given name', async () => {
+    const api = fakeApi([project]);
+    const result = await searchProjects(api, { fields: ['forcefield'] });
+    expect(searchParams(api).return).toContain('metadata.FF');
+    expect(result.projects[0].fields).toEqual({ forcefield: ['CHARMM36m'] });
+    const withParent = fakeApi([project]);
+    const parentResult = await searchProjects(withParent, { fields: ['forcefield', 'metadata'] });
+    expect(searchParams(withParent).return).not.toContain('metadata.FF');
+    expect(parentResult.projects[0].fields).toEqual({ forcefield: ['CHARMM36m'], metadata: project.metadata });
+  });
+
+  it('refuses wrong field names before any request', async () => {
+    const api = fakeApi([project]);
+    await expect(searchProjects(api, { fields: ['metadata FF'] })).rejects.toThrow(/Wrong field name "metadata FF"/);
+    expect(api).not.toHaveBeenCalled();
+  });
+
   it('refuses results that would flood the context', async () => {
     const huge = { ...project, metadata: { ...project.metadata, PROTSEQ: ['A'.repeat(50000)] } };
     await expect(searchProjects(fakeApi([huge]), { fields: ['metadata'] }))

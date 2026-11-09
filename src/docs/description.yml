@@ -20,6 +20,10 @@ info:
     <a href="//$CLIENT_URL/api/optimade/" target="_blank" rel="noreferrer noopener">OPTIMADE API</a>.
     <br />
     <br />
+    AI assistants such as Claude may query it through the
+    <a href="$MCP_URL" target="_blank" rel="noreferrer noopener">$DATABASE MCP server</a>.
+    <br />
+    <br />
     This API is used by the
     <a href="//$CLIENT_URL" target="_blank" rel="noreferrer noopener">$DATABASE web client</a>.
   version: 1.0.0
@@ -2689,6 +2693,67 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/KnowledgeResponse'
+
+  /mcp:
+    post:
+      summary: Send a message to the MCP server.
+      description: >
+        The $DATABASE <a href="https://modelcontextprotocol.io" target="_blank" rel="noreferrer noopener">Model Context Protocol</a> server,
+        for AI assistants such as Claude to search projects, read their analyses and topologies and get download links.
+        Point your MCP client to this URL; the <a href="$MCP_URL" target="_blank" rel="noreferrer noopener">MCP server page</a> explains how.
+        <br />
+        <br />
+        It speaks JSON-RPC over Streamable HTTP without sessions: every message is answered on its own, in JSON.
+        Send <code>tools/list</code> to list the tools and <code>tools/call</code> to call one.
+        This endpoint is not versioned, so it lives at /rest/mcp whatever the API version.
+      tags:
+        - mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jsonrpc, id, method]
+              properties:
+                jsonrpc:
+                  type: string
+                  enum: ['2.0']
+                id:
+                  oneOf:
+                    - type: integer
+                    - type: string
+                method:
+                  type: string
+                  description: e.g. initialize, tools/list or tools/call
+                params:
+                  type: object
+            examples:
+              listTools:
+                summary: List the tools
+                value:
+                  jsonrpc: '2.0'
+                  id: 1
+                  method: tools/list
+              callTool:
+                summary: Get a project
+                value:
+                  jsonrpc: '2.0'
+                  id: 1
+                  method: tools/call
+                  params:
+                    name: get_project
+                    arguments:
+                      accession: $ACCESSION
+      responses:
+        200:
+          description: The JSON-RPC response
+          content:
+            application/json:
+              schema:
+                type: object
+        405:
+          description: Any method but POST. Browsers get the MCP server page with GET instead.
 
 components:
   schemas:

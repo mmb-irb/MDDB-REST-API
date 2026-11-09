@@ -29,32 +29,33 @@ UniProt ids.
 
 Filter with \`text\` (free text over names, descriptions, authors and groups) and/or \`filters\`, a list of \
 filters on the fields listed below, which projects must all match. A filter is a field (its alias or its path), an \
-operator and a value: =eq= (equals), =ne= (not equals), =ct= (contains, case insensitive), =nc= (does not contain), \
-=gt=, =ge=, =lt= and =le=. Text values go in single quotes; numbers, booleans and dates (e.g. 2026-01-01) may go \
-without. =eq=, =ne=, =ct= and =nc= take several values separated by commas, matching any (or, negated, none) of them. \
-An empty value stands for no value (e.g. "pdbId=eq=" for projects without PDB id). Several conditions separated by \
-';' in one filter match if any of them matches. Examples:
+operator and a value: =eq= (equals, case sensitive), =ne= (not equals), =ct= (contains, case insensitive), =nc= \
+(does not contain), =gt=, =ge=, =lt= and =le=. Text values go in single quotes; numbers, booleans and dates (e.g. \
+2026-01-01) may go without. =eq=, =ne=, =ct= and =nc= take several values separated by commas, matching any (or, \
+negated, none) of them. An empty value stands for no value (e.g. "pdbId=eq=" for projects without PDB id). Several \
+conditions separated by ';' in one filter match if any of them matches. Examples:
 - ["keyword=eq='membrane'"]
 - ["uniprotGene=eq='ACE2'", "type=eq='trajectory'"]
 - ["proteinSequence=ct='SFELLHAPATV'"] (a protein sequence motif, here of the SARS-CoV-2 spike)
 - ["temperature=ge=310"]
 - ["updated=gt=2026-01-01"]
-- ["forcefield=eq='amber14sb','charmm36m'"]
+- ["forcefield=eq='Amber ff14SB','CHARMM36m'"]
 - ["uniprotOrganism=eq='Homo sapiens';pdbOrganism=eq='Homo sapiens'"] (either of them)
 references.* fields (e.g. uniprotGene) are matched in the UniProt, PDB and ligand records that projects refer to.
 
 Which fields a project has depends on the workflow version that uploaded it, so some projects lack some fields. \
 \`missingFields\` gives, for each filtered field, how many projects in the whole database don't have it.
 
-Call project_options first to see which values a field actually takes. Add more stored fields to every row with \
-\`fields\`, e.g. ["metadata.FF", "metadata.TEMP"].
+Call project_options first to see which values a field actually takes. It lists the values of references.* fields \
+lower-cased, so filter those with =ct=. Add more stored fields to every row with \`fields\`, e.g. ["forcefield", \
+"metadata.TEMP"].
 
 Filterable fields, as alias = path:
 ${FIELD_CATALOG}`,
     inputSchema: {
       text: z.string().optional().describe('Free-text search'),
       filters: z.array(z.string()).optional().describe(FILTERS_DESCRIPTION),
-      fields: z.array(z.string()).optional().describe('Extra dotted field paths to include in every row'),
+      fields: z.array(z.string()).optional().describe('Extra fields to include in every row, by alias or dotted path'),
       sort: z.record(z.string(), z.union([z.literal(1), z.literal(-1)])).optional()
         .describe('MongoDB sort, e.g. {"updateDate": -1}. Default: by accession'),
       limit: z.number().int().min(1).max(100).default(10),
@@ -68,7 +69,8 @@ ${FIELD_CATALOG}`,
     description: `Count how many projects have each value of one or more fields, most frequent first, e.g. \
 the force fields in use, or which UniProt ids have the most simulations. Narrow it with the same \`text\` and \
 \`filters\` as search_projects. Values beyond \`top\` are summed up in otherValues (how many) and otherCount. A project \
-counts once for every value of a list field.`,
+counts once for every value of a list field. Values of references.* fields (e.g. uniprotGene) are lower-cased, so \
+that spellings of one value merge; since =eq= is case sensitive, filter by them with =ct=.`,
     inputSchema: {
       fields: z.array(z.string()).min(1).describe('Dotted field paths, e.g. ["metadata.FF", "metadata.SYSKEYS"]'),
       text: z.string().optional().describe('Free-text search'),
@@ -150,8 +152,9 @@ values, hbonds acceptors).`,
 sequence, domains, functions), PDB entries (title, method, organisms, chain UniProt ids), InChI keys for ligands \
 and lipids (names, formula, PubChem, DrugBank, ChEMBL, LIPID MAPS and SwissLipids data), chain sequences with the \
 InterPro entries found in them, and collections. Per-residue PDBe data, 2D structures, fingerprints and Mordred \
-descriptors are left out. Each project reference has a ref_type. References are stored as each workflow version \
-wrote them, so their fields vary.`,
+descriptors are left out. Protein epitopes come as the PDB ids of the structures where an antibody binds the protein \
+and the epitope residues of all of them together, as UniProt positions. Each project reference has a ref_type. \
+References are stored as each workflow version wrote them, so their fields vary.`,
     inputSchema: {
       accession: z.string().optional().describe('A project, e.g. MD-A00001, to get all its references'),
       type: referenceType.optional(),

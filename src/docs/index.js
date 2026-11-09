@@ -86,6 +86,15 @@ Object.entries(hostConfig).forEach(([host, config]) => {
       },
     },
   ];
+  // The MCP server is not versioned, so its path goes right under /rest
+  swaggerDocs.paths['/mcp'].servers = [
+    {
+      url: url.replace('/{version}', ''),
+      description: config.description,
+      variables: { protocol: { enum: ['https', 'http'], default: 'https' } },
+    },
+  ];
+  replaceAnywhere(swaggerDocs, '$MCP_URL', url.replace('{protocol}:', '').replace('{version}', 'mcp'));
 
   // Adapt the documentation to the current database name and accession example by replacing some parts of the docs
   replaceAnywhere(swaggerDocs, '$CLIENT_URL', config.hostfix || host);
