@@ -23,6 +23,9 @@ const defaultFormat = 'yaml';
 
 // Set a regular expression to match any possible files in the database
 const TOPOLOGY_FILENAME_REGEXP = /(^topology.(prmtop|top|psf|tpr)$)/;
+// Set the possible structure filenames of a MD, by priority
+// The workflow writes mmCIF structures, while MDs loaded before only have a PDB structure
+const STRUCTURE_FILENAMES = ['structure.cif', 'structure.pdb'];
 
 const router = Router({ mergeParams: true });
 
@@ -72,9 +75,9 @@ router.route('/').get(
         }
       }
       // Set the URL to request files from this API
-      // Set the project endpoint by removing the '/inputs' at the end
-      const inputsEndpoint = getRequestUrl(request);
-      const projectEndpoint = inputsEndpoint.slice(0, inputsEndpoint.length - 7);
+      // Set the project endpoint by removing the query (e.g. '?format=json') and the '/inputs' at the end
+      const inputsEndpoint = getRequestUrl(request).split('?')[0];
+      const projectEndpoint = inputsEndpoint.replace(/\/inputs\/?$/, '');
       const projectFilesEndpoint = `${projectEndpoint}/files`;
       // Numberate MDs before removing some of them
       // IMPORTANT: Do not filter away removed MDs or the indices will not match later
@@ -85,7 +88,10 @@ router.route('/').get(
         if (!md.removed) {
           md.directory = md.name ? md.name.replace(' ','_') : 'replica_'+md.num;
           const mdFilesEndpoint = `${projectEndpoint}.${md.num}/files`;
-          md.input_structure_filepath = `${mdFilesEndpoint}/structure.pdb`;
+          // Point to the structure file of the MD, if any
+          // Otherwise point to the mmCIF, which the workflow requests to the structure endpoint
+          const structureFilename = STRUCTURE_FILENAMES.find(filename => md.files.some(file => file.name === filename));
+          md.input_structure_filepath = `${mdFilesEndpoint}/${structureFilename || STRUCTURE_FILENAMES[0]}`;
           md.input_trajectory_filepaths = `${mdFilesEndpoint}/trajectory.xtc`;
           const topologyFile = md.files.find(file => TOPOLOGY_FILENAME_REGEXP.exec(file.name));
           if (topologyFile) md.input_topology_filepath = `${mdFilesEndpoint}/${topologyFile.name}`;
