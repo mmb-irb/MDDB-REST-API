@@ -50,7 +50,7 @@ const getQueryFieldsTable = isGlobal => [
 
 // Elaborate the different possible swagger responsed depending on the request URL
 const swaggerResponses = {};
-// Unknown hosts (or every host, if the configuration is the same for all) are under the 'null' key
+// Unknown hosts are under the 'null' key
 const docsConfigs = [ ...Object.entries(hostConfig), [ 'null', unknownHostConfig ] ];
 docsConfigs.forEach(([host, config]) => {
   // Swagger documentation parsed to an object
@@ -92,7 +92,9 @@ docsConfigs.forEach(([host, config]) => {
   replaceAnywhere(swaggerDocs, '$MCP_URL', url.replace('{protocol}:', '').replace('{version}', 'mcp'));
 
   // Adapt the documentation to the current database name and accession example by replacing some parts of the docs
-  replaceAnywhere(swaggerDocs, '$CLIENT_URL', config.hostfix || host);
+  // Unknown hosts get the placeholder, which is replaced by the requesting host in every request
+  const clientHost = host === 'null' ? UNKNOWN_HOST_PLACEHOLDER : host;
+  replaceAnywhere(swaggerDocs, '$CLIENT_URL', config.hostfix || clientHost);
   replaceAnywhere(swaggerDocs, '$DATABASE', config.name);
   const accessionExample = config.accession || '< No example available >';
   replaceAnywhere(swaggerDocs, '$ACCESSION', accessionExample);

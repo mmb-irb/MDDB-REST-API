@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Breaking changes
+
+- **Only one `config.yml` format**: root keys are the host names, each one with its own configuration inside (see `example-config.yml`, which replaces `example-single-config.yml` and `example-multiple-config.yml`). Configuration fields at the root (the single configuration format of v0.0.20) and the `hosts` field (the format before) stop the API when it starts. To use one configuration for every request, no matter the host it arrives with, configure one single host and force it with `HOST` in the `.env` file.
+- **`config.yml` is mandatory**: the API does not start without it, with an empty file, or with a `HOST` in the `.env` file which is not configured.
+
+### Fixes
+
+- The OPTIMADE API and web client links in the swagger docs of unrecognized hosts (and of every host with a single configuration in v0.0.20) pointed to `//null`.
+
 ## v0.0.20 — 2026-11-12
 
 Changes since v0.0.19 (2026-11-09).

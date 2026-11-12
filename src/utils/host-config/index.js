@@ -1,7 +1,7 @@
 // Load the host configuration, which sets the behaviour of the API depending on the requesting host
 // It is read from the config.yml file at the repository root, which is ignored by git so every node has its own one
-// If there is no config.yml then the default configuration is used for every host
-// See example-single-config.yml and example-multiple-config.yml at the repository root for the file format
+// See example-config.yml at the repository root for the file format
+// The file is mandatory and its format is strict: any problem stops the API when it starts
 const fs = require('fs');
 const path = require('path');
 // Library to read yaml files
@@ -31,49 +31,58 @@ const DEFAULT_CONFIG = {
 };
 const CONFIG_FIELDS = Object.keys(DEFAULT_CONFIG);
 
+const isMapping = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+
 // Complete a host configuration with the default values
 // Unknown fields are not accepted, so typos do not silently fall back to the default values
-const processConfig = (config, label) => {
-    if (config === null || typeof config !== 'object' || Array.isArray(config))
-        throw new Error(`Host configuration of ${label} in ${CONFIG_PATH} must be a set of fields`);
+const processConfig = (config, host) => {
+    if (!isMapping(config)) throw new Error(`Host configuration of ${host} in ${CONFIG_PATH} must be a set of fields`);
     const unknownFields = Object.keys(config).filter(field => !CONFIG_FIELDS.includes(field));
-    if (unknownFields.length > 0) throw new Error(`Unknown fields in the host configuration of ${label} in ${CONFIG_PATH}: `
+    if (unknownFields.length > 0) throw new Error(`Unknown fields in the host configuration of ${host} in ${CONFIG_PATH}: `
         + `${unknownFields.join(', ')}. Supported fields are: ${CONFIG_FIELDS.join(', ')}`);
     return { ...DEFAULT_CONFIG, ...config };
 };
 
 // Read the configuration file
-// It may have the configuration of several hosts under the 'hosts' field, with each host name as key
-// Otherwise the whole file is a single configuration to be used for every host
+// Root keys are the host names and each one has its own configuration inside
+// To make every request use the same configuration, no matter the host it arrives with (e.g. behind a proxy),
+// configure one single host and force it with the HOST variable in the .env file
 const loadConfig = () => {
-    if (!fs.existsSync(CONFIG_PATH)) {
-        console.log('No config.yml found: using the default host configuration');
-        return { hostConfig: {}, unknownHostConfig: processConfig({}, 'the default') };
-    }
+    if (!fs.existsSync(CONFIG_PATH)) throw new Error(`Missing host configuration file ${CONFIG_PATH}. `
+        + 'Create it with one configuration per host name (see example-config.yml)');
     const content = yaml.load(CONFIG_PATH);
-    // An empty file is the same as no file
-    if (content === null) return { hostConfig: {}, unknownHostConfig: processConfig({}, 'the default') };
-    // Single configuration
-    if (!('hosts' in content)) return { hostConfig: {}, unknownHostConfig: processConfig(content, 'every host') };
-    // Multiple configurations
-    const otherFields = Object.keys(content).filter(field => field !== 'hosts');
-    if (otherFields.length > 0) throw new Error(`Fields ${otherFields.join(', ')} in ${CONFIG_PATH} are not allowed `
-        + `together with 'hosts': host fields go inside each host`);
+    if (!isMapping(content)) throw new Error(`Host configuration file ${CONFIG_PATH} must be a set of host names, `
+        + 'each one with its own configuration (see example-config.yml)');
+    const hosts = Object.keys(content);
+    if (hosts.length === 0) throw new Error(`Host configuration file ${CONFIG_PATH} has no hosts`);
+    // Configuration fields at the root are the old single configuration format, which is no longer supported
+    const rootFields = hosts.filter(host => CONFIG_FIELDS.includes(host));
+    if (rootFields.length > 0) throw new Error(`Host configuration file ${CONFIG_PATH} has configuration fields at the root `
+        + `(${rootFields.join(', ')}): root keys must be host names, each one with its own configuration inside `
+        + '(see example-config.yml). To use one configuration for every request force the host with HOST in the .env file');
+    // The old 'hosts' wrapper is no longer supported either
+    if ('hosts' in content) throw new Error(`Host configuration file ${CONFIG_PATH} has a 'hosts' field: `
+        + 'host names go directly at the root now (see example-config.yml)');
     const hostConfig = {};
-    Object.entries(content.hosts).forEach(([host, config]) => {
-        hostConfig[host] = processConfig(config, host);
+    hosts.forEach(host => {
+        hostConfig[host] = processConfig(content[host], host);
     });
-    // Requests from not configured hosts get the default configuration, but tell they are not recognized
-    const unknownHostConfig = processConfig({
-        name: '(Unknown service)',
-        description: 'The requesting URL is not recognized, all local collections will be returned',
-    }, 'unknown hosts');
-    return { hostConfig, unknownHostConfig };
+    return hostConfig;
 };
 
-// hostConfig - Configuration of every configured host, with the host name as key
-// unknownHostConfig - Configuration for any other host
-const { hostConfig, unknownHostConfig } = loadConfig();
+// Configuration of every configured host, with the host name as key
+const hostConfig = loadConfig();
+
+// The HOST forced in the .env file must be configured, otherwise every request would be unknown
+const forcedHost = process.env.HOST;
+if (forcedHost && !(forcedHost in hostConfig)) throw new Error(`The forced host ${forcedHost} (HOST in .env) `
+    + `is not configured in ${CONFIG_PATH}. Configured hosts: ${Object.keys(hostConfig).join(', ')}`);
+
+// Requests from not configured hosts get the default configuration, but tell they are not recognized
+const unknownHostConfig = processConfig({
+    name: '(Unknown service)',
+    description: 'The requesting URL is not recognized, all local collections will be returned',
+}, 'unknown hosts');
 
 // Get the configuration of a host
 // Note that localhost requests usually include the port (e.g. localhost:8000)

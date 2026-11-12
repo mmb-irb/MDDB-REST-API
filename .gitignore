@@ -5,5 +5,5 @@ build
 .claude
 # Claude Code project instructions
 CLAUDE.md
-# Host configuration of this node (see example-single-config.yml and example-multiple-config.yml)
+# Host configuration of this node (see example-config.yml)
 /config.yml

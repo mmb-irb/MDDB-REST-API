@@ -66,15 +66,17 @@ The host configuration sets the service name and description in the swagger docs
 and how the API behaves (e.g. whether unpublished projects are hidden or it is the global API) depending on the requesting URL.
 
 Every node defines its own configuration in a `config.yml` file at the repository root, which is ignored by git.
-Without this file the API uses the default configuration for every host: a generic MDposit federated node
-which shows unpublished projects (`production: false`).
+**The file is mandatory**: the API does not start without it.
 
-Start from one of the examples, which describe every field and its default value:
+Root keys are the host names (domains) which serve the API, and every host has its own configuration inside,
+e.g. a production and a development domain. Requests from other hosts get the default configuration, labeled as `(Unknown service)`.
+See [example-config.yml](example-config.yml), which describes every field and its default value.
 
-* [example-single-config.yml](example-single-config.yml): one single configuration, used for every requesting host.
-* [example-multiple-config.yml](example-multiple-config.yml): a different configuration for each host (domain) under `hosts`,
-  e.g. a production and a development domain. Requests from other hosts get the default configuration.
+To use one configuration for every request, no matter the host it arrives with (e.g. behind a proxy which changes it),
+configure one single host and force it with `HOST` in the `.env` file. The forced host must be configured in `config.yml`.
 
+Configuration fields at the root (the old single configuration format) and the old `hosts` field are not supported:
+they stop the API when it starts, as an empty file or a host without a set of fields do.
 Missing fields are filled with the default values, and unknown fields stop the API when it starts.
 The file is read once when the API starts, so restart it after changing the file.
 In the [MDDB-docker](https://github.com/mmb-irb/MDDB-docker) setup the file is `rest/config.yml`, which is copied into the image when it is built.

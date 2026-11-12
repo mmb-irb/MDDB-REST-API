@@ -1,7 +1,9 @@
-# Example of a host configuration for a node which serves several hosts with a different behaviour for each
+# Example of a host configuration
 # To use it, copy this file to the repository root as config.yml
-# Every host has its own configuration under 'hosts', with the host name (domain) as key
+# Root keys are the host names (domains) and every host has its own configuration inside
 # Requests from any other host get the default configuration and are labeled as '(Unknown service)'
+# To use one configuration for every request, no matter the host it arrives with (e.g. behind a proxy which changes it),
+# configure one single host and force it with HOST in the .env file
 # Missing fields are filled with the default values (in brackets)
 #
 # name - Service name to be displayed in the swagger docs (MDposit)
@@ -13,21 +15,19 @@
 # hostfix - Host to be displayed in the swagger docs instead of the requesting one (none)
 # optimade - Set if the OPTIMADE API is to be mentioned in the swagger docs (true)
 
-hosts:
+# Requests to localhost match this host, no matter the port (e.g. localhost:8000)
+localhost:
+    name: My node (local)
+    description: The federated node server of my lab
+    accession: A0001
 
-    # Requests to localhost match this host, no matter the port (e.g. localhost:8000)
-    localhost:
-        name: My node (local)
-        description: The federated node server of my lab
-        accession: A0001
+my-node-dev.mddbr.eu:
+    name: My node
+    description: The federated node server of my lab
+    accession: A0001
 
-    my-node-dev.mddbr.eu:
-        name: My node
-        description: The federated node server of my lab
-        accession: A0001
-
-    my-node.mddbr.eu:
-        name: My node
-        description: The federated node server of my lab
-        accession: A0001
-        production: true
+my-node.mddbr.eu:
+    name: My node
+    description: The federated node server of my lab
+    accession: A0001
+    production: true
