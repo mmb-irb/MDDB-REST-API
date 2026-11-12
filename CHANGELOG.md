@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Breaking changes
+
+- **`config.yml` is no longer in the repository**: every node keeps its own one at the repository root, ignored by git. Without it the API uses a generic default configuration (`MDposit`, accession `A0001`, `production: false`) for every host, so **create it before deploying this version**. Start from `example-single-config.yml` (one configuration for every host) or `example-multiple-config.yml` (one per host under `hosts`, as before). Missing fields take default values and unknown fields stop the API when it starts.
+
+### Fixes
+
+- The swagger docs of an unrecognized host no longer keep the host name of the first unrecognized request for later ones.
+
 ## v0.0.19 — 2026-11-09
 
 Changes since v0.0.18 (2026-10-26).

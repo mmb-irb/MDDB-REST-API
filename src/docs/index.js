@@ -1,5 +1,7 @@
 // Library to read yaml files
 const yaml = require('yamljs');
+// Get the configuration parameters for the different requesting hosts
+const { hostConfig, unknownHostConfig } = require('../utils/host-config');
 // Import the swagger logic
 const swaggerUI = require('swagger-ui-express');
 // Get the fields projects can be queried by
@@ -7,15 +9,6 @@ const { QUERY_FIELDS } = require('mddb-database/utils/constants');
 const swaggerInit = swaggerUI.serve[0];
 // Supported REST API versions
 const { API_VERSION_NAMES, CURRENT_API_VERSION } = require('../utils/api-version');
-// Get the configuration parameters for the different requesting hosts
-const hostConfig = yaml.load(`${__dirname}/../../config.yml`).hosts;
-// Set the configuration for a hipotetical missing host
-hostConfig[null] = {
-  name: '(Unknown service)',
-  description:
-    'The requesting URL is not recognized, all simulations will be returned',
-  accession: 'A0001'
-};
 // Set a placeholder for the host name
 // This is internal and should not be seen by the final user
 const UNKNOWN_HOST_PLACEHOLDER = 'UNKNOWN_HOST';
@@ -57,7 +50,9 @@ const getQueryFieldsTable = isGlobal => [
 
 // Elaborate the different possible swagger responsed depending on the request URL
 const swaggerResponses = {};
-Object.entries(hostConfig).forEach(([host, config]) => {
+// Unknown hosts (or every host, if the configuration is the same for all) are under the 'null' key
+const docsConfigs = [ ...Object.entries(hostConfig), [ 'null', unknownHostConfig ] ];
+docsConfigs.forEach(([host, config]) => {
   // Swagger documentation parsed to an object
   const swaggerDocs = yaml.load(`${__dirname}/../docs/description.yml`);
   // Set the servers
@@ -146,10 +141,10 @@ const getUnkownHostConfig = host => {
   // This object contains two string fields: 'swaggerHtmlResponse' and 'swaggerUiInitJs'
   // The one which contains the host placeholder to be replaced is the 'swaggerUiInitJs'
   // Replace the unkown host placeholder everywhere
+  // Return a new object, since the cached one has to keep the placeholder for other hosts
   const fixedJavascript = unkownSwaggerResponse['swaggerUiInitJs']
     .replaceAll(UNKNOWN_HOST_PLACEHOLDER, host);
-  unkownSwaggerResponse['swaggerUiInitJs'] = fixedJavascript;
-  return unkownSwaggerResponse;
+  return { ...unkownSwaggerResponse, swaggerUiInitJs: fixedJavascript };
 }
 
 const getSwaggerDocs = host => swaggerResponses[host] || getUnkownHostConfig(host);

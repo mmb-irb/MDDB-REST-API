@@ -1,7 +1,5 @@
-// Library to read yaml files
-const yaml = require('yamljs');
 // Get the configuration parameters for the different requesting hosts
-const hostConfig = yaml.load(`${__dirname}/../../../config.yml`).hosts;
+const { getHostConfig } = require('../host-config');
 // Standard HTTP response status codes
 const { BAD_REQUEST } = require('../status-codes');
 
@@ -99,24 +97,10 @@ const getValueGetter = path => {
 const getHost = request => process.env.HOST || request.get('host');
 
 // Get the request host and then get the host configuration
-// Configurations are defined in the config.yml file in the root
-// Note that localhost has to do some extra logic to match the configuration
+// Configurations are defined in the config.yml file in the root (see src/utils/host-config)
 // NEVER FORGET: For the host to be inherited (and not 'localhost') you need to configure your apache
 // Add the line 'ProxyPreserveHost On' in the API location settings
-const getConfig = request => {
-    // Get the request host
-    const host = getHost(request);
-    // Get host configuration
-    const config = hostConfig[host];
-    if (config) return config;
-    // When host is the localhost, the request host usually includes the port (e.g. localhost:8000)
-    if (host.startsWith('localhost')) return hostConfig['localhost'];
-    // If we still have no match then return a default value
-    return {
-        name: '(Unknown service)',
-        description: 'The requesting URL is not recognized, all local collections will be returned'
-    };
-}
+const getConfig = request => getHostConfig(getHost(request));
 
 // Given the original URL, get only the base URL, before entering in any endpoint
 // WARNING: Note that the URL base may change

@@ -62,9 +62,22 @@ Note that the API processes must be stopped and run again for new code to be eff
 
 ### config.yml file
 
-You may need to edit this file as well to customize your swagger documentation and define
-how the API should behave depending on the requesting URL.<br/>
-The file in the repository provides an explanation on every field and several examples.
+The host configuration sets the service name and description in the swagger docs, the accession example,
+and how the API behaves (e.g. whether unpublished projects are hidden or it is the global API) depending on the requesting URL.
+
+Every node defines its own configuration in a `config.yml` file at the repository root, which is ignored by git.
+Without this file the API uses the default configuration for every host: a generic MDposit federated node
+which shows unpublished projects (`production: false`).
+
+Start from one of the examples, which describe every field and its default value:
+
+* [example-single-config.yml](example-single-config.yml): one single configuration, used for every requesting host.
+* [example-multiple-config.yml](example-multiple-config.yml): a different configuration for each host (domain) under `hosts`,
+  e.g. a production and a development domain. Requests from other hosts get the default configuration.
+
+Missing fields are filled with the default values, and unknown fields stop the API when it starts.
+The file is read once when the API starts, so restart it after changing the file.
+In the [MDDB-docker](https://github.com/mmb-irb/MDDB-docker) setup the file is `rest/config.yml`, which is copied into the image when it is built.
 
 ### chemfiles installation
 
