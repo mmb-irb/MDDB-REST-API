@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.0.21 — 2026-11-12
+
+Changes since v0.0.20 (2026-11-12).
 
 ### Breaking changes
 
