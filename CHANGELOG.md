@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.0.20 — 2026-11-12
+
+Changes since v0.0.19 (2026-11-09).
 
 ### Breaking changes
 
@@ -9,6 +11,7 @@
 ### Fixes
 
 - The swagger docs of an unrecognized host no longer keep the host name of the first unrecognized request for later ones.
+- The inputs file (`/projects/{project}/inputs`) points to the structure file of every MD, mmCIF or PDB: it always pointed to `structure.pdb`, so downloading with the workflow the projects which only have `structure.cif` failed. File URLs are no longer broken when the inputs file is requested with a format (e.g. `?format=json`).
 
 ## v0.0.19 — 2026-11-09
 
