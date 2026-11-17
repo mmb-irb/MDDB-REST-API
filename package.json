@@ -1,6 +1,6 @@
 {
   "name": "MDDB-REST-API",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "description": "MDDB REST API",
   "main": "index.js",
   "private": true,
