@@ -164,6 +164,48 @@ projectRouter.use('/options', require('./options'));
 // Summary
 projectRouter.use('/summary', require('./summary'));
 
+// Set the maximum (and default) number of project dates to be returned per page
+// This limit is much greater than in other endpoints since every result is small
+const MAX_DATES_LIMIT = 100000;
+
+// Dates
+// Return the number of projects and an object with project accessions as keys and their update dates as values
+projectRouter.route('/dates').get(
+  handler({
+    supportedArguments: ['page', 'limit'],
+    async retriever(request) {
+      // Get the skip (page) and limit of projects to be returned
+      const pagination = getPagination(request,
+        { defaultLimit: MAX_DATES_LIMIT, maxLimit: MAX_DATES_LIMIT });
+      if (pagination.error) return pagination;
+      const { skip, limit } = pagination;
+      // Stablish database connection and retrieve our custom handler
+      const database = await getDatabase(request);
+      // Start filtering by published projects only if we are in production environment
+      // Projects with no accession are skipped since accessions are the keys of the response
+      const finder = database.getBaseFilter();
+      const accessionQuery = { accession: { $type: 'string' } };
+      if (!finder.$and) finder.$and = [ accessionQuery ];
+      else finder.$and.push(accessionQuery);
+      // Get the number of projects to be matched after all
+      const projectsCount = await database.projects.countDocuments(finder);
+      // Get the update date of every paginated project, sorted by accession
+      const projects = await database.projects
+        .find(finder)
+        .project({ _id: false, accession: true, updateDate: true })
+        .sort({ accession: 1 })
+        .allowDiskUse()
+        .skip(skip)
+        .limit(limit)
+        .toArray();
+      // Projects with no update date are set as null
+      const dates = {};
+      projects.forEach(project => dates[project.accession] = project.updateDate || null);
+      return { projectsCount, dates };
+    }
+  }),
+);
+
 // When the request (URL) contains a project parameter
 // It is expected to be a project ID (e.g. .../projects/MCNS00001)
 projectRouter.route('/:project').get(

@@ -241,6 +241,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProjectSummary'
 
+  /projects/dates:
+    get:
+      summary: Get the update dates of all projects.
+      description: >
+        Get the update date of every $DATABASE project, sorted by accession.
+        Projects with no update date are returned as null.
+      tags:
+        - projects
+      parameters:
+        - name: limit
+          in: query
+          description: pagination, maximum number of projects per query
+          schema:
+            type: integer
+            default: 100000
+            maximum: 100000
+        - name: page
+          in: query
+          description: pagination, page number
+          schema:
+            type: integer
+            default: 1
+      responses:
+        200:
+          description: Object with a count and the update dates of the paginated projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectsCount:
+                    type: integer
+                    example: 850
+                  dates:
+                    type: object
+                    description: Project update dates, by accession
+                    additionalProperties:
+                      type: string
+                      format: date-time
+                      nullable: true
+                    example:
+                      A0001: '2026-11-02T10:09:25.000Z'
+                      A0002: null
+
   /projects/{projectAccessionOrID}:
     get:
       summary: Get a project by its accession or identifier.
