@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.0.22 — 2026-11-17
+
+Changes since v0.0.21 (2026-11-12).
+
+### Breaking changes
+
+- The undocumented `allmds` and `filenames` arguments of `/projects/{project}/filenotes` are removed, since only the monitor used them. Use `/projects/{project}/extract` instead.
+
+### New features
+
+- **`/projects/dates`**: the update date of every project, by accession and sorted by accession, with `null` for projects with no update date. Projects with no accession are skipped. It is paginated, with up to 100K results per page.
+- **`/projects/{project}/extract`**: the raw project data, including all MDs, together with the filenotes of its essential files (structure and trajectory) in all MDs, so the federation monitor gets everything it needs in a single request.
+
 ## v0.0.21 — 2026-11-12
 
 Changes since v0.0.20 (2026-11-12).
