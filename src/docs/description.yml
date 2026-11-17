@@ -2510,6 +2510,35 @@ paths:
                 schema:
                   $ref: '#/components/schemas/FileDescription'
 
+  /projects/{projectAccessionOrID}/extract:
+    get:
+      summary: Get the raw project data and the file descriptors of its essential files.
+      description: >
+        Get the raw data of a $DATABASE project, including all MDs, together with
+        the file descriptors of its essential files (structure and trajectory) in
+        all MDs. Note that project files (not belonging to any MD) have a null MD
+        index in their metadata. This is intended for the federation monitor, so
+        it gets everything it needs in a single request.
+      parameters:
+        - $ref: '#/definitions/arguments/projectAccessionOrID'
+      tags:
+        - projects
+      responses:
+        200:
+          description: the raw project data and a list of file descriptors, which may be empty
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  project:
+                    type: object
+                    description: raw project data, as returned by /projects/{projectAccessionOrID}?raw
+                  filenotes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FileDescription'
+
   /projects/{projectAccessionOrID}/analyses:
     get:
       summary: Get the list of available analyses in a specific project.

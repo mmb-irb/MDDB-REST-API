@@ -240,6 +240,8 @@ localRouter.use('/:project/trajectory', require('./trajectory'));
 localRouter.use('/:project/files', require('./files'));
 // Filenotes
 localRouter.use('/:project/filenotes', require('./filenotes'));
+// Extract (project data and filenotes together, for the monitor)
+localRouter.use('/:project/extract', require('./extract'));
 // Analyses
 localRouter.use('/:project/analyses', require('./analyses'));
 // References

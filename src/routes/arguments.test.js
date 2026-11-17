@@ -30,8 +30,6 @@ const UNDOCUMENTED_ARGUMENTS = {
   'POST /projects/{projectAccessionOrID}/trajectory/coordinates': TRAJECTORY_RANGE_ALIASES,
   'GET /projects/{projectAccessionOrID}/trajectory/box': ['bytes', 'x', 'coords', 'y', 'vectors', 'z'],
   'POST /projects/{projectAccessionOrID}/trajectory/box': ['bytes', 'x', 'coords', 'y', 'vectors', 'z'],
-  // These are only interesting for the monitor
-  'GET /projects/{projectAccessionOrID}/filenotes': ['allmds', 'filenames'],
 };
 
 // Resolve a documentation reference (e.g. '#/definitions/arguments/projectAccessionOrID')
