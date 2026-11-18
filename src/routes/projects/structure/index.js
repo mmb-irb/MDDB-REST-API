@@ -18,6 +18,8 @@ const producePdb = require('./produce-pdb');
 // Function to produce a mmCIF from topology and coordinates
 const produceMmcif = require('./produce-mmcif');
 const { STRUCTURE_FORMATS } = require('../../../utils/constants');
+// Check if the response is to be compressed
+const { acceptsCompression } = require('../../../middlewares/compression');
 
 // Supported output formats
 // Note that format names are case insensitive
@@ -157,17 +159,21 @@ const structureHandler = handler({
     const dataName = project.data.accession || project.data.internalId.toString();
     // The mmCIF has always both numerations, while the PDB has only the requested one
     const outputTopologyData = structureFormat.producer === produceMmcif ? topologyData : numberedTopologyData;
-    const structureContent = structureFormat.producer(outputTopologyData, frameCoordinates, atomIndices, dataName);
-    if (structureContent.error) return structureContent;
-    // Convert the structure content to a buffer adn then to a stream
-    const bufferStructure = Buffer.from(structureContent, 'utf-8');
-    const stream = Readable.from([bufferStructure]);
+    // The structure is written in chunks while it is sent, so the client starts receiving data immediately
+    // Otherwise big structures may take longer to be produced than the proxy timeout
+    // Unless the response is compressed, atom lines are aligned so the content length is known in advance
+    // Compressed responses have no content length, so there is no need to align them
+    const aligned = !acceptsCompression(request);
+    const streamedStructure = structureFormat.producer.stream(
+      outputTopologyData, frameCoordinates, atomIndices, dataName, aligned);
+    if (streamedStructure.error) return streamedStructure;
+    const stream = Readable.from(streamedStructure.chunks);
     // Set the output filename according to some standards
     // Note that the structure is generated, so there is no file descriptor
     // Mimic the one of the standard structure file, which belongs to the current MD
     const outputDescriptor = { filename: database.STANDARD_STRUCTURE_FILENAME, metadata: { md: project.mdIndex } };
     const filename = setOutputFilename(project.data, outputDescriptor, structureFormat.extension);
-    return { filename, length: bufferStructure.length, contentType: structureFormat.contentType, stream };
+    return { filename, length: streamedStructure.length, contentType: structureFormat.contentType, stream };
   },
   // Handle the response header
   headers(response, retrieved) {
@@ -176,8 +182,8 @@ const structureHandler = handler({
     // If there is any specific header error in the retrieved then send it
     // Note that we do not end the response here since the body may contain additional error details
     if (retrieved.headerError) return response.status(retrieved.headerError);
-    // If there is an active stream, send range and length content
-    response.set('content-length', retrieved.length);
+    // Set the content length, which is known only when the structure is not compressed
+    if (retrieved.length !== undefined) response.set('content-length', retrieved.length);
     response.set('content-type', retrieved.contentType);
     // Set the output filename
     response.setHeader(

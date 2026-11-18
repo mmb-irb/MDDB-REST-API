@@ -19,4 +19,12 @@ const compressionMiddleware = () => compression({
   filter: shouldCompress,
 });
 
-module.exports = { compressionMiddleware, shouldCompress };
+// Check if the client accepts a compressed response
+// This mimics the encoding negotiation of the compression middleware, which skips compression when it results in identity
+// Note that the middleware may still skip compression for other reasons (e.g. responses below 1kb)
+const acceptsCompression = request => {
+  const encoding = request.acceptsEncodings(['br', 'gzip', 'deflate', 'identity']);
+  return Boolean(encoding) && encoding !== 'identity';
+};
+
+module.exports = { compressionMiddleware, shouldCompress, acceptsCompression };

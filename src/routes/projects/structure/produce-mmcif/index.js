@@ -4,6 +4,10 @@
 const { INTERNAL_SERVER_ERROR } = require("../../../../utils/status-codes");
 // The mmCIF needs the same topology fields than the PDB, plus the residue reference numbers
 const { TOPOLOGY_FIELDS: PDB_TOPOLOGY_FIELDS } = require('../produce-pdb');
+// Tools to write the structure in chunks
+const {
+    alignCells, alignCellsArray, getCoordinateWidth, getAlignedLength, streamLines, joinChunks, getTargetAtomIndices
+} = require('../stream-lines');
 
 // Set the flag mmCIF uses to state missing values
 const MMCIF_MISSING_VALUE = '?';
@@ -33,66 +37,108 @@ const formatValue = value => {
 
 // Optionally you may pass a selection of atom indices to filter
 // The data name is used to name the mmCIF data block
-const produceMmcif = (topologyData, frameCoordinates, atomIndices, dataName = 'structure') => {
+// If the length is requested then all fields are padded to a fixed width, so all atom lines have the same length
+// This way the length of the file is known in advance
+// Return the expected length (if requested) and a generator of chunks (buffers) with the file content
+const streamMmcif = (topologyData, frameCoordinates, atomIndices, dataName = 'structure', withLength = false) => {
     // Make sure we have as many coordinates as atoms to be written
     const nAtoms = atomIndices ? atomIndices.length : topologyData['atom_names'].length;
     if (frameCoordinates.length !== nAtoms) return {
         headerError: INTERNAL_SERVER_ERROR,
         error: 'Number of frame coordinates and expected atoms does not match'
     };
-    // Set target atom indices as a set
-    const targetAtomIndices = atomIndices && new Set(atomIndices);
-    // Start by the data block header and the atom site loop header
+    const targetAtomIndices = getTargetAtomIndices(atomIndices, nAtoms);
+    // Set the data block header and the atom site loop header
     // Data block names can not include whitespaces
-    let mmcifContent = `data_${dataName.replace(/\s/g, '_')}\n#\n`;
-    mmcifContent += '# MDDB API produced mmCIF file\n#\n';
-    mmcifContent += 'loop_\n' + ATOM_SITE_FIELDS.map(field => `_atom_site.${field}\n`).join('');
-    // Iterate atoms and write a new line for every atom
-    let count = 0;
-    for (let atomIndex = 0; atomIndex < topologyData['atom_names'].length; atomIndex++) {
-        // Skip this atom if it is not among the targeted atom indicies
-        if (targetAtomIndices && !targetAtomIndices.has(atomIndex)) continue;
-        // Get current atom topology values
-        const atomName = formatValue(topologyData['atom_names'][atomIndex]);
-        const atomElement = formatValue(topologyData['atom_elements'][atomIndex]);
-        // Get the atom residue index
-        const residueIndex = topologyData['atom_residue_indices'][atomIndex];
-        // Using the resiude index find its name, number and insertion code
-        const residueName = formatValue(topologyData['residue_names'][residueIndex]);
-        // There are two residue numerations:
-        // The author numeration, which may have been renumbered for coherence, is written in the author fields
-        // The reference (UniProt) numeration is written in the label fields
-        // Residues with no reference numeration (e.g. not proteins) use the author numeration also in the label fields
-        // Note that NGL reads the author fields, so NGL selections use the author numeration
-        const authorNumber = topologyData['residue_numbers'][residueIndex];
-        const referenceNumbers = topologyData['residue_reference_numbers'];
-        const referenceNumber = referenceNumbers && referenceNumbers[residueIndex];
-        const authorResidueNumber = formatValue(authorNumber);
-        const labelResidueNumber = formatValue(referenceNumber === undefined || referenceNumber === null
-            ? authorNumber : referenceNumber);
-        const residueIcode = formatValue(topologyData['residue_icodes'] && topologyData['residue_icodes'][residueIndex]);
-        // Get the chain index
-        const chainIndex = topologyData['residue_chain_indices'][residueIndex];
-        // Use the chain index to get the chain name
-        // Note that, unlike in PDB, chain names in mmCIF are not limited to one character
-        const chainName = formatValue(topologyData['chain_names'][chainIndex]);
-        // Get current atom coordinates
-        const coords = frameCoordinates[count];
-        const [ xCoord, yCoord, zCoord ] = coords.map(coord => coord.toFixed(3));
-        // Add 1 to de count and set the atom serial according to the count
-        // Note that, unlike in PDB, atom serials in mmCIF have no width limit
-        count += 1;
-        // Add the new line to the mmCIF content
-        // There is no alternate location, entity id or formal charge, and there is a single model
-        // Occupancy and temp factor are placeholders
-        mmcifContent += `ATOM ${count} ${atomElement} ${atomName} . ${residueName} ${chainName} ` +
-            `${MMCIF_MISSING_VALUE} ${labelResidueNumber} ${residueIcode} ${xCoord} ${yCoord} ${zCoord} 1.00 0.00 ` +
-            `${MMCIF_MISSING_VALUE} ${authorResidueNumber} ${residueName} ${chainName} ${atomName} 1\n`;
+    const header = `data_${dataName.replace(/\s/g, '_')}\n#\n` +
+        '# MDDB API produced mmCIF file\n#\n' +
+        'loop_\n' + ATOM_SITE_FIELDS.map(field => `_atom_site.${field}\n`).join('');
+    const tail = '#\n';
+    // Format every different atom name and element only once
+    const atomNames = topologyData['atom_names'];
+    const atomElements = topologyData['atom_elements'];
+    const atomNameCells = new Map();
+    const atomElementCells = new Map();
+    for (const atomIndex of targetAtomIndices) {
+        const atomName = atomNames[atomIndex];
+        if (!atomNameCells.has(atomName)) atomNameCells.set(atomName, formatValue(atomName));
+        const atomElement = atomElements[atomIndex];
+        if (!atomElementCells.has(atomElement)) atomElementCells.set(atomElement, formatValue(atomElement));
     }
-    mmcifContent += '#\n';
-    // Return the final mmCIF content
-    return mmcifContent;
+    // Format the residue fields once per residue
+    // There are two residue numerations:
+    // The author numeration, which may have been renumbered for coherence, is written in the author fields
+    // The reference (UniProt) numeration is written in the label fields
+    // Residues with no reference numeration (e.g. not proteins) use the author numeration also in the label fields
+    // Note that NGL reads the author fields, so NGL selections use the author numeration
+    const residueNumbers = topologyData['residue_numbers'];
+    const referenceNumbers = topologyData['residue_reference_numbers'];
+    const residueIcodes = topologyData['residue_icodes'];
+    const residueChainIndices = topologyData['residue_chain_indices'];
+    const residueNameCells = topologyData['residue_names'].map(formatValue);
+    const authorNumberCells = residueNumbers.map(formatValue);
+    const labelNumberCells = residueNumbers.map((authorNumber, residueIndex) => {
+        const referenceNumber = referenceNumbers && referenceNumbers[residueIndex];
+        return formatValue(referenceNumber === undefined || referenceNumber === null ? authorNumber : referenceNumber);
+    });
+    const icodeCells = residueNumbers.map((_, residueIndex) => formatValue(residueIcodes && residueIcodes[residueIndex]));
+    // Note that, unlike in PDB, chain names in mmCIF are not limited to one character
+    let chainNameCells = topologyData['chain_names'].map(formatValue);
+    // Get the coordinates width
+    let coordinateWidth = 0;
+    const aligned = withLength;
+    // Pad all fields to the width of their widest value
+    // Text fields are left aligned and numeric fields are right aligned
+    if (aligned) {
+        alignCells(atomNameCells, 'end');
+        alignCells(atomElementCells, 'end');
+        coordinateWidth = getCoordinateWidth(frameCoordinates);
+        chainNameCells = alignCellsArray(chainNameCells, 'end');
+    }
+    const alignResidueCells = (cells, side) => aligned ? alignCellsArray(cells, side) : cells;
+    const residueNames = alignResidueCells(residueNameCells, 'end');
+    const authorNumbers = alignResidueCells(authorNumberCells, 'start');
+    const labelNumbers = alignResidueCells(labelNumberCells, 'start');
+    const icodes = alignResidueCells(icodeCells, 'end');
+    // Join the residue fields which are written together
+    // There is no entity id
+    const residueLabelCells = residueNames.map((residueName, residueIndex) => {
+        const chainName = chainNameCells[residueChainIndices[residueIndex]];
+        return `${residueName} ${chainName} ${MMCIF_MISSING_VALUE} ${labelNumbers[residueIndex]} ${icodes[residueIndex]} `;
+    });
+    const residueAuthorCells = residueNames.map((residueName, residueIndex) => {
+        const chainName = chainNameCells[residueChainIndices[residueIndex]];
+        return `${authorNumbers[residueIndex]} ${residueName} ${chainName} `;
+    });
+    // Note that, unlike in PDB, atom serials in mmCIF have no width limit
+    const serialWidth = aligned ? String(nAtoms).length : 0;
+    const atomResidueIndices = topologyData['atom_residue_indices'];
+    // Write a line for a given atom
+    // There is no alternate location or formal charge, and there is a single model
+    // Occupancy and temp factor are placeholders
+    const formatLine = count => {
+        const atomIndex = targetAtomIndices[count];
+        const residueIndex = atomResidueIndices[atomIndex];
+        const atomName = atomNameCells.get(atomNames[atomIndex]);
+        const atomElement = atomElementCells.get(atomElements[atomIndex]);
+        const serial = String(count + 1).padStart(serialWidth);
+        const [ xCoord, yCoord, zCoord ] = frameCoordinates[count].map(coord => coord.toFixed(3).padStart(coordinateWidth));
+        return `ATOM ${serial} ${atomElement} ${atomName} . ${residueLabelCells[residueIndex]}` +
+            `${xCoord} ${yCoord} ${zCoord} 1.00 0.00 ${MMCIF_MISSING_VALUE} ` +
+            `${residueAuthorCells[residueIndex]}${atomName} 1\n`;
+    };
+    const length = withLength ? getAlignedLength({ header, tail, nLines: nAtoms, formatLine }) : undefined;
+    return streamLines({ header, tail, nLines: nAtoms, formatLine, length });
 };
+
+// Produce the whole mmCIF content as a string
+// Arguments are the same than in the stream function above
+const produceMmcif = (...args) => {
+    const streamed = streamMmcif(...args);
+    if (streamed.error) return streamed;
+    return joinChunks(streamed);
+};
+produceMmcif.stream = streamMmcif;
 
 // Topology fields read to build the mmCIF
 // The structure route loads only these, since loading the whole topology is slow for big systems
