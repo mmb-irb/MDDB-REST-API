@@ -35,6 +35,16 @@ if (!PORT) throw new Error('Missing listen port in env');
 
 const app = express();
 
+// Mark every response as coming from the API, including errors
+// This way clients can tell API errors apart from errors of proxies or servers in between (e.g. a proxy timeout)
+// It is the first middleware so no response escapes it
+// Note that the header must be exposed through CORS (see below) so clients from other origins can read it
+const API_HEADER = 'X-MDDB-API';
+app.use((request, response, next) => {
+  response.set(API_HEADER, version);
+  next();
+});
+
 // Middleware to track endpoint usage and response times
 app.use(metricsMiddleware());
 
@@ -59,7 +69,7 @@ app.use(
   cors({
     origin: '*',
     methods: ['GET', 'POST', 'HEAD', 'OPTIONS'],
-    exposedHeaders: ['content-length', 'content-range'],
+    exposedHeaders: ['content-length', 'content-range', API_HEADER],
   }),
 );
 
