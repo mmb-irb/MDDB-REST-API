@@ -11,7 +11,7 @@ const { mergeArgumentsMiddleware } = require('../../middlewares/merge-arguments'
 // MDs loaded since the workflow writes mmCIF structures, before it, and with no structure file
 const getMockProject = () => ({
   accession: 'A0001',
-  metadata: { NAME: 'Test project' },
+  metadata: { NAME: 'Test project', FORCED_CLASS_SELECTION: { solvent: 'resname wate' } },
   files: [{ name: 'topology.json' }],
   mdref: 0,
   mds: [
@@ -62,5 +62,10 @@ describe('inputs file', () => {
     const getPath = url => new URL(url).pathname;
     expect(getPath(response.body.mds[0].input_trajectory_filepaths)).toBe('/api/v1/A0001.1/files/trajectory.xtc');
     expect(getPath(response.body.input_topology_filepath)).toBe('/api/v1/A0001/files/topology.json');
+  });
+
+  test('forced class selections are kept', async () => {
+    const response = await getJson('/v1/A0001/inputs?format=json');
+    expect(response.body.forced_class_selections).toEqual({ solvent: 'resname wate' });
   });
 });

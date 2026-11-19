@@ -135,7 +135,7 @@ router.route('/').get(
         pbc_selection: metadata.PBC_SELECTION,
         cg_selection: metadata.CG_SELECTION,
         dummy_selection: metadata.DUMMY_SELECTION,
-        forced_class_selections: metadata.FORCED_CLASS_SELECTIONS,
+        forced_class_selections: metadata.FORCED_CLASS_SELECTION,
         chainnames: metadata.CHAINNAMES,
         customs: metadata.CUSTOMS,
         orientation: metadata.ORIENTATION,
