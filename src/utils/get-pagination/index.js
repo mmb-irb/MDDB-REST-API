@@ -13,7 +13,7 @@ const getPagination = (request, { defaultLimit = DEFAULT_LIMIT, maxLimit = MAX_L
   const { page = '1', limit = String(defaultLimit) } = request.query;
   if (!/^\d+$/.test(page) || Number(page) < 1) return {
     headerError: BAD_REQUEST,
-    error: `Page "${page}" is not a positive integer`
+    error: `Page "${page}" is not a positive integer (pagination is 1-based, so the first page is 1)`
   };
   if (!/^\d+$/.test(limit)) return {
     headerError: BAD_REQUEST,
