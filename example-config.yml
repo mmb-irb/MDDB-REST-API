@@ -1,7 +1,7 @@
 # Example of a host configuration
 # To use it, copy this file to the repository root as config.yml
 # Root keys are the host names (domains) and every host has its own configuration inside
-# Requests from any other host get the default configuration and are labeled as '(Unknown service)'
+# Requests from any other host are refused with an error which tells the received host
 # To use one configuration for every request, no matter the host it arrives with (e.g. behind a proxy which changes it),
 # configure one single host and force it with HOST in the .env file
 # Missing fields are filled with the default values (in brackets)
@@ -15,11 +15,11 @@
 # hostfix - Host to be displayed in the swagger docs instead of the requesting one (none)
 # optimade - Set if the OPTIMADE API is to be mentioned in the swagger docs (true)
 
-# Requests to localhost match this host, no matter the port (e.g. localhost:8000)
-localhost:
-    name: My node (local)
-    description: The federated node server of my lab
-    accession: A0001
+# WARNING: The host is read from the request, so a client may send whatever host it wants
+# WARNING: Thus any host written here may be requested by anyone who can reach the API, no matter its real domain
+# WARNING: Never configure a host with more access (e.g. 'production: false') than the most public one
+# WARNING: unless the API cannot be reached with that host from outside (e.g. a development machine)
+# Hosts which are not written here are refused with an error which tells the received host
 
 my-node-dev.mddbr.eu:
     name: My node

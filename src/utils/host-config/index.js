@@ -78,18 +78,30 @@ const forcedHost = process.env.HOST;
 if (forcedHost && !(forcedHost in hostConfig)) throw new Error(`The forced host ${forcedHost} (HOST in .env) `
     + `is not configured in ${CONFIG_PATH}. Configured hosts: ${Object.keys(hostConfig).join(', ')}`);
 
-// Requests from not configured hosts get the default configuration, but tell they are not recognized
+// Requests from not configured hosts are refused by the API (see src/middlewares/known-host)
+// This configuration is only used by the places which still need one for them (e.g. the swagger docs)
+// WARNING: The host is sent by the client, so anyone may choose to be an unknown host
+// WARNING: Thus this configuration must be the most restrictive one: only published projects, never unpublished ones
 const unknownHostConfig = processConfig({
     name: '(Unknown service)',
-    description: 'The requesting URL is not recognized, all local collections will be returned',
+    description: 'The requesting URL is not recognized, all published local collections will be returned',
+    production: true,
 }, 'unknown hosts');
 
-// Get the configuration of a host
+// Find the configuration of a host, or undefined if the host is not configured
 // Note that localhost requests usually include the port (e.g. localhost:8000)
-const getHostConfig = host => {
-    if (host in hostConfig) return hostConfig[host];
-    if (host.startsWith('localhost') && 'localhost' in hostConfig) return hostConfig['localhost'];
-    return unknownHostConfig;
+// WARNING: Use 'hasOwn' since the host is user input and 'in' also finds inherited keys (e.g. 'constructor')
+// WARNING: Match localhost exactly, since a prefix match would also accept hosts such as 'localhost.example.com'
+const LOCALHOST_REGEXP = /^localhost(:\d+)?$/;
+const findHostConfig = host => {
+    if (Object.hasOwn(hostConfig, host)) return hostConfig[host];
+    if (LOCALHOST_REGEXP.test(host) && Object.hasOwn(hostConfig, 'localhost')) return hostConfig['localhost'];
 };
 
-module.exports = { hostConfig, unknownHostConfig, getHostConfig };
+// Check if a host is configured
+const isKnownHost = host => findHostConfig(host) !== undefined;
+
+// Get the configuration of a host
+const getHostConfig = host => findHostConfig(host) || unknownHostConfig;
+
+module.exports = { hostConfig, unknownHostConfig, getHostConfig, isKnownHost };

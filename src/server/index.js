@@ -10,6 +10,7 @@ const chalk = require('chalk');
 const { metricsMiddleware } = require('../middlewares/metrics');
 const { compressionMiddleware } = require('../middlewares/compression');
 const { mergeArgumentsMiddleware } = require('../middlewares/merge-arguments');
+const { knownHostMiddleware } = require('../middlewares/known-host');
 
 const routes = require('../routes');
 //const getCustomTimeout = require('../middlewares/custom-timeout');
@@ -117,13 +118,14 @@ app.get('/rest/codemeta', (_, res) => {
 });
 
 // Routes with more logic
+// Requests from hosts which are not configured are refused, since their behaviour depends on the host
 // All versions share the same routes and the requested version is available through getApiVersion
 // Body arguments are merged into the query, so endpoints read all arguments from the query
 for (const versionName of API_VERSION_NAMES)
-  app.use(`/rest/${versionName}`, apiVersionMiddleware(versionName), mergeArgumentsMiddleware, routes);
+  app.use(`/rest/${versionName}`, knownHostMiddleware, apiVersionMiddleware(versionName), mergeArgumentsMiddleware, routes);
 
 // MCP server for LLM clients, over this API
-app.use('/rest/mcp', require('../mcp'));
+app.use('/rest/mcp', knownHostMiddleware, require('../mcp'));
 
 
 // NEVER FORGET: El sistema recomendado para editar el swagger on the fly no me funcionaba bien y no me permitía pasar opciones

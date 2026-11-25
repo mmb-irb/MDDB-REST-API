@@ -69,7 +69,8 @@ Every node defines its own configuration in a `config.yml` file at the repositor
 **The file is mandatory**: the API does not start without it.
 
 Root keys are the host names (domains) which serve the API, and every host has its own configuration inside,
-e.g. a production and a development domain. Requests from other hosts get the default configuration, labeled as `(Unknown service)`.
+e.g. a production and a development domain. Requests from other hosts are refused with an error which tells the received host.
+The host is sent by the client, so never configure a host which shows unpublished projects (`production: false`) if it can be requested from outside.
 See [example-config.yml](example-config.yml), which describes every field and its default value.
 
 To use one configuration for every request, no matter the host it arrives with (e.g. behind a proxy which changes it),
