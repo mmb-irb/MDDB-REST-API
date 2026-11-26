@@ -7,6 +7,10 @@ const getPagination = require('../../utils/get-pagination');
 const getDatabase = require('../../database');
 // Get the project formatter
 const projectFormatter = require('../../utils/project-formatter');
+// Get the standard HTTP response status codes
+const { BAD_REQUEST } = require('../../utils/status-codes');
+// Get the function to keep only some fields of an object
+const pickFields = require('../../utils/pick-fields');
 // Get auxiliar functions
 const { parseJSON, getConfig, getSearchQuery, getRequestedIds } = require('../../utils/auxiliar-functions');
 // Get the filter and return parsers
@@ -18,7 +22,7 @@ const projectRouter = Router();
 // Note that projects may be requested both through GET and POST methods
 // POST method was implemented to allow long lists of ids
 const rootHandler = handler({
-  supportedArguments: ['ids', 'search', 'filter', 'return', 'sort', 'raw', 'countMds', 'page', 'limit'],
+  supportedArguments: ['ids', 'search', 'filter', 'return', 'get', 'sort', 'raw', 'countMds', 'page', 'limit'],
   async retriever(request) {
     // Get the skip (page) and limit of projects to be returned
     const pagination = getPagination(request);
@@ -58,6 +62,17 @@ const rootHandler = handler({
     if (returnedFields.error) return returnedFields;
     const referencesError = checkNoReferenceFields(returnedFields);
     if (referencesError) return referencesError;
+    // Get the fields to be kept after formatting the projects
+    // Unlike 'return', this does not affect the mongo query, so these fields are paths of the formatted project
+    const getFields = parseReturn(request.query.get);
+    if (getFields.error) return getFields;
+    const getReferencesError = checkNoReferenceFields(getFields);
+    if (getReferencesError) return getReferencesError;
+    // Both arguments do the same in different ways, so using them together makes no sense
+    if (returnedFields.length > 0 && getFields.length > 0) return {
+      headerError: BAD_REQUEST,
+      error: "The 'return' and 'get' arguments are incompatible. Use only one of them"
+    };
     const projector = Object.fromEntries(returnedFields.map(field => [ field, true ]));
     // Set option to be passed
     const options = {};
@@ -150,7 +165,12 @@ const rootHandler = handler({
       // Each project is cleaned (some attributes are renamed or removed)
       // WARNING: Do not leave this line as 'map(projectMapping)' or you will have a bug
       // WARNING: The map function index is passed as requested MD index to the projectFormatter function
-      .map(project => projectMapping(project))
+      .map(project => {
+        const mappedProject = projectMapping(project);
+        // Projects which failed to be formatted are returned as they are
+        if (getFields.length === 0 || mappedProject.error) return mappedProject;
+        return pickFields(mappedProject, getFields);
+      })
       // Changes the type from Cursor into Array, then saving data in memory
       .toArray();
     return { filteredCount, totalMdsCount, projects };

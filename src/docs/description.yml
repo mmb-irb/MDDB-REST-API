@@ -45,6 +45,7 @@ paths:
             type: string
         - $ref: '#/definitions/arguments/projectsFilter'
         - $ref: '#/definitions/arguments/projectsReturn'
+        - $ref: '#/definitions/arguments/projectsGet'
         - name: raw
           in: query
           description: >
@@ -114,6 +115,7 @@ paths:
             type: string
         - $ref: '#/definitions/arguments/projectsFilter'
         - $ref: '#/definitions/arguments/projectsReturn'
+        - $ref: '#/definitions/arguments/projectsGet'
         - name: raw
           in: query
           description: >
@@ -4710,6 +4712,19 @@ definitions:
         Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
         Fields from references (e.g. 'uniprotOrganism') are not supported.
         Note that when fields to be returned are passed the response becomes raw (i.e. data as it is stored in the database, not formatted).
+      schema:
+        type: string
+    projectsGet:
+      name: get
+      in: query
+      description: >
+        Fields to be kept in every project, separated by commas (e.g. 'name,author').
+        Several get arguments may be passed as well.
+        It is useful to reduce the amount of data in the response and thus the internet traffic.
+        Fields are taken from the formatted project, as it is returned by default, so their paths are the ones in the response.
+        Fields may be passed by their full path (e.g. 'metadata.AUTHORS') or by their alias (e.g. 'author').
+        Fields from references (e.g. 'uniprotOrganism') are not supported.
+        Fields which a project lacks are skipped.
       schema:
         type: string
     referenceIds:
